@@ -6,6 +6,7 @@ from api.models import db, User
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash
+import re
 
 
 api = Blueprint('api', __name__)
@@ -39,6 +40,11 @@ def register():
 
     if not name or not last_name or not phone or not email or not password:
         return jsonify({"message": "Todos los campos son obligatorios"}), 400
+
+    email_pattern = r'^[^@\s]+@[^@\s]+\.[^@\s]+$'
+
+    if not re.match(email_pattern, email):
+     return jsonify({"message": "El correo electrónico no es válido"}), 400
 
     existing_user = db.session.execute(
         db.select(User).where(User.email == email)
