@@ -6,7 +6,6 @@ from api.models import db, User
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash
-import re
 
 
 api = Blueprint('api', __name__)
@@ -24,6 +23,7 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
+
 @api.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -31,19 +31,14 @@ def register():
     if not data:
         return jsonify({"message": "No se recibieron datos"}), 400
 
-    nombre = data.get("nombre")
-    apellidos = data.get("apellidos")
-    telefono = data.get("telefono")
+    name = data.get("name")
+    last_name = data.get("last_name")
+    phone = data.get("phone")
     email = data.get("email")
     password = data.get("password")
 
-    if not nombre or not apellidos or not telefono or not email or not password:
+    if not name or not last_name or not phone or not email or not password:
         return jsonify({"message": "Todos los campos son obligatorios"}), 400
-
-    email_pattern = r'^[^@\s]+@[^@\s]+\.[^@\s]+$'
-
-    if not re.match(email_pattern, email):
-        return jsonify({"message": "El correo electrónico no es válido"}), 400
 
     existing_user = db.session.execute(
         db.select(User).where(User.email == email)
@@ -58,12 +53,12 @@ def register():
     hashed_password = generate_password_hash(password)
 
     new_user = User(
-        nombre=nombre,
-        apellidos=apellidos,
-        telefono=telefono,
+        name=name,
+        last_name=last_name,
+        phone=phone,
         email=email,
         password=hashed_password,
-        role="cliente",
+        role="client",
         is_active=True
     )
 
@@ -73,4 +68,4 @@ def register():
     return jsonify({
         "message": "Usuario registrado correctamente",
         "user": new_user.serialize()
-    }), 201   
+    }), 201
