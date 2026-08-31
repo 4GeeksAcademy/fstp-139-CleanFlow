@@ -1,6 +1,7 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
+import re
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User
 from api.utils import generate_sitemap, APIException
@@ -55,17 +56,17 @@ def register():
     if len(password) < 6:
         return jsonify({"message": "La contraseña debe tener mínimo 6 caracteres"}), 400
 
-    hashed_password = generate_password_hash(password)
+    
 
     new_user = User(
         name=name,
         last_name=last_name,
         phone=phone,
         email=email,
-        password=hashed_password,
         role="client",
         is_active=True
     )
+    new_user.set_password(password)
 
     db.session.add(new_user)
     db.session.commit()
@@ -78,20 +79,20 @@ def register():
 @api.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    email = date.get("email")
+    email = data.get("email")
     password = data.get("password")
 
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
     existing_user = db.session.execute(db.select(User).where(
-        User.email == email)).scalar_one_or_none
+        User.email == email)).scalar_one_or_none()
 
     if existing_user is None:
         return jsonify({"error": "Invalid email or password"}), 401
 
     if existing_user.check_password(password):
-        access_token = create_access_token(identity=str(existing_user.id))
+        access_token = create_access_token(identity=str(existing_user.user_id))
         return jsonify({"msg": "Logged succefully", "token": access_token}), 200
     else:
         return jsonify({"error": "Invalid email or password"}), 401 
