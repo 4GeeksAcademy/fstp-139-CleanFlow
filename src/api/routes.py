@@ -44,7 +44,7 @@ def register():
     email_pattern = r'^[^@\s]+@[^@\s]+\.[^@\s]+$'
 
     if not re.match(email_pattern, email):
-     return jsonify({"message": "El correo electrónico no es válido"}), 400
+        return jsonify({"message": "El correo electrónico no es válido"}), 400
 
     existing_user = db.session.execute(
         db.select(User).where(User.email == email)
@@ -55,8 +55,6 @@ def register():
 
     if len(password) < 6:
         return jsonify({"message": "La contraseña debe tener mínimo 6 caracteres"}), 400
-
-    
 
     new_user = User(
         name=name,
@@ -76,6 +74,7 @@ def register():
         "user": new_user.serialize()
     }), 201
 
+
 @api.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -93,10 +92,15 @@ def login():
 
     if existing_user.check_password(password):
         access_token = create_access_token(identity=str(existing_user.user_id))
-        return jsonify({"msg": "Logged succefully", "token": access_token}), 200
+        return jsonify({
+            "msg": "Logged succefully",
+            "token": access_token,
+            "user": existing_user.serialize_session()
+        }), 200
     else:
-        return jsonify({"error": "Invalid email or password"}), 401 
-        
+        return jsonify({"error": "Invalid email or password"}), 401
+
+
 @api.route("/dashboard", methods=["GET"])
 @jwt_required()
 def get_profile():
@@ -106,5 +110,4 @@ def get_profile():
     if not user:
         return jsonify({"error": "User not found"}), 404
     
-    return jsonify(user.serialize()), 200
-
+    return jsonify({"user": user.serialize_session()}), 200
