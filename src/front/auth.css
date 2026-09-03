@@ -93,6 +93,19 @@
     font-size: 13px;
 }
 
+/* Aviso informativo, no un error: sesión caducada, etc. En tonos de la
+   marca en vez de rojo, para que no parezca que el usuario ha hecho algo
+   mal. */
+.auth-notice {
+    margin: 0 0 18px;
+    padding: 10px 12px;
+    border-radius: var(--auth-radius-sm);
+    background: #f0ede0;
+    border: 1px solid var(--auth-border);
+    color: var(--auth-text);
+    font-size: 13px;
+}
+
 /* ---- Campos ---- */
 
 .auth-field { margin-bottom: 16px; }

@@ -12,13 +12,22 @@
  * No decide permisos: de eso se encarga RoleRoute.
  */
 
-import { useEffect } from "react"
-import { Navigate, Outlet } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { Navigate, Outlet, useLocation } from "react-router-dom"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { getProfile } from "../../services/userService"
 
 export const ProtectedRoutes = () => {
     const { store, dispatch } = useGlobalReducer()
+
+    // Ruta que el usuario está intentando abrir. Se le pasa al login para
+    // poder devolverlo aquí después de autenticarse.
+    const location = useLocation()
+
+    // Distingue "nunca hubo sesión" de "la sesión caducó". Sin este dato,
+    // el <Navigate> de abajo no podría saber si mostrar el aviso: cuando
+    // se ejecuta, el token ya se ha borrado en los dos casos.
+    const [sessionExpired, setSessionExpired] = useState(false)
 
     // ------------------------------------------------------------------
     // REVALIDACIÓN CONTRA EL BACKEND
@@ -47,12 +56,16 @@ export const ProtectedRoutes = () => {
                     dispatch({ type: "SET_USER", payload: data.user })
                 } else {
                     // El servidor rechaza el token (401 o 422: caducado,
-                    // manipulado o inválido). LOGOUT limpia el store y
-                    // localStorage; eso deja store.token a null y provoca
-                    // un nuevo render, donde el <Navigate> de abajo hace el
-                    // resto. Por eso aquí no hace falta navegar a mano:
-                    // hay una única salida hacia el login en todo el
-                    // componente.
+                    // manipulado o inválido). Se marca como caducada ANTES
+                    // del LOGOUT: React agrupa los dos cambios y el render
+                    // siguiente ya llega con el aviso puesto.
+                    //
+                    // LOGOUT limpia el store y localStorage; eso deja
+                    // store.token a null y provoca ese nuevo render, donde
+                    // el <Navigate> de abajo hace el resto. Por eso aquí no
+                    // hace falta navegar a mano: hay una única salida hacia
+                    // el login en todo el componente.
+                    setSessionExpired(true)
                     dispatch({ type: "LOGOUT" })
                 }
             } catch (error) {
@@ -79,11 +92,24 @@ export const ProtectedRoutes = () => {
     // LA DECISIÓN
     // ------------------------------------------------------------------
 
-    // Sin token, fuera. `replace` sustituye la entrada del historial en
-    // vez de añadir una: sin él, el botón "atrás" devolvería al usuario a
-    // la ruta privada, que volvería a expulsarlo, en bucle.
+    // Sin token, fuera.
+    //
+    // `replace` sustituye la entrada del historial en vez de añadir una:
+    // sin él, el botón "atrás" devolvería al usuario a la ruta privada,
+    // que volvería a expulsarlo, en bucle.
+    //
+    // `state` viaja con la navegación pero NO aparece en la URL. Lleva dos
+    // datos al login: dónde quería ir el usuario, y si llega aquí porque
+    // su sesión caducó. Son ejes independientes: replace toca el
+    // historial, state transporta información.
     if (!store.token) {
-        return <Navigate to={"/login"} replace />
+        return (
+            <Navigate
+                to={"/login"}
+                replace
+                state={{ from: location, expired: sessionExpired }}
+            />
+        )
     }
 
     // Hay sesión: se pinta la ruta hija que corresponda (DashboardLayout

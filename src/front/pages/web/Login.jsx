@@ -9,7 +9,7 @@
  */
 
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../services/authService.js";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
 
@@ -18,6 +18,16 @@ export const Login = () => {
 
     const { dispatch } = useGlobalReducer()
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Datos que ProtectedRoutes deja en el `state` de la navegación al
+    // echar aquí al usuario. No viajan en la URL, así que no se pueden
+    // falsificar con un enlace preparado.
+    //
+    // `from`: la ruta que intentaba abrir. Si llegó al login por su
+    // cuenta no hay state, y se usa /dashboard. El ?. es imprescindible:
+    // entrando directo a /login, state y from son undefined.
+    const from = location.state?.from?.pathname || "/dashboard";
 
     // Inputs controlados: React guarda lo que se escribe en su estado y
     // lo devuelve al input por la prop `value`. El estado es la fuente
@@ -31,6 +41,11 @@ export const Login = () => {
     // Mensaje de error del backend (credenciales incorrectas, etc.).
     const [error, setError] = useState("");
 
+    // Aviso de sesión caducada. Se inicializa con lo que venga en el
+    // state de la navegación y se guarda en estado propio para poder
+    // ocultarlo en cuanto el usuario reaccione (al reintentar el login).
+    const [expired, setExpired] = useState(Boolean(location.state?.expired));
+
     const handleSubmit = async (e) => {
         // Evita que el navegador recargue la página al enviar el
         // formulario, que es su comportamiento por defecto.
@@ -39,6 +54,10 @@ export const Login = () => {
         // Limpia el error anterior: si no, al reintentar se quedaría el
         // mensaje viejo en pantalla mientras llega la nueva respuesta.
         setError("");
+
+        // El usuario ya ha reaccionado al aviso de sesión caducada: se
+        // retira para que no compita con el error que pueda venir ahora.
+        setExpired(false);
 
         // authService devuelve { ok, data }: ok dice si la respuesta fue
         // correcta, data trae el cuerpo.
@@ -59,15 +78,29 @@ export const Login = () => {
             }
         })
 
-        // Siempre a /dashboard, sin mirar el rol: quien decide qué ve
-        // cada uno es el sidebar filtrado, no esta pantalla.
-        navigate("/dashboard")
+        // Vuelta a donde iba el usuario, o a /dashboard si venía directo.
+        // No se mira el rol: quien decide qué ve cada uno es el sidebar
+        // filtrado, y si la sección guardada no le corresponde, RoleRoute
+        // lo devolverá a /dashboard.
+        //
+        // replace: true para que el botón "atrás" no traiga de vuelta el
+        // formulario de login con la sesión ya iniciada.
+        navigate(from, { replace: true })
     }
 
     return (
         <div className="auth-card">
             <h1 className="auth-title">Iniciar sesión</h1>
             <p className="auth-subtitle">Accede a tu panel de CleanFlow</p>
+
+            {/* Aviso de sesión caducada. Solo aparece si el usuario llega
+                aquí porque su token dejó de valer, no al entrar al login
+                por su cuenta. */}
+            {expired && (
+                <div className="auth-notice" role="status">
+                    Tu sesión ha expirado, vuelve a iniciar sesión
+                </div>
+            )}
 
             {/* Solo se pinta si hay error. role="alert" hace que los
                 lectores de pantalla lo anuncien al aparecer. */}

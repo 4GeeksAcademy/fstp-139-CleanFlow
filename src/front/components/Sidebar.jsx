@@ -83,11 +83,23 @@ export const Sidebar = () => {
     // correcto: ante la duda, no enseñar de más.
     const visibleLinks = LINKS.filter(link => link.roles.includes(role))
 
-    // LOGOUT limpia el store y localStorage; navigate saca al usuario de
-    // la zona privada.
+    // Cierre de sesión voluntario.
+    //
+    // El ORDEN importa. Primero se sale de la zona privada y después se
+    // limpia la sesión:
+    //
+    //   - Así, cuando el token desaparece, ProtectedRoutes ya no está
+    //     montado y no llega a ejecutar su <Navigate>. Si se hiciera al
+    //     revés, ese <Navigate> podría dispararse antes y guardaría en el
+    //     state la última ruta privada; al volver a entrar, el login
+    //     devolvería al usuario allí en lugar de a /dashboard.
+    //   - state: null deja explícito que aquí no se guarda ninguna ruta de
+    //     origen: un logout voluntario siempre debe llevar a /dashboard.
+    //   - replace evita que el botón "atrás" devuelva a la pantalla en la
+    //     que estaba antes de cerrar sesión.
     const handleLogout = () => {
+        navigate("/login", { replace: true, state: null })
         dispatch({ type: "LOGOUT" })
-        navigate("/login")
     }
 
     // ------------------------------------------------------------------

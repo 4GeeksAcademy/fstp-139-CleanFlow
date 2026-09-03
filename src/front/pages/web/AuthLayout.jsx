@@ -1,6 +1,6 @@
 import { Link, Outlet } from "react-router-dom"
 import { Logo } from "../../components/Logo"
-import "./auth.css"
+import "../../auth.css"
 
 // Layout de las pantallas de registro y de login: sin Navbar ni Footer
 // públicos, a propósito. El logo y el enlace inferior son los dos
