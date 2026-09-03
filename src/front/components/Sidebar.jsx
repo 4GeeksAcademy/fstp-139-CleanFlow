@@ -105,7 +105,7 @@ export const Sidebar = () => {
         <div className="d-flex flex-column flex-shrink-0 p-3 text-bg-dark" style={{ width: "280px" }}>
             {/* Marca provisional. Al rehacerlo, cambiar este <a> por un
                 <Link to="/">: un <a> recarga la aplicación entera. */}
-            <a href="/" className="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+            <a href="/dashboard" className="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
                 <span className="fs-4">Mi App</span>
             </a>
 
