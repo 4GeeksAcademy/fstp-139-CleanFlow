@@ -31,7 +31,7 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-
+  
     def serialize(self):
         return {
             "user_id": self.user_id,
@@ -43,4 +43,13 @@ class User(db.Model):
             "is_active": self.is_active,
             "avatar_url": self.avatar_url,
             "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
+    def serialize_session(self):
+        return {
+            "user_id": self.user_id,
+            "name": self.name,
+            "email": self.email,
+            "role": self.role,
+            "avatar_url": self.avatar_url
         }
