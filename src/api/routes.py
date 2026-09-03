@@ -130,6 +130,8 @@ def login():
         return jsonify({"error": "Invalid email or password"}), 401
 
     if existing_user.check_password(password):
+        if not existing_user.is_active:
+            return jsonify({"error": "Your account is deactivated. Contact the administrator."}), 403
         # El token guarda el user_id (como texto, que es lo que espera la
         # librería). Con ese id se recupera el usuario en cada petición
         # protegida. Caduca solo, sin que haya que guardarlo en ningún sitio.
