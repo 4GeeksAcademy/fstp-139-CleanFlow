@@ -4,7 +4,7 @@ This module takes care of starting the API Server, Loading the DB and Adding the
 import re
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User
-from api.utils import generate_sitemap, APIException
+from api.utils import generate_sitemap, APIException, role_required
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
@@ -101,7 +101,7 @@ def login():
         return jsonify({"error": "Invalid email or password"}), 401
 
 
-@api.route("/dashboard", methods=["GET"])
+@api.route("/profile", methods=["GET"])
 @jwt_required()
 def get_profile():
     user_id = get_jwt_identity()
@@ -111,3 +111,14 @@ def get_profile():
         return jsonify({"error": "User not found"}), 404
     
     return jsonify({"user": user.serialize_session()}), 200
+
+
+
+# ---- EJEMPLO PARA EL EQUIPO ----
+# Endpoint de prueba, solo para verificar que @role_required funciona.
+# Cuando alguien construya /workers de verdad, este bloque se sustituye
+# por el endpoint real, con el mismo decorador.
+@api.route("/workers", methods=["GET"])
+@role_required("manager")
+def get_workers():
+    return jsonify({"message": "Solo un manager puede ver esto"}), 200
