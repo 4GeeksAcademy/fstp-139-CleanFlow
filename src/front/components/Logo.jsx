@@ -1,5 +1,7 @@
 // Isotipo de CleanFlow (escoba + ola) en SVG, recreado a partir del kit
 // de marca. Usa currentColor: hereda el color del texto de su contenedor.
+// De todas formas no deja de ser una propuesta que aún no se ha aceptado,
+// por lo tanto se puede borrar.
 export const Logo = ({ size = 72 }) => {
     return (
         <svg viewBox="0 0 120 120" width={size} height={size} aria-hidden="true">
