@@ -1,38 +1,53 @@
-export const initialStore=()=>{
-  return{
-    message: null,
-    todos: [
-      {
-        id: 1,
-        title: "Make the bed",
-        background: null,
-      },
-      {
-        id: 2,
-        title: "Do my homework",
-        background: null,
-      }
-    ]
+export const initialStore = () => {
+  let user = null;
+
+  try {
+    user = JSON.parse(localStorage.getItem("user"));
+  } catch {
+    user = null;
+    localStorage.removeItem("user");
   }
-}
+
+  return {
+    token: localStorage.getItem("token") || null,
+    user,
+  };
+};
 
 export default function storeReducer(store, action = {}) {
-  switch(action.type){
-    case 'set_hello':
-      return {
-        ...store,
-        message: action.payload
-      };
-      
-    case 'add_task':
+  switch (action.type) {
+    case "LOGIN": {
+      const { token, user } = action.payload;
 
-      const { id,  color } = action.payload
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
 
       return {
         ...store,
-        todos: store.todos.map((todo) => (todo.id === id ? { ...todo, background: color } : todo))
+        token,
+        user,
       };
+    }
+
+    case "LOGOUT":
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      return {
+        ...store,
+        token: null,
+        user: null,
+      };
+
+    case "SET_USER":
+      localStorage.setItem("user", JSON.stringify(action.payload));
+
+      return {
+        ...store,
+        user: action.payload,
+      };
+
     default:
-      throw Error('Unknown action.');
-  }    
+      throw Error("Unknown action.");
+  }
 }
