@@ -85,7 +85,10 @@ export const Login = () => {
                         placeholder="tucorreo@ejemplo.com"
                         autoComplete="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                            setEmail(e.target.value);
+                            setError("");
+                        }}
                     />
                 </div>
 
@@ -105,7 +108,10 @@ export const Login = () => {
                             placeholder="••••••••"
                             autoComplete="current-password"
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            onChange={(e) => {
+                                setPassword(e.target.value)
+                                setError("");
+                            }}
                         />
                         {/* type="button" es obligatorio: dentro de un <form>, un
                             <button> sin type es "submit" y enviaría el login.
