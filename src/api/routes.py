@@ -136,6 +136,7 @@ def create_worker():
 
 
 @api.route("/workers", methods=["GET"])
+@required_role("manager")
 def get_workers():
 
     workers = Worker.query.all()
@@ -176,6 +177,7 @@ def get_worker(worker_id):
 
 
 @api.route("/workers/<int:worker_id>", methods=["PUT"])
+@required_role("manager")
 def update_worker(worker_id):
 
     worker = db.session.get(Worker, worker_id)
@@ -235,6 +237,7 @@ def update_worker(worker_id):
 
 
 @api.route("/workers/<int:worker_id>", methods=["DELETE"])
+@required_role("manager")
 def delete_worker(worker_id):
 
     worker = db.session.get(Worker, worker_id)
