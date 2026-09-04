@@ -1,19 +1,49 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
-from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Worker
-from api.utils import generate_sitemap, APIException
-from flask_cors import CORS
+
+from functools import wraps
 from datetime import datetime
 
-api = Blueprint('api', __name__)
+from flask import request, jsonify, Blueprint
+from flask_cors import CORS
+from flask_jwt_extended import jwt_required, get_jwt
+
+from api.models import db, User, Worker
+
+
+api = Blueprint("api", __name__)
 
 # Allow CORS requests to this API
 CORS(api)
 
 
-@api.route('/hello', methods=['POST', 'GET'])
+def required_role(role):
+    """
+    Decorator that allows access to a route only to users
+    with the specified role.
+    """
+
+    def decorator(function):
+        @wraps(function)
+        @jwt_required()
+        def wrapper(*args, **kwargs):
+
+            claims = get_jwt()
+
+            if claims.get("role") != role:
+                return jsonify({
+                    "message": f"Se requiere el rol {role}"
+                }), 403
+
+            return function(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+@api.route("/hello", methods=["POST", "GET"])
 def handle_hello():
 
     response_body = {
@@ -23,13 +53,16 @@ def handle_hello():
     return jsonify(response_body), 200
 
 
-@api.route('/workers', methods=['POST'])
+@api.route("/workers", methods=["POST"])
+@required_role("manager")
 def create_worker():
 
     data = request.get_json()
 
     if not data:
-        return jsonify({"message": "No se han enviado datos"}), 400
+        return jsonify({
+            "message": "No se han enviado datos"
+        }), 400
 
     email = data.get("email")
     password = data.get("password")
@@ -102,7 +135,7 @@ def create_worker():
         }), 500
 
 
-@api.route('/workers', methods=['GET'])
+@api.route("/workers", methods=["GET"])
 def get_workers():
 
     workers = Worker.query.all()
@@ -112,7 +145,8 @@ def get_workers():
             "worker_id": worker.worker_id,
             "user_id": worker.user_id,
             "shift_id": worker.shift_id,
-            "hire_date": worker.hire_date.isoformat() if worker.hire_date else None,
+            "hire_date": worker.hire_date.isoformat()
+            if worker.hire_date else None,
             "position": worker.position,
             "is_active": worker.is_active
         }
@@ -120,10 +154,10 @@ def get_workers():
     ]), 200
 
 
-@api.route('/workers/<int:worker_id>', methods=['GET'])
+@api.route("/workers/<int:worker_id>", methods=["GET"])
 def get_worker(worker_id):
 
-    worker = Worker.query.get(worker_id)
+    worker = db.session.get(Worker, worker_id)
 
     if not worker:
         return jsonify({
@@ -134,16 +168,17 @@ def get_worker(worker_id):
         "worker_id": worker.worker_id,
         "user_id": worker.user_id,
         "shift_id": worker.shift_id,
-        "hire_date": worker.hire_date.isoformat() if worker.hire_date else None,
+        "hire_date": worker.hire_date.isoformat()
+        if worker.hire_date else None,
         "position": worker.position,
         "is_active": worker.is_active
     }), 200
 
 
-@api.route('/workers/<int:worker_id>', methods=['PUT'])
+@api.route("/workers/<int:worker_id>", methods=["PUT"])
 def update_worker(worker_id):
 
-    worker = Worker.query.get(worker_id)
+    worker = db.session.get(Worker, worker_id)
 
     if not worker:
         return jsonify({
@@ -184,7 +219,8 @@ def update_worker(worker_id):
             "worker_id": worker.worker_id,
             "user_id": worker.user_id,
             "shift_id": worker.shift_id,
-            "hire_date": worker.hire_date.isoformat() if worker.hire_date else None,
+            "hire_date": worker.hire_date.isoformat()
+            if worker.hire_date else None,
             "position": worker.position,
             "is_active": worker.is_active
         }), 200
@@ -198,10 +234,10 @@ def update_worker(worker_id):
         }), 500
 
 
-@api.route('/workers/<int:worker_id>', methods=['DELETE'])
+@api.route("/workers/<int:worker_id>", methods=["DELETE"])
 def delete_worker(worker_id):
 
-    worker = Worker.query.get(worker_id)
+    worker = db.session.get(Worker, worker_id)
 
     if not worker:
         return jsonify({
