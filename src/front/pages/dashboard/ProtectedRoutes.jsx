@@ -46,39 +46,33 @@ export const ProtectedRoutes = () => {
         if (!store.token) return
 
         const revalidateSession = async () => {
-            try {
-                const { ok, data } = await getProfile(store.token)
+            // getProfile nunca se rompe: si no hay respuesta lo traduce a
+            // networkError. Por eso aquí ya no hace falta try/catch.
+            const { ok, data, networkError } = await getProfile(store.token)
 
-                if (ok) {
-                    // El servidor confirma la sesión y devuelve el usuario
-                    // actualizado. Así, si alguien le cambió el rol en la
-                    // base de datos, se refleja sin esperar al próximo login.
-                    dispatch({ type: "SET_USER", payload: data.user })
-                } else {
-                    // El servidor rechaza el token (401 o 422: caducado,
-                    // manipulado o inválido). Se marca como caducada ANTES
-                    // del LOGOUT: React agrupa los dos cambios y el render
-                    // siguiente ya llega con el aviso puesto.
-                    //
-                    // LOGOUT limpia el store y localStorage; eso deja
-                    // store.token a null y provoca ese nuevo render, donde
-                    // el <Navigate> de abajo hace el resto. Por eso aquí no
-                    // hace falta navegar a mano: hay una única salida hacia
-                    // el login en todo el componente.
-                    setSessionExpired(true)
-                    dispatch({ type: "LOGOUT" })
-                }
-            } catch (error) {
-                // Aquí solo se llega si NO hubo respuesta: backend caído,
-                // sin conexión, CORS. Eso no es un token inválido, así que
-                // NO se cierra sesión: expulsaríamos al usuario cada vez
-                // que se cae el servidor o parpadea la red.
-                //
-                // Ojo con la distinción: un 401 NO entra en este catch.
-                // Para fetch, recibir un 401 es un éxito (preguntaste y te
-                // contestaron); se detecta arriba con el if (ok).
-                console.error("No se pudo verificar la sesión:", error)
+            // No hubo respuesta: backend caído, sin conexión, CORS. Eso no
+            // es un token inválido, así que NO se cierra sesión: si no,
+            // expulsaríamos al usuario cada vez que parpadea la red.
+            if (networkError) return
+
+            // El servidor rechaza el token (401 o 422: caducado, manipulado
+            // o inválido). Se marca como caducada ANTES del LOGOUT: React
+            // agrupa los dos cambios y el render siguiente ya llega con el
+            // aviso puesto.
+            //
+            // LOGOUT limpia el store y localStorage; eso deja store.token a
+            // null y provoca ese nuevo render, donde el <Navigate> de abajo
+            // hace el resto. Por eso aquí no hace falta navegar a mano.
+            if (!ok) {
+                setSessionExpired(true)
+                dispatch({ type: "LOGOUT" })
+                return
             }
+
+            // Sesión confirmada: se guarda el usuario actualizado, así un
+            // cambio de rol en la base de datos se refleja sin esperar al
+            // próximo login.
+            dispatch({ type: "SET_USER", payload: data.user })
         }
 
         revalidateSession()
