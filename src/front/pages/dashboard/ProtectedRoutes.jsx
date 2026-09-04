@@ -30,14 +30,9 @@ export const ProtectedRoutes = () => {
     const [sessionExpired, setSessionExpired] = useState(false)
 
     // ------------------------------------------------------------------
-    // REVALIDACIÓN CONTRA EL BACKEND
-    //
-    // El navegador no puede saber por su cuenta si un token es válido:
-    // va firmado con una clave que solo conoce el servidor. 
-    //
-    // Se hace en segundo plano, sin bloquear el render: el usuario ya
-    // viene de localStorage, así que la página se pinta al instante y
-    // se corrige después si el servidor dice que no.
+        // Revalidación asíncrona del token contra el backend (firma secreta).
+        // Carga instantánea desde localStorage sin bloquear el render;
+        // si el servidor lo rechaza, se corrige el estado después.
     // ------------------------------------------------------------------
 
     useEffect(() => {
@@ -54,15 +49,10 @@ export const ProtectedRoutes = () => {
             // es un token inválido, así que NO se cierra sesión: si no,
             // expulsaríamos al usuario cada vez que parpadea la red.
             if (networkError) return
-
-            // El servidor rechaza el token (401 o 422: caducado, manipulado
-            // o inválido). Se marca como caducada ANTES del LOGOUT: React
-            // agrupa los dos cambios y el render siguiente ya llega con el
-            // aviso puesto.
-            //
-            // LOGOUT limpia el store y localStorage; eso deja store.token a
-            // null y provoca ese nuevo render, donde el <Navigate> de abajo
-            // hace el resto. Por eso aquí no hace falta navegar a mano.
+ 
+            // Token inválido/caducado (401/422). Marcamos como caducado antes de LOGOUT
+            // para que React agrupe (batch) el estado y muestre el aviso en el nuevo render.
+            // LOGOUT limpia store/localStorage (token=null) y <Navigate> redirige automáticamente.
             if (!ok) {
                 setSessionExpired(true)
                 dispatch({ type: "LOGOUT" })
@@ -86,16 +76,9 @@ export const ProtectedRoutes = () => {
     // LA DECISIÓN
     // ------------------------------------------------------------------
 
-    // Sin token, fuera.
-    //
-    // `replace` sustituye la entrada del historial en vez de añadir una:
-    // sin él, el botón "atrás" devolvería al usuario a la ruta privada,
-    // que volvería a expulsarlo, en bucle.
-    //
-    // `state` viaja con la navegación pero NO aparece en la URL. Lleva dos
-    // datos al login: dónde quería ir el usuario, y si llega aquí porque
-    // su sesión caducó. Son ejes independientes: replace toca el
-    // historial, state transporta información.
+    // Sin token, redirige al login.
+    // `replace`: Evita el bucle al pulsar "Atrás".
+    // `state`: Pasa la ruta previa y si la sesión caducó (sin mostrarlo en la URL).
     if (!store.token) {
         return (
             <Navigate
