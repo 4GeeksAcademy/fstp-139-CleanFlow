@@ -24,12 +24,12 @@ export const router = createBrowserRouter(
         <Route index element={<Home />} />
         <Route path="single/:theId" element={<Single />} />
         <Route path="demo" element={<Demo />} />
-        <Route path="register" element={<Register />} />
       </Route>
 
-      {/* ---------- LOGIN: layout propio, sin navbar/footer ---------- */}
+      {/* ---------- LOGIN & REGISTER: layout propio, sin navbar/footer ---------- */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
+        <Route path="register" element={<Register />} />
       </Route>
 
       {/* ---------- ZONA PRIVADA ---------- */}
