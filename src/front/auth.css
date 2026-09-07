@@ -3,21 +3,20 @@
    no en :root, para no tocar ninguna otra pantalla ni chocar con Bootstrap.
    Colores y radios: DESIGN_SYSTEM.md. Wordmark del logo: kit de marca. */
 
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600&family=Montserrat:wght@400;700&display=swap");
 
 .auth-screen {
-    --auth-bg: #F7F3E8;
-    --auth-primary: #2E3B26;
-    --auth-primary-dark: #222d1c;
-    --auth-text: #26261F;
-    --auth-muted: #6E6B5E;
-    --auth-border: #E1DAC5;
-    --auth-ring: rgba(46, 59, 38, 0.22);
-    --auth-heading: "Fraunces", Georgia, serif;
-    --auth-body: "Inter", system-ui, sans-serif;
-    --auth-radius-sm: 8px;
-    --auth-radius-md: 12px;
-    --auth-radius-lg: 20px;
+    --auth-bg: var(--cf-bg);
+    --auth-primary: var(--cf-primary);
+    --auth-primary-dark: var(--cf-primary-dark);
+    --auth-text: var(--cf-text);
+    --auth-muted: var(--cf-muted);
+    --auth-border: var(--cf-border);
+    --auth-ring: var(--cf-ring);
+    --auth-heading: var(--cf-font-heading);
+    --auth-body: var(--cf-font-body);
+    --auth-radius-sm: var(--cf-radius-sm);
+    --auth-radius-md: var(--cf-radius-md);
+    --auth-radius-lg: var(--cf-radius-lg);
 
     min-height: 100vh;
     display: flex;
@@ -43,7 +42,7 @@
 }
 
 .auth-word {
-    font-family: "Montserrat", system-ui, sans-serif;
+    font-family: var(--cf-font-brand);
     font-size: 28px;
     line-height: 1;
     letter-spacing: -0.02em;
