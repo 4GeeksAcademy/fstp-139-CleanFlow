@@ -1,19 +1,34 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import PropTypes from "prop-types";
 
 // This component allows the scroll to go to the beginning when changing the view,
 // otherwise it would remain in the position of the previous view. 
 // Investigate more about this React behavior :D 
 
-const ScrollToTop = ({ location, children }) => {
-    const prevLocation = useRef(location);
+const ScrollToTop = ({ children }) => {
+    
+    // key es un identificador único de CADA navegación: aunque vayas dos
+    // veces al mismo sitio, la key cambia. Es lo que permite reaccionar a
+    // pulsar el logo estando ya en la landing, un caso en el que ni la
+    // ruta ni el ancla cambian y por tanto nada avisaría.
+    const { pathname, hash, key } = useLocation();
 
     useEffect(() => {
-        if (location !== prevLocation.current) {
+        if (!hash) {
             window.scrollTo(0, 0);
+            return
         }
-        prevLocation.current = location;
-    }, [location]);
+        
+        const section = document.getElementById(hash.slice(1));
+
+        if (!section) return;
+
+        const slowlyMovement = window.matchMedia("(prefers-reduced-motion: reduce)"). matches;
+
+        section.scrollIntoView({ behavior: slowlyMovement ? "auto" : "smooth"});
+
+    }, [pathname, hash, key]);
 
     return children;
 };
@@ -21,6 +36,5 @@ const ScrollToTop = ({ location, children }) => {
 export default ScrollToTop;
 
 ScrollToTop.propTypes = {
-    location: PropTypes.object,
     children: PropTypes.any
 };
