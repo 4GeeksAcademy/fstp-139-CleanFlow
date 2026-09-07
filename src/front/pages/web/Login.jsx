@@ -8,7 +8,7 @@
  * Los estilos son las clases auth-* de auth.css.
  */
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../services/authService.js";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
