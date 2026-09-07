@@ -39,6 +39,8 @@ export const initialStore = () => {
     // pero esto deja explícito que la ausencia de token es null y no "".
     token: localStorage.getItem("token") || null,
     user,
+
+    services: [],
   };
 };
 
@@ -91,6 +93,12 @@ export default function storeReducer(store, action = {}) {
         ...store,
         user: action.payload,
       };
+
+    case "SET_SERVICES":
+      return {
+        ...store,
+        services: action.payload,
+      }
 
     // Acción desconocida: se avisa por consola (para cazar erratas) pero
     // NO se lanza una excepción. Un reducer que lanza tumba la aplicación
