@@ -1,31 +1,30 @@
 {
-  "parser": "@babel/eslint-parser",
-  "plugins": [
-    "react"
-  ],
+  "root": true,
   "env": {
     "browser": true,
-    "es6": true
+    "es2022": true
   },
-  "extends": [ "plugin:react/recommended"],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime"
+  ],
+  "plugins": ["react"],
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
   "rules": {
-    "strict":0,
-    "no-unused-vars": 0,
-    "no-console": 1,
-    "no-mixed-spaces-and-tabs": 0,
-    "no-debugger": 0, 
-    "semi": ["error", "always"],
-    "allowImportExportEverywhere": false,
-    "indent": "off",
-    "react/jsx-indent": "off",
-    "react/jsx-indent-props": "off",
-    "comma-dangle": [1, { //when to use the last comma
-        "arrays": "never",
-        "objects": "never",
-        "imports": "never",
-        "exports": "never",
-        "functions": "ignore",
-    }],
-    "react/prop-types": [2]
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "off",
+    "react/prop-types": "off"
   }
 }
