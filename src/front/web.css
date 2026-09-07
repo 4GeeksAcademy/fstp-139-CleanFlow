@@ -1,0 +1,570 @@
+/* ======================================================================
+   ESTILOS DE LA WEB PÚBLICA
+
+   El equivalente de auth.css para la zona pública. Se importa desde
+   PublicLayout.jsx, igual que auth.css se importa desde AuthLayout.jsx.
+
+   NORMAS (ver index.css):
+   - Ningún color, fuente ni radio escrito a pelo: todo sale de un token.
+   - Todas las clases llevan el prefijo `cf-`, para no chocar con las de
+     Bootstrap, que se carga en index.html.
+
+   Nomenclatura: bloque__elemento y modificadores con `is-`.
+       .cf-nav          -> el bloque
+       .cf-nav__link    -> un elemento suyo
+       .is-active       -> un estado
+   ====================================================================== */
+
+
+/* ---------- CONTENEDOR ----------
+   Centra el contenido y le pone un ancho máximo. Se reutiliza en el
+   footer y lo usarán las secciones de la landing (WEB-04). */
+
+.cf-container {
+    width: 100%;
+    max-width: var(--cf-container);
+    margin: 0 auto;
+    padding-left: var(--cf-space-4);
+    padding-right: var(--cf-space-4);
+}
+
+
+/* ======================================================================
+   CABECERA
+   ====================================================================== */
+
+.cf-header {
+    /* La cabecera acompaña al usuario mientras baja. En una landing larga
+       evita tener que subir del todo para cambiar de sección. */
+    position: sticky;
+    top: 0;
+
+    /* Por encima del contenido, o el desplegable quedaría por debajo de
+       las secciones al abrirse. */
+    z-index: 100;
+
+    background-color: var(--cf-surface);
+    border-bottom: 1px solid var(--cf-border);
+}
+
+/* La cabecera fija tapa el principio de la sección cuando saltas a un
+   ancla. scroll-margin-top le dice al navegador que se pare un poco antes,
+   dejando hueco para ella. Sin esto, el título de la sección queda oculto
+   detrás del navbar. */
+section[id] {
+    scroll-margin-top: 140px;
+}
+
+
+/* ---------- FILA SUPERIOR: ACCESOS ---------- */
+
+.cf-header__utility {
+    background-color: var(--cf-primary-soft);
+    font-size: var(--cf-text-sm);
+}
+
+.cf-utility-list {
+    list-style: none;
+    margin: 0;
+    padding: var(--cf-space-2) 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--cf-space-6);
+}
+
+.cf-utility-list a {
+    color: var(--cf-muted);
+    text-decoration: none;
+    transition: color var(--cf-transition);
+}
+
+.cf-utility-list a:hover {
+    color: var(--cf-primary);
+}
+
+
+/* ---------- FILA PRINCIPAL ---------- */
+
+.cf-navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--cf-space-6);
+    padding: var(--cf-space-3) 0;
+}
+
+.cf-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cf-space-2);
+    color: var(--cf-primary);
+    text-decoration: none;
+}
+
+.cf-brand__name {
+    /* La ÚNICA cosa de toda la aplicación que usa Montserrat. CLEAN en
+       negrita y FLOW en fino: es el logotipo del kit de marca, el mismo
+       que la pantalla de login (.auth-word) y el pie. */
+    font-family: var(--cf-font-brand);
+    font-size: var(--cf-text-xl);
+    line-height: 1;
+    letter-spacing: 0.02em;
+}
+
+.cf-brand__name b { font-weight: 700; }
+.cf-brand__name span { font-weight: 400; margin-left: 0.22em; }
+
+.cf-nav {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--cf-space-6);
+}
+
+.cf-nav__link {
+    color: var(--cf-text);
+    text-decoration: none;
+    font-weight: 500;
+    padding: var(--cf-space-2) 0;
+
+    /* El borde se declara transparente desde el principio, en vez de
+       aparecer solo al marcarse. Si no, al resaltarse un item el texto
+       daría un salto de 2px hacia arriba. */
+    border-bottom: 2px solid transparent;
+
+    transition: color var(--cf-transition), border-color var(--cf-transition);
+}
+
+.cf-nav__link:hover {
+    color: var(--cf-primary);
+}
+
+/* El resaltado de la sección visible, que hasta ahora era un subrayado
+   provisional. Aquí es donde el terracota tiene su primer uso real. */
+.cf-nav__link.is-active {
+    color: var(--cf-primary);
+    border-bottom-color: var(--cf-accent);
+}
+
+
+/* ---------- DESPLEGABLE DE SERVICIOS ---------- */
+
+.cf-dropdown {
+    /* position:relative convierte este <li> en la referencia de la que
+       cuelga el panel. Sin esto, el panel se colocaría respecto a la
+       página entera y aparecería en cualquier sitio. */
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    gap: var(--cf-space-1);
+}
+
+.cf-dropdown__toggle {
+    /* Solo aparece en móvil: en escritorio el menú se abre con el ratón. */
+    display: none;
+
+    background: none;
+    border: 0;
+    padding: var(--cf-space-1);
+    color: var(--cf-muted);
+    cursor: pointer;
+}
+
+.cf-dropdown__panel {
+    position: absolute;
+    top: 100%;          /* justo debajo del item */
+    left: 0;
+    min-width: 240px;
+
+    list-style: none;
+    margin: 0;
+    padding: var(--cf-space-2) 0;
+
+    background-color: var(--cf-surface);
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius-md);
+    box-shadow: var(--cf-shadow-md);
+}
+
+.cf-dropdown__panel a {
+    display: block;     /* que toda la fila sea pulsable, no solo el texto */
+    padding: var(--cf-space-2) var(--cf-space-4);
+    color: var(--cf-text);
+    text-decoration: none;
+    transition: background-color var(--cf-transition);
+}
+
+.cf-dropdown__panel a:hover {
+    background-color: var(--cf-primary-soft);
+    color: var(--cf-primary);
+}
+
+.cf-dropdown__empty {
+    padding: var(--cf-space-2) var(--cf-space-4);
+    color: var(--cf-muted);
+    font-size: var(--cf-text-sm);
+}
+
+
+/* ---------- BOTÓN DE MENÚ (MÓVIL) ---------- */
+
+.cf-nav-toggle {
+    display: none;      /* se enciende en la consulta de medios */
+
+    background: none;
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius-sm);
+    padding: var(--cf-space-2) var(--cf-space-3);
+    color: var(--cf-primary);
+    font-size: var(--cf-text-lg);
+    cursor: pointer;
+}
+
+
+/* ======================================================================
+   MÓVIL
+
+   El corte en 768px es el habitual entre tablet y escritorio.
+   ====================================================================== */
+
+@media (max-width: 768px) {
+
+    section[id] {
+        /* La cabecera ocupa menos alto aquí. */
+        scroll-margin-top: 90px;
+    }
+
+    .cf-utility-list {
+        justify-content: center;
+        gap: var(--cf-space-4);
+    }
+
+    .cf-nav-toggle,
+    .cf-dropdown__toggle {
+        display: inline-flex;
+    }
+
+    /* La fila principal pasa a dos alturas: marca y botón arriba, menú
+       desplegado debajo ocupando todo el ancho. */
+    .cf-navbar {
+        flex-wrap: wrap;
+    }
+
+    .cf-nav {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding-bottom: var(--cf-space-4);
+    }
+
+    .cf-nav.is-open {
+        display: flex;
+    }
+
+    .cf-nav__link {
+        display: block;
+        padding: var(--cf-space-3) 0;
+        border-bottom: 1px solid var(--cf-border);
+    }
+
+    .cf-nav__link.is-active {
+        border-bottom-color: var(--cf-accent);
+    }
+
+    .cf-dropdown {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--cf-border);
+    }
+
+    /* En móvil el panel deja de flotar y se mete en la lista, como un
+       submenú. Flotando taparía el resto del menú. */
+    .cf-dropdown__panel {
+        position: static;
+        width: 100%;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background-color: var(--cf-primary-soft);
+    }
+}
+
+/* ======================================================================
+   PIE DE PÁGINA
+
+   Estructura en dos capas, como la referencia que eligió el equipo:
+   un marco del color del fondo y, encajado dentro, un panel oscuro
+   redondeado. La marca va en el color del marco y se corta contra el
+   borde inferior del panel.
+   ====================================================================== */
+
+.cf-footer {
+    background-color: var(--cf-bg);
+    margin-top: var(--cf-space-16);
+}
+
+/* El marco. Sin padding abajo: la línea legal va sobre él. */
+.cf-footer__frame {
+    padding: var(--cf-space-4) var(--cf-space-4) 0;
+}
+
+.cf-footer__panel {
+    background-color: var(--cf-primary);
+    color: var(--cf-on-primary);
+    border-radius: var(--cf-radius-lg);
+
+    /* Recorta lo que se salga: es lo que da el borde limpio de abajo. */
+    overflow: hidden;
+
+    padding-top: var(--cf-space-12);
+}
+
+
+/* ---------- LAS COLUMNAS ---------- */
+
+.cf-footer__grid {
+    display: grid;
+
+    /* Desigual a propósito: la marca ocupa vez y media lo que una
+       columna de enlaces. Esa diferencia de anchos ya crea jerarquía,
+       sin necesidad de líneas ni recuadros. */
+    grid-template-columns: 1.5fr repeat(3, 1fr);
+    gap: var(--cf-space-8);
+    align-items: start;
+}
+
+/* La marca del pie es un enlace al inicio, igual que la de la cabecera:
+   quien ha llegado hasta el final tiene ahí su camino de vuelta. */
+.cf-footer__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cf-space-2);
+    color: var(--cf-on-primary);
+
+    /* La regla global de index.css solo fija el color de los enlaces, así
+       que el subrayado del navegador hay que quitarlo aquí. */
+    text-decoration: none;
+}
+
+/* CLEAN en negrita y FLOW en fino: el logotipo del kit de marca, el
+   mismo que usa la pantalla de login. */
+.cf-footer__word {
+    font-family: var(--cf-font-brand);
+    font-size: var(--cf-text-lg);
+    line-height: 1;
+}
+.cf-footer__word b { font-weight: 700; }
+.cf-footer__word span { font-weight: 400; margin-left: 0.22em; }
+
+.cf-footer__pitch {
+    color: var(--cf-on-primary-muted);
+    font-size: var(--cf-text-sm);
+    max-width: 32ch;
+    margin: var(--cf-space-3) 0 0;
+}
+
+/* El contraste entre el título y sus enlaces es lo que ordena cada
+   columna: el título a plena luz, los enlaces apagados. */
+.cf-footer__title {
+    font-family: var(--cf-font-heading);
+    font-size: var(--cf-text-base);
+    color: var(--cf-on-primary);
+    margin: 0 0 var(--cf-space-3);
+}
+
+.cf-footer__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-space-2);
+    color: var(--cf-on-primary-muted);
+    font-size: var(--cf-text-sm);
+}
+
+.cf-footer__list a {
+    color: var(--cf-on-primary-muted);
+    text-decoration: none;
+    transition: color var(--cf-transition);
+}
+
+.cf-footer__list a:hover {
+    color: var(--cf-accent);
+}
+
+/* <address> viene en cursiva por defecto en el navegador. */
+.cf-footer__address {
+    font-style: normal;
+}
+
+.cf-footer__empty {
+    color: var(--cf-on-primary-muted);
+    font-size: var(--cf-text-sm);
+    margin: 0;
+}
+
+/* El foco del teclado en verde sería invisible sobre el panel verde. */
+.cf-footer__panel :focus-visible {
+    outline-color: var(--cf-on-primary);
+}
+
+
+/* ---------- DATOS DE CONTACTO CON ETIQUETA ----------
+
+   Aquí la jerarquía va AL REVÉS que en las columnas de enlaces: la
+   etiqueta destaca y el dato queda apagado. El motivo es que en las
+   otras columnas lo importante son los enlaces, mientras que en esta lo
+   que ordena la lectura es saber de un vistazo qué es cada dato.
+   ------------------------------------------------------------------- */
+
+.cf-footer__data {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-space-3);
+}
+
+.cf-footer__label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--cf-on-primary);
+    margin-bottom: 2px;
+}
+
+.cf-footer__value {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--cf-on-primary-muted);
+    font-size: var(--cf-text-sm);
+}
+
+.cf-footer__value a {
+    color: var(--cf-on-primary-muted);
+    text-decoration: none;
+    transition: color var(--cf-transition);
+}
+
+.cf-footer__value a:hover {
+    color: var(--cf-accent);
+}
+
+
+/* ---------- REDES SOCIALES ---------- */
+
+.cf-footer__social {
+    list-style: none;
+    margin: var(--cf-space-4) 0 0;
+    padding: 0;
+    display: flex;
+    gap: var(--cf-space-3);
+}
+
+.cf-footer__social a {
+    /* Círculo con el icono centrado. El tamaño fijo garantiza una zona
+       pulsable cómoda en móvil, no solo el dibujo del icono. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--cf-on-primary-muted);
+    color: var(--cf-on-primary-muted);
+
+    /* La regla global de index.css solo fija el color de los enlaces, así
+       que el subrayado del navegador hay que quitarlo aquí. Sin esto sale
+       una raya debajo de cada icono. */
+    text-decoration: none;
+
+    transition: background-color var(--cf-transition),
+                border-color var(--cf-transition),
+                color var(--cf-transition);
+}
+
+.cf-footer__social a:hover {
+    background-color: var(--cf-accent);
+    border-color: var(--cf-accent);
+    color: var(--cf-on-primary);
+}
+
+
+/* ---------- LA MARCA GRANDE ---------- */
+
+/* Va en SVG y no como texto normal por un motivo concreto: el viewBox
+   hace que la palabra ocupe siempre el ancho disponible, entera y
+   centrada, sea cual sea la pantalla. Con texto CSS habría que ajustar
+   el tamaño de letra por cada tamaño de pantalla, y en móvil se saldría
+   por los lados. El corte de abajo también es exacto siempre: las
+   letras sobresalen del viewBox y quedan recortadas ahí. */
+.cf-footer__mark {
+    display: block;
+    width: 100%;
+    margin-top: var(--cf-space-8);
+}
+
+.cf-footer__mark text {
+    fill: var(--cf-bg);          /* el color del marco */
+    font-family: var(--cf-font-brand);
+    font-weight: 700;
+}
+
+
+/* ---------- LÍNEA LEGAL ---------- */
+
+/* Centrada, y no repartida a los lados, a petición del equipo: los
+   widgets de chat se anclan abajo a la derecha y taparían el aviso
+   legal justo ahí. */
+.cf-footer__legal {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--cf-space-2) var(--cf-space-4);
+    padding: var(--cf-space-3) var(--cf-space-4) var(--cf-space-2);
+    text-align: center;
+    color: var(--cf-muted);
+    font-size: var(--cf-text-sm);
+}
+
+.cf-footer__legal p {
+    margin: 0;
+}
+
+.cf-footer__legal a {
+    color: var(--cf-muted);
+    text-decoration: none;
+    transition: color var(--cf-transition);
+}
+
+.cf-footer__legal a:hover {
+    color: var(--cf-accent);
+}
+
+.cf-footer__sep {
+    color: var(--cf-border);
+}
+
+
+@media (max-width: 768px) {
+
+    .cf-footer__grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+
+    .cf-footer__grid {
+        grid-template-columns: 1fr;
+    }
+}
