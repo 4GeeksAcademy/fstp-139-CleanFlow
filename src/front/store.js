@@ -1,61 +1,67 @@
 /**
- * Estado global de la sesión (`token` y `user`).
- * Utilizado por el sidebar, guardianes de rutas y dashboard.
+ * ESTADO GLOBAL DE LA APLICACIÓN.
  *
- * Principios de arquitectura:
- * 
- * 1. Carga síncrona: Se restaura desde `localStorage` al arrancar para que los 
- *    guardianes conozcan el rol antes del primer render y eviten redirecciones falsas en F5.
- * 
- * 2. Fuente única de verdad: Toda escritura en `localStorage` ocurre exclusivamente 
- *    en el reducer (nunca en componentes) para evitar desincronizaciones.
+ * Guarda dos cosas independientes:
+ *   - La sesión (`token` y `user`): sidebar, guardianes de rutas y dashboard.
+ *   - El catálogo (`services`): navbar, footer y landing.
+ *
+ * Dos principios:
+ *
+ * 1. Carga síncrona: la sesión se restaura de `localStorage` al arrancar,
+ *    para que los guardianes conozcan el rol antes del primer render y no
+ *    haya redirecciones falsas al recargar con F5.
+ *
+ * 2. Fuente única: toda escritura en `localStorage` ocurre aquí, nunca en
+ *    los componentes, para que disco y estado no se desincronicen.
  *
  * Se conecta a la app en hooks/useGlobalReducer.jsx (useReducer + context).
  */
 
 /**
- * Estado inicial: se ejecuta una sola vez, al arrancar la aplicación.
- * Recupera la sesión que quedó guardada de la última visita.
+ * Estado inicial: se ejecuta una vez, al arrancar. Recupera la sesión que
+ * quedó guardada de la última visita.
  */
 export const initialStore = () => {
   let user = null;
 
   try {
-    // localStorage solo guarda texto, así que hay que reconstruir el
-    // objeto con JSON.parse.
+    // localStorage solo guarda texto: hay que reconstruir el objeto.
     user = JSON.parse(localStorage.getItem("user"));
   } catch {
-    // Si el valor guardado está corrupto, JSON.parse lanza. Sin este
-    // catch la aplicación no llegaría ni a arrancar: pantalla en blanco
-    // y sin ninguna pista. Se descarta el dato malo y se sigue sin sesión;
-    // la revalidación de ProtectedRoutes recuperará el usuario si el
-    // token sigue siendo válido.
+    // Si el valor está corrupto, JSON.parse lanza y la aplicación no
+    // llegaría ni a arrancar: pantalla en blanco y sin pistas. Se descarta
+    // el dato malo y se sigue sin sesión; ProtectedRoutes la recuperará si
+    // el token todavía vale.
     user = null;
     localStorage.removeItem("user");
   }
 
   return {
-    // || null: si la clave no existe, getItem devuelve null igualmente,
-    // pero esto deja explícito que la ausencia de token es null y no "".
+    // || null: getItem ya devuelve null si no existe, pero así queda
+    // explícito que la ausencia de token es null y no "".
     token: localStorage.getItem("token") || null,
     user,
 
+    // El catálogo NO se guarda en localStorage, a diferencia de la sesión:
+    // son datos públicos que cambian en el servidor, y guardarlos en disco
+    // es la mejor forma de enseñar un catálogo viejo. Lo rellena
+    // ServicesLoader al arrancar.
     services: [],
   };
 };
 
 /**
  * Reducer: recibe el estado actual y una acción, y devuelve el estado
- * nuevo. Es el único sitio donde cambia la sesión.
+ * nuevo. Es el único sitio donde cambia el estado global.
  *
- * Importante: nunca modifica el objeto que recibe, crea uno nuevo con
- * el spread (...store). React compara referencias para saber si algo
- * cambió; mutando el original no se enteraría y no repintaría.
+ * Nunca modifica el objeto que recibe: crea uno nuevo con el spread. React
+ * compara referencias, así que mutando el original no se enteraría y no
+ * repintaría.
  */
 export default function storeReducer(store, action = {}) {
   switch (action.type) {
 
-    // Login correcto: llegan token y usuario juntos desde /api/login.
+    // Login correcto: token y usuario llegan juntos desde /api/login.
     case "LOGIN": {
       const { token, user } = action.payload;
 
@@ -70,9 +76,9 @@ export default function storeReducer(store, action = {}) {
       };
     }
 
-    // Cerrar sesión: se limpian las dos copias, la del disco y la del
-    // store. Ojo: esto no invalida el token en el servidor (un JWT no se
-    // puede revocar), solo se deja de usar.
+    // Cerrar sesión: se limpian las dos copias, disco y store. Ojo: no
+    // invalida el token en el servidor (un JWT no se puede revocar), solo
+    // se deja de usar.
     case "LOGOUT":
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -83,9 +89,8 @@ export default function storeReducer(store, action = {}) {
         user: null,
       };
 
-    // Refresca solo el usuario, sin tocar el token. Lo usa la
-    // revalidación de ProtectedRoutes para traer el rol actualizado si
-    // alguien lo cambió en la base de datos.
+    // Refresca el usuario sin tocar el token. Lo usa la revalidación de
+    // ProtectedRoutes para traer el rol actualizado si cambió en la BD.
     case "SET_USER":
       localStorage.setItem("user", JSON.stringify(action.payload));
 
@@ -94,15 +99,17 @@ export default function storeReducer(store, action = {}) {
         user: action.payload,
       };
 
+    // Catálogo recibido del backend. Aquí NO hay setItem, a propósito:
+    // ver el comentario de `services` en initialStore().
     case "SET_SERVICES":
       return {
         ...store,
         services: action.payload,
       }
 
-    // Acción desconocida: se avisa por consola (para cazar erratas) pero
-    // NO se lanza una excepción. Un reducer que lanza tumba la aplicación
-    // entera: React desmonta todo el árbol y solo se recupera con F5.
+    // Acción desconocida: se avisa por consola para cazar erratas, pero NO
+    // se lanza. Un reducer que lanza tumba la aplicación entera: React
+    // desmonta todo el árbol y solo se recupera con F5.
     default:
       console.warn(`Acción desconocida en el store: "${action.type}"`);
       return store;

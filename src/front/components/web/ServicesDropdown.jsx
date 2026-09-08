@@ -1,18 +1,36 @@
+/**
+ * DESPLEGABLE DE SERVICIOS DEL NAVBAR.
+ *
+ * Lee la lista del store: no pide nada al backend. Por eso un servicio
+ * que el encargado activa aparece aquí solo, sin tocar código.
+ *
+ *   Abre:   ratón encima, foco en el enlace, botón (táctil).
+ *   Cierra: ratón fuera, foco fuera, Escape, clic fuera.
+ *
+ * Estilos: clases `cf-dropdown*` en web.css.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { Link } from "react-router-dom"
 
 
 export const ServicesDropdown = ({ to, label, active }) => {
-    
+
     const { store } = useGlobalReducer();
     const services = store.services;
 
     const [open, setOpen ] = useState(false);
+
+    // Referencia al <li>, para saber si un clic cayó dentro o fuera.
     const container = useRef(null);
 
+    // Cerrar al hacer clic fuera. Es lo único que no se puede resolver con
+    // eventos del propio elemento: el clic ocurre en otra parte.
     useEffect(() => {
-        
+
+        // Cerrado no hay nada que vigilar: el escuchador solo existe
+        // mientras hace falta.
         if(!open) return;
 
         const onClickOutside = (e) => {
@@ -23,10 +41,13 @@ export const ServicesDropdown = ({ to, label, active }) => {
 
         document.addEventListener("mousedown", onClickOutside)
 
+        // Sin esta limpieza, cada apertura dejaría un escuchador vivo.
         return () => document.removeEventListener("mousedown", onClickOutside);
 
     }, [open]);
 
+    // relatedTarget es quien RECIBE el foco. Si sigue dentro del <li>, es
+    // que se está tabulando entre los servicios: no hay que cerrar.
     const onFocusLeave = (e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) {
             setOpen(false);
@@ -46,9 +67,8 @@ export const ServicesDropdown = ({ to, label, active }) => {
             onBlur={onFocusLeave}
             onKeyDown={onKeyDown}
         >
-            {/* onFocus va aquí y no en el <li>: si estuviera arriba,
-                burbujearía desde el botón de abajo y al tocarlo se abriría
-                y se cerraría a la vez. */}
+            {/* onFocus va aquí y no en el <li>: arriba burbujearía desde el
+                botón y al tocarlo se abriría y cerraría a la vez. */}
             <Link
                 to={to}
                 className={active ? "cf-nav__link is-active" : "cf-nav__link"}
@@ -60,8 +80,8 @@ export const ServicesDropdown = ({ to, label, active }) => {
                 {label}
             </Link>
 
-            {/* En una pantalla táctil no existe el "pasar por encima": al
-                tocar el enlace, navegas. Este botón da la otra opción. */}
+            {/* En táctil no existe el "pasar por encima": tocar el enlace
+                navega. Este botón da la otra opción. Solo visible en móvil. */}
             <button
                 type="button"
                 className="cf-dropdown__toggle"
@@ -75,6 +95,8 @@ export const ServicesDropdown = ({ to, label, active }) => {
                 ></i>
             </button>
 
+            {/* El panel existe solo mientras está abierto. Ocultarlo con CSS
+                dejaría sus enlaces alcanzables con el tabulador. */}
             {open && (
                 <ul className="cf-dropdown__panel">
                     {services.length === 0 ? (
@@ -84,6 +106,8 @@ export const ServicesDropdown = ({ to, label, active }) => {
                     ) : (
                         services.map((service) => (
                             <li key={service.slug}>
+                                {/* Cierra al elegir, o el menú taparía la
+                                    ficha del servicio recién abierta. */}
                                 <Link
                                     to={`/services/${service.slug}`}
                                     onClick={() => setOpen(false)}

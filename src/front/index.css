@@ -2,45 +2,36 @@
    CLEANFLOW · TOKENS DE DISEÑO
 
    El único sitio donde se escriben colores, tipografías, tamaños y
-   espaciados. Vale para toda la aplicación: web pública y dashboard.
-
-   DECIDIDO POR EL EQUIPO (07/09/2026)
-   -----------------------------------
-   Se adopta el DESIGN_SYSTEM.md: oliva #2E3B26 como color principal,
-   Fraunces para títulos, Inter para texto y terracota #C97B4A como
-   acento. Del kit de marca se conserva Montserrat, y ÚNICAMENTE para el
-   logotipo: no se usa en ningún otro sitio.
+   espaciados. Lo carga main.jsx, así que vale para toda la aplicación.
 
    DOS NORMAS DEL EQUIPO
    ---------------------
-   1. Ningún componente escribe un color, una fuente ni un radio a pelo:
+   1. Ningún componente escribe un valor a pelo:
 
-          color: var(--cf-primary);        ✅
-          color: #2E3B26;                  ❌
+          color: var(--cf-primary);   ✅
+          color: #2E3B26;             ❌
 
-      Porque el día que la marca cambie de verde, se cambia aquí una línea
-      y cambia la aplicación entera. Con los colores repartidos por veinte
-      archivos, ese día no llega nunca: siempre se queda alguno sin tocar.
+      Así, cambiar la marca es cambiar una línea aquí. Con los colores
+      repartidos por veinte archivos, siempre se queda alguno sin tocar.
+      ¿Necesitas uno que no está? Añádelo aquí y dilo en el grupo.
 
-   2. En la WEB PÚBLICA no se usan los componentes con aspecto propio de
-      Bootstrap (.btn, .card, .navbar, .form-control). Sus utilidades de
-      colocación (container, d-flex, gap) sí valen. En el DASHBOARD no hay
-      restricción: allí Bootstrap ahorra días en tablas y formularios.
+   2. En la WEB PÚBLICA no se usan los componentes de Bootstrap (.btn,
+      .card, .navbar, .form-control); sus utilidades de colocación
+      (container, d-flex, gap) sí. En el DASHBOARD no hay restricción.
 
-      Las clases propias llevan el prefijo `cf-`. Sin él, una clase como
-      .nav-link chocaría con la de Bootstrap y ganaría una u otra según el
-      orden de carga, sin dar ningún error.
+      Las clases propias llevan el prefijo `cf-`: sin él, una clase como
+      .nav-link chocaría con la de Bootstrap sin dar ningún error.
 
-   Si necesitas un color que no está en esta lista, no lo escribas en tu
-   componente: añádelo aquí y coméntalo con el equipo.
+   Paleta decidida por el equipo el 07/09/2026: se adopta el
+   DESIGN_SYSTEM.md y del kit de marca se conserva Montserrat, solo para
+   el logotipo.
    ====================================================================== */
 
 :root {
 
     /* ---- COLOR ----
-       Nombres por FUNCIÓN, no por aspecto: se llama --cf-primary y no
-       --cf-verde, para que el día que la marca sea azul el nombre siga
-       teniendo sentido. */
+       Nombres por FUNCIÓN y no por aspecto: --cf-primary y no --cf-verde,
+       para que el nombre siga valiendo si la marca cambia de color. */
 
     --cf-bg: #F7F3E8;              /* fondo general, crema */
     --cf-surface: #FFFFFF;         /* tarjetas y bloques sobre el fondo */
@@ -56,22 +47,16 @@
     --cf-on-primary-muted: #B0B3A4;   /* el mismo, apagado: textos secundarios */
 
     /* ---- TIPOGRAFÍA ----
-       Tres familias, cada una con su papel. Las alternativas del final se
-       usan mientras la fuente carga. */
+       Las alternativas del final se usan mientras la fuente carga. */
 
     --cf-font-heading: "Fraunces", Georgia, "Times New Roman", serif;
     --cf-font-body: "Inter", system-ui, -apple-system, sans-serif;
 
-    /* Solo para el logotipo (el "CLEANFLOW" escrito). Viene del kit de
-       marca y NO se usa en ningún otro elemento: si aparece en un titular
-       o en un botón, es un error. */
+    /* Solo para el logotipo. Si aparece en un titular o un botón, es un error. */
     --cf-font-brand: "Montserrat", system-ui, sans-serif;
 
-    /* Escala de tamaños. Tenerla cerrada evita que cada persona invente su
-       propio "un poco más grande" y la web acabe con quince tamaños.
-
-       En rem y no en px: si alguien tiene configurado un tamaño de letra
-       mayor en su navegador, la web le crece con él. */
+    /* Escala cerrada, para que nadie invente su propio "un poco más
+       grande". En rem: crece si el usuario agranda la letra del navegador. */
 
     --cf-text-sm: 0.875rem;    /* 14px: notas, pies */
     --cf-text-base: 1rem;      /* 16px: texto normal */
@@ -81,8 +66,8 @@
     --cf-text-3xl: 2.5rem;     /* 40px: el titular del hero */
 
     /* ---- ESPACIADO ----
-       Todo múltiplo de 4px. Cuando los espacios salen de una escala, la
-       página se ve ordenada aunque nadie sepa explicar por qué. */
+       Múltiplos de 4px: con una escala, la página se ve ordenada aunque
+       nadie sepa explicar por qué. */
 
     --cf-space-1: 0.25rem;   /*  4px */
     --cf-space-2: 0.5rem;    /*  8px */
@@ -104,8 +89,8 @@
 
     /* ---- DISPOSICIÓN ---- */
 
-    /* Ancho máximo del contenido. Sin esto, en una pantalla ancha las
-       líneas de texto se vuelven larguísimas y cuesta leerlas. */
+    /* Ancho máximo del contenido: sin él, en pantallas anchas las líneas
+       de texto se alargan tanto que cuesta leerlas. */
     --cf-container: 1140px;
 
     --cf-transition: 0.15s ease;
@@ -115,15 +100,14 @@
 /* ======================================================================
    BASE
 
-   Lo mínimo para que la aplicación parta de un sitio razonable. No es
-   diseño: es quitar de en medio los valores por defecto del navegador.
+   No es diseño: es quitar de en medio los valores por defecto del
+   navegador para partir de un sitio razonable.
    ====================================================================== */
 
 *,
 *::before,
 *::after {
-    /* Que el padding y el borde cuenten dentro del ancho declarado. Sin
-       esto, poner padding a algo con width:100% lo desborda. */
+    /* Que el padding y el borde cuenten dentro del ancho declarado. */
     box-sizing: border-box;
 }
 
@@ -147,21 +131,21 @@ a {
 }
 
 img {
-    /* Que ninguna imagen desborde su contenedor y provoque scroll
-       horizontal. Es el fallo más habitual en móvil. */
+    /* Evita que una imagen desborde y provoque scroll horizontal, que es
+       el fallo más habitual en móvil. */
     max-width: 100%;
     height: auto;
 }
 
-/* El foco del teclado tiene que verse SIEMPRE. Quitarlo con outline:none
+/* El foco del teclado tiene que verse SIEMPRE: quitarlo con outline:none
    deja la web inutilizable para quien no usa ratón. */
 :focus-visible {
     outline: 2px solid var(--cf-primary);
     outline-offset: 2px;
 }
 
-/* Texto visible solo para lectores de pantalla: se saca de la vista sin
-   ocultarlo, porque display:none también lo escondería de ellos. */
+/* Solo para lectores de pantalla: se saca de la vista sin ocultarlo,
+   porque display:none también lo escondería de ellos. */
 .sr-only {
     position: absolute;
     width: 1px;
@@ -170,5 +154,3 @@ img {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
 }
-
-

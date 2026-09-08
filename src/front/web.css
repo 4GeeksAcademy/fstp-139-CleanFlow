@@ -1,24 +1,19 @@
 /* ======================================================================
    ESTILOS DE LA WEB PÚBLICA
 
-   El equivalente de auth.css para la zona pública. Se importa desde
-   PublicLayout.jsx, igual que auth.css se importa desde AuthLayout.jsx.
+   Se importa desde PublicLayout.jsx, igual que auth.css desde AuthLayout.
 
-   NORMAS (ver index.css):
-   - Ningún color, fuente ni radio escrito a pelo: todo sale de un token.
-   - Todas las clases llevan el prefijo `cf-`, para no chocar con las de
-     Bootstrap, que se carga en index.html.
+   Normas (ver index.css): ningún valor a pelo, todo desde un token; y
+   prefijo `cf-` en todas las clases, para no chocar con Bootstrap.
 
-   Nomenclatura: bloque__elemento y modificadores con `is-`.
-       .cf-nav          -> el bloque
-       .cf-nav__link    -> un elemento suyo
-       .is-active       -> un estado
+   Nomenclatura: .cf-nav el bloque, .cf-nav__link un elemento suyo,
+   .is-active un estado.
    ====================================================================== */
 
 
 /* ---------- CONTENEDOR ----------
-   Centra el contenido y le pone un ancho máximo. Se reutiliza en el
-   footer y lo usarán las secciones de la landing (WEB-04). */
+   Centra el contenido y limita su ancho. Lo usan la cabecera, el pie y
+   lo usarán las secciones de la landing (WEB-04). */
 
 .cf-container {
     width: 100%;
@@ -47,10 +42,8 @@
     border-bottom: 1px solid var(--cf-border);
 }
 
-/* La cabecera fija tapa el principio de la sección cuando saltas a un
-   ancla. scroll-margin-top le dice al navegador que se pare un poco antes,
-   dejando hueco para ella. Sin esto, el título de la sección queda oculto
-   detrás del navbar. */
+/* Al saltar a un ancla, la cabecera fija taparía el título de la sección.
+   scroll-margin-top le dice al navegador que se pare antes. */
 section[id] {
     scroll-margin-top: 140px;
 }
@@ -102,9 +95,8 @@ section[id] {
 }
 
 .cf-brand__name {
-    /* La ÚNICA cosa de toda la aplicación que usa Montserrat. CLEAN en
-       negrita y FLOW en fino: es el logotipo del kit de marca, el mismo
-       que la pantalla de login (.auth-word) y el pie. */
+    /* El logotipo del kit de marca, igual que en el login (.auth-word) y
+       en el pie. Lo único que usa Montserrat. */
     font-family: var(--cf-font-brand);
     font-size: var(--cf-text-xl);
     line-height: 1;
@@ -129,9 +121,8 @@ section[id] {
     font-weight: 500;
     padding: var(--cf-space-2) 0;
 
-    /* El borde se declara transparente desde el principio, en vez de
-       aparecer solo al marcarse. Si no, al resaltarse un item el texto
-       daría un salto de 2px hacia arriba. */
+    /* Transparente desde el principio: si el borde apareciera solo al
+       marcarse, el texto daría un salto de 2px. */
     border-bottom: 2px solid transparent;
 
     transition: color var(--cf-transition), border-color var(--cf-transition);
@@ -152,9 +143,8 @@ section[id] {
 /* ---------- DESPLEGABLE DE SERVICIOS ---------- */
 
 .cf-dropdown {
-    /* position:relative convierte este <li> en la referencia de la que
-       cuelga el panel. Sin esto, el panel se colocaría respecto a la
-       página entera y aparecería en cualquier sitio. */
+    /* relative convierte el <li> en la referencia de la que cuelga el
+       panel. Sin esto aparecería en cualquier sitio de la página. */
     position: relative;
 
     display: flex;
@@ -297,10 +287,9 @@ section[id] {
 /* ======================================================================
    PIE DE PÁGINA
 
-   Estructura en dos capas, como la referencia que eligió el equipo:
-   un marco del color del fondo y, encajado dentro, un panel oscuro
-   redondeado. La marca va en el color del marco y se corta contra el
-   borde inferior del panel.
+   Dos capas: un marco del color del fondo y, encajado dentro, un panel
+   verde redondeado. La marca va en el color del marco y se corta contra
+   el borde de abajo del panel.
    ====================================================================== */
 
 .cf-footer {
@@ -330,9 +319,8 @@ section[id] {
 .cf-footer__grid {
     display: grid;
 
-    /* Desigual a propósito: la marca ocupa vez y media lo que una
-       columna de enlaces. Esa diferencia de anchos ya crea jerarquía,
-       sin necesidad de líneas ni recuadros. */
+    /* Desigual a propósito: la marca ocupa vez y media una columna. Esa
+       diferencia ya crea jerarquía, sin líneas ni recuadros. */
     grid-template-columns: 1.5fr repeat(3, 1fr);
     gap: var(--cf-space-8);
     align-items: start;
@@ -416,12 +404,9 @@ section[id] {
 
 
 /* ---------- DATOS DE CONTACTO CON ETIQUETA ----------
-
-   Aquí la jerarquía va AL REVÉS que en las columnas de enlaces: la
-   etiqueta destaca y el dato queda apagado. El motivo es que en las
-   otras columnas lo importante son los enlaces, mientras que en esta lo
-   que ordena la lectura es saber de un vistazo qué es cada dato.
-   ------------------------------------------------------------------- */
+   Jerarquía AL REVÉS que en las columnas de enlaces: aquí destaca la
+   etiqueta y el dato queda apagado, porque lo que ordena la lectura es
+   saber qué es cada cosa. */
 
 .cf-footer__data {
     list-style: none;
@@ -481,9 +466,8 @@ section[id] {
     border: 1px solid var(--cf-on-primary-muted);
     color: var(--cf-on-primary-muted);
 
-    /* La regla global de index.css solo fija el color de los enlaces, así
-       que el subrayado del navegador hay que quitarlo aquí. Sin esto sale
-       una raya debajo de cada icono. */
+    /* index.css solo fija el color de los enlaces: el subrayado del
+       navegador hay que quitarlo aquí, o sale una raya bajo el icono. */
     text-decoration: none;
 
     transition: background-color var(--cf-transition),
@@ -500,12 +484,9 @@ section[id] {
 
 /* ---------- LA MARCA GRANDE ---------- */
 
-/* Va en SVG y no como texto normal por un motivo concreto: el viewBox
-   hace que la palabra ocupe siempre el ancho disponible, entera y
-   centrada, sea cual sea la pantalla. Con texto CSS habría que ajustar
-   el tamaño de letra por cada tamaño de pantalla, y en móvil se saldría
-   por los lados. El corte de abajo también es exacto siempre: las
-   letras sobresalen del viewBox y quedan recortadas ahí. */
+/* En SVG y no como texto: el viewBox hace que la palabra ocupe el ancho
+   disponible, entera y centrada, en cualquier pantalla. Con texto CSS
+   habría que ajustar el tamaño por cada tamaño de pantalla. */
 .cf-footer__mark {
     display: block;
     width: 100%;
@@ -521,9 +502,8 @@ section[id] {
 
 /* ---------- LÍNEA LEGAL ---------- */
 
-/* Centrada, y no repartida a los lados, a petición del equipo: los
-   widgets de chat se anclan abajo a la derecha y taparían el aviso
-   legal justo ahí. */
+/* Centrada y no repartida a los lados: los widgets de chat se anclan
+   abajo a la derecha y taparían el aviso legal justo ahí. */
 .cf-footer__legal {
     display: flex;
     flex-wrap: wrap;

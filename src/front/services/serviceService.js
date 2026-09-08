@@ -1,18 +1,26 @@
+/**
+ * LLAMADAS AL BACKEND PARA EL CATÁLOGO DE SERVICIOS.
+ *
+ * Igual que authService.js: solo habla con la API. No toca el store, ni
+ * localStorage, ni navega. De eso se encarga quien lo llama.
+ *
+ * Contrato: devuelve siempre { ok, data } y NUNCA lanza. Toda la
+ * aplicación cuenta con eso, así que mantenlo al añadir funciones.
+ */
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 // ----------------------------------------------------------------------
 // PROVISIONAL — BORRAR CUANDO LA ISSUE WEB-02 ESTÉ HECHA
 //
-// El endpoint GET /api/services todavía no existe. Sin él no se puede
-// construir ni probar el desplegable del navbar, así que mientras tanto se
-// usa esta lista.
+// GET /api/services no existe todavía, y sin él no se puede probar el
+// desplegable del navbar. Mientras tanto se usa esta lista.
 //
-// Para borrarlo llegado el momento: quitar esta constante, quitar
-// USAR_LISTA_DE_PRUEBA y quitar el bloque marcado dentro del catch.
-// No hay que tocar nada más.
+// Para quitarlo: borrar TEST_LIST, borrar TESTING_SERVICES y borrar el
+// bloque marcado dentro del catch. Nada más.
 //
-// Los campos son los que tendrá el modelo Service: los de la issue #11 más
-// los tres que añade WEB-02 (slug, image_url y long_description).
+// Los campos son los del modelo Service: los de la issue #11 más los tres
+// que añade WEB-02 (slug, image_url y long_description).
 // ----------------------------------------------------------------------
 
 const TEST_LIST = true;
@@ -64,9 +72,8 @@ const TESTING_SERVICES = [
     is_active: true,
   },
   {
-    // Desactivado a propósito: sirve para comprobar que NO aparece en
-    // el navbar ni en el footer. Cuando exista el backend de verdad,
-    // este filtrado lo hará él y esta prueba se hará desde el panel.
+    // Desactivado a propósito: comprueba que NO sale en el navbar ni en el
+    // pie. Con el backend real, ese filtro lo hará él.
     service_id: 5,
     name: "Limpieza de cristales",
     slug: "limpieza-de-cristales",
@@ -79,6 +86,9 @@ const TESTING_SERVICES = [
   },
 ];
 
+// Cinturón de seguridad: el backend ya filtra por is_active, pero si algún
+// día devolviera de más, la web no lo pinta. El Array.isArray protege de
+// que la respuesta no sea una lista y se rompa al recorrerla.
 const activeServices = (services) =>
   Array.isArray(services)
     ? services.filter((service) => service.is_active !== false)
@@ -86,6 +96,7 @@ const activeServices = (services) =>
 
 export const getServices = async () => {
   try {
+    // Sin cabeceras ni token: es un endpoint público.
     const response = await fetch(`${BACKEND_URL}/api/services`);
 
     const data = await response.json();
@@ -94,11 +105,19 @@ export const getServices = async () => {
       return { ok: false, data };
     }
 
+    // data.services y no data: acordado con WEB-02, la respuesta viene
+    // envuelta en un objeto como el resto de la API.
     return { ok: true, data: activeServices(data.services) };
   } catch (error) {
+    // Aquí se cae cuando NO hay respuesta que interpretar: backend caído,
+    // sin conexión, CORS... o, ahora mismo, porque el endpoint no existe y
+    // Flask devuelve el index.html, que no es JSON.
+
+    // ---- PROVISIONAL: se va con TESTING_SERVICES ----
     if (TEST_LIST) {
       return { ok: true, data: activeServices(TESTING_SERVICES) };
     }
+    // ---- fin del bloque provisional ----
 
     console.error("Network failure when requesting services:", error);
 

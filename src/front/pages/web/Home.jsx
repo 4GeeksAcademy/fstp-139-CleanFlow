@@ -1,22 +1,17 @@
 /**
- * Página de inicio (landing).
+ * LANDING.
  *
- * ⚠️ ANDAMIO PROVISIONAL — LO SUSTITUYE LA ISSUE WEB-04
+ * ⚠️ ANDAMIO PROVISIONAL — LO SUSTITUYE LA ISSUE WEB-04.
  *
- * Secciones vacías temporales para que el navbar pueda probar la 
- * navegación por anclas.
+ * Seis huecos vacíos que existen por un motivo: dar destino a las anclas
+ * del navbar mientras las secciones reales no están hechas.
  *
- * Lo ÚNICO que no se puede cambiar de aquí son los seis `id`: el navbar y
- * el footer apuntan a ellos. El resto es diseño temporal.
- *
- * Cada sección se convertirá en su propio componente dentro de
- * pages/web/home/, uno por issue, para que varias personas puedan
- * trabajar a la vez sin tocar el mismo archivo:
+ * Lo único intocable son los seis `id`: el navbar y el pie apuntan a
+ * ellos. Cambiar uno rompe esos enlaces sin dar ningún error.
  */
 
-// Se usa un array para definir el orden de las secciones en el scroll,
-// ver de un vistazo las anclas disponibles.
-
+// El orden del array es el orden en pantalla: reordenar la landing es
+// mover una línea.
 const SECTIONS = [
     { id: "hero",      titulo: "Hero",                         },
     { id: "services",  titulo: "Nuestros servicios",           },
@@ -26,6 +21,27 @@ const SECTIONS = [
     { id: "location",  titulo: "Dónde estamos",                },
 ]
 
+// ---- CÓMO SE AÑADE UNA SECCIÓN ----
+//
+// Hoy las seis están aquí porque esto es un andamio. Cuando WEB-04 lo
+// sustituya, cada una será un componente en pages/web/home/ y este
+// archivo solo las importará y ordenará:
+//
+//     export const Home = () => (
+//         <main>
+//             <Hero />
+//             <ServicesSection />
+//         </main>
+//     )
+//
+// El contrato: cada componente devuelve SU PROPIA <section id="...">.
+// No la envuelve Home. Así el id vive junto a su contenido y nadie tiene
+// que tocar este archivo para rellenar el suyo.
+//
+// Para añadir una sección: créala, impórtala arriba y colócala en su
+// sitio. Si además debe aparecer en el menú, añade su id a NAV_LINKS
+// en components/web/Navbar.jsx.
+
 export const Home = () => {
     return (
         <main>
@@ -33,12 +49,11 @@ export const Home = () => {
                 <section
                     key={section.id}
                     id={section.id}
-                    // Estilos en línea a propósito: son de usar y tirar.
-                    // No merecen entrar en una hoja de estilos porque este
-                    // archivo entero desaparece en WEB-04.
+                    // Estilos en línea: son de usar y tirar, este archivo
+                    // entero desaparece en WEB-04.
                     style={{
-                        // Altura suficiente para que haya scroll de verdad
-                        // y se pueda comprobar el salto entre anclas.
+                        // Alto suficiente para que haya scroll y se pueda
+                        // probar el salto entre anclas.
                         minHeight: "80vh",
                         display: "flex",
                         flexDirection: "column",
@@ -52,7 +67,7 @@ export const Home = () => {
                 >
                     <h2>{section.titulo}</h2>
                     <p style={{ color: "#777", margin: 0 }}>
-                        Sección provisional · <code>#{section.id}</code> 
+                        Sección provisional · <code>#{section.id}</code>
                     </p>
                 </section>
             ))}

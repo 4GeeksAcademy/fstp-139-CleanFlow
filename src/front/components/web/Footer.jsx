@@ -1,16 +1,13 @@
 /**
- * Pie de la web pública.
+ * FOOTER DE LA WED
  *
- * Estructura en dos capas: un marco del color del fondo y, encajado
- * dentro, un panel verde redondeado. La marca "CleanFlow" va en grande al
- * final del panel, en el color del marco y cortada contra su borde
- * inferior.
+ * Cuatro columnas (marca, navegación, servicios y contacto) y 
+ * la línea legal centrada.
  *
- * La lista de servicios sale del MISMO sitio que la del desplegable del
- * navbar: el store. Por eso las dos se actualizan a la vez y no hay forma
- * de que enseñen cosas distintas.
+ * Los servicios salen del store, la misma fuente que el desplegable del
+ * navbar: así los dos enseñan siempre lo mismo.
  *
- * Los estilos son las clases cf-footer* de web.css.
+ * Estilos: clases `cf-footer*` en web.css.
  */
 
 import { Fragment } from "react";
@@ -20,22 +17,20 @@ import { Logo } from "../Logo";
 import { COMPANY, SOCIAL_NETWORKS } from "../../data/company";
 
 
-// Los enlaces de navegación del pie. No son los mismos que los del
-// navbar: aquí se añade "Trabaja con nosotros", que arriba no cabe.
+// Enlaces del footer.
 const FOOTER_LINKS = [
-	{ label: "Inicio", to: "/" },
-	{ label: "Servicios", to: "/#services" },
-	{ label: "Sobre CleanFlow", to: "/#about-us" },
-	{ label: "Contacto", to: "/contact" },
-	{ label: "Trabaja con nosotros", to: "/work-with-us" },
+    { label: "Inicio", to: "/" },
+    { label: "Servicios", to: "/#services" },
+    { label: "Sobre CleanFlow", to: "/#about-us" },
+    { label: "Contacto", to: "/contact" },
+    { label: "Trabaja con nosotros", to: "/work-with-us" },
 ]
 
-
-// Estas páginas no existen todavía y está sin decidir si se redactan.
+// Páginas legales. Todavía no existenfd: pendiente de redactarlas.
 const LEGAL_LINKS = [
-	{ label: "Política de privacidad", to: "/privacy" },
-	{ label: "Política de cookies", to: "/cookies" },
-	{ label: "Aviso legal", to: "/legal" },
+    { label: "Política de privacidad", to: "/privacy" },
+    { label: "Política de cookies", to: "/cookies" },
+    { label: "Aviso legal", to: "/legal" },
 ]
 
 
@@ -44,13 +39,14 @@ export const Footer = () => {
     const { store } = useGlobalReducer();
     const services = store.services;
 
-    // Solo se pintan las redes que ya tienen perfil creado.
+    // Solo las redes con perfil creado: un icono que no lleva a ninguna
+    // parte queda peor que no tener icono.
     const activeNetworks = SOCIAL_NETWORKS.filter((network) => network.url);
 
     return (
         <footer className="cf-footer">
+            {/* Marco del color del fondo + panel verde encajado dentro. */}
             <div className="cf-footer__frame">
-
                 <div className="cf-footer__panel">
 
                     <div className="cf-container">
@@ -58,13 +54,9 @@ export const Footer = () => {
 
                             {/* ---------- MARCA ---------- */}
                             <div>
-                                {/* Mismo <Link> que el de la cabecera: navega sin
-                                    recargar, y ScrollToTop sube al principio al
-                                    detectar el cambio de ubicación.
-
-                                    El aria-label hace falta porque el isotipo es
-                                    decorativo: sin él, un lector de pantalla leería
-                                    "CLEANFLOW" sin decir que es un enlace al inicio. */}
+                                {/* aria-label: necesario para que los lectores de 
+                                pantalla indiquen el destino del enlace, ya que el icono 
+                                es meramente decorativo. */}
                                 <Link
                                     to="/"
                                     className="cf-footer__brand"
@@ -78,16 +70,13 @@ export const Footer = () => {
 
                                 <p className="cf-footer__pitch">{COMPANY.tagline}</p>
 
-                                {/* Si no hay ningún perfil creado, no se pinta la
-                                    lista. Un icono que no lleva a ninguna parte
-                                    queda peor que no tener icono. */}
                                 {activeNetworks.length > 0 && (
                                     <ul className="cf-footer__social">
                                         {activeNetworks.map((network) => (
                                             <li key={network.name}>
-                                                {/* <a> y no <Link>: son webs de fuera.
-                                                    rel="noreferrer" evita que la página
-                                                    destino pueda manipular la nuestra. */}
+                                                {/* <a> y no <Link>: son webs externas.
+                                                    rel="noreferrer" impide que la página
+                                                    destino manipule la nuestra. */}
                                                 <a
                                                     href={network.url}
                                                     target="_blank"
@@ -134,23 +123,20 @@ export const Footer = () => {
                                 )}
                             </div>
 
-                            {/* ---------- CONTACTO ---------- */}
+                            {/* ---------- CONTACTO ----------
+                                Aquí manda la etiqueta y el dato va apagado: lo que
+                                ordena esta columna es saber qué es cada cosa. En las
+                                otras dos, lo importante son los enlaces. */}
                             <div>
                                 <h2 className="cf-footer__title">Contacto</h2>
 
-                                {/* <address> es la etiqueta pensada para los datos de
+                                {/* <address>: la etiqueta propia de los datos de
                                     contacto de quien publica la página. */}
-                                {/* Aquí la jerarquía va al revés que en las columnas
-                                    de enlaces: la ETIQUETA destaca y el dato queda
-                                    apagado. En las otras columnas lo importante son
-                                    los enlaces; en esta, saber de un vistazo qué es
-                                    cada cosa. */}
                                 <address className="cf-footer__address">
                                     <ul className="cf-footer__data">
 
-                                        {/* Enlaces y no texto suelto: en un móvil,
-                                            tocar el teléfono llama y tocar el correo
-                                            abre el gestor de correo. */}
+                                        {/* tel: y mailto: para que en móvil se pueda
+                                            llamar y escribir con un toque. */}
                                         <li>
                                             <span className="cf-footer__label">Teléfono</span>
                                             <span className="cf-footer__value">
@@ -193,18 +179,15 @@ export const Footer = () => {
                         </div>
                     </div>
 
-                    {/* ---------- LA MARCA GRANDE ----------
-                        viewBox="0 60 1000 92": se muestra la franja que va de 60 a
-                        152 en el sistema de coordenadas del dibujo. Como la línea
-                        base del texto está en 185, la parte de abajo de las letras
-                        cae fuera de esa franja y queda recortada. Ahí está el corte.
+                    {/* ---------- MARCA GRANDE ----------
+                        En SVG y no como texto: el viewBox hace que la palabra ocupe
+                        el ancho disponible, entera y centrada, en cualquier pantalla.
 
-                        textLength + lengthAdjust obligan a la palabra a medir 950
-                        de los 1000 de ancho: así entra entera, con margen a los
-                        lados, en cualquier pantalla.
+                        La línea base (y=185) cae fuera del viewBox, que acaba en 152:
+                        por eso las letras salen recortadas por abajo.
 
-                        role y aria-label porque para un lector de pantalla esto es
-                        una imagen con texto, no un texto normal. */}
+                        textLength la obliga a medir 950 de los 1000 de ancho, así que
+                        nunca se sale por los lados. */}
                     <svg
                         className="cf-footer__mark"
                         viewBox="0 60 1000 92"
@@ -225,17 +208,16 @@ export const Footer = () => {
 
                 </div>
 
-                {/* ---------- LÍNEA LEGAL ---------- */}
-                {/* Centrada a propósito: los widgets de chat se anclan abajo a la
+                {/* ---------- LÍNEA LEGAL ----------
+                    Centrada porque los widgets de chat se anclan abajo a la
                     derecha y taparían el aviso legal justo en esa esquina. */}
                 <div className="cf-footer__legal">
-                    {/* getFullYear para que el año no se quede antiguo solo. */}
+                    {/* getFullYear: el año se actualiza solo. */}
                     <p>© {new Date().getFullYear()} {COMPANY.name}</p>
 
                     {LEGAL_LINKS.map((link) => (
-                        // Fragment con key: hacen falta dos elementos por enlace
-                        // (el separador y el enlace) y React necesita la key en
-                        // el elemento de fuera.
+                        // Fragment porque cada enlace son dos elementos
+                        // (separador + enlace) y la key va en el de fuera.
                         <Fragment key={link.to}>
                             <span className="cf-footer__sep" aria-hidden="true">·</span>
                             <Link to={link.to}>{link.label}</Link>
