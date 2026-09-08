@@ -1,0 +1,226 @@
+/* Estilos de las pantallas de autenticación (AuthLayout + Login).
+   Todo va con prefijo "auth-" y las variables se definen en .auth-screen,
+   no en :root, para no tocar ninguna otra pantalla ni chocar con Bootstrap.
+   Colores y radios: DESIGN_SYSTEM.md. Wordmark del logo: kit de marca. */
+
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600&family=Montserrat:wght@400;700&display=swap");
+
+.auth-screen {
+    --auth-bg: #F7F3E8;
+    --auth-primary: #2E3B26;
+    --auth-primary-dark: #222d1c;
+    --auth-text: #26261F;
+    --auth-muted: #6E6B5E;
+    --auth-border: #E1DAC5;
+    --auth-ring: rgba(46, 59, 38, 0.22);
+    --auth-heading: "Fraunces", Georgia, serif;
+    --auth-body: "Inter", system-ui, sans-serif;
+    --auth-radius-sm: 8px;
+    --auth-radius-md: 12px;
+    --auth-radius-lg: 20px;
+
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 40px 24px;
+    background: var(--auth-bg);
+    color: var(--auth-text);
+    font-family: var(--auth-body);
+}
+
+/* ---- Logo ---- */
+
+.auth-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--auth-primary);
+}
+
+.auth-word {
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+}
+
+.auth-word b { font-weight: 700; }
+.auth-word span { font-weight: 400; margin-left: 0.22em; }
+
+/* ---- Tarjeta ---- */
+
+.auth-card {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    border: 1px solid var(--auth-border);
+    border-radius: var(--auth-radius-lg);
+    box-shadow: 0 4px 16px rgba(38, 38, 31, 0.06);
+    padding: 32px 28px 28px;
+}
+
+.auth-title {
+    margin: 0 0 6px;
+    font-family: var(--auth-heading);
+    font-weight: 600;
+    font-size: 26px;
+    line-height: 1.15;
+    text-align: center;
+    color: var(--auth-text);
+}
+
+.auth-subtitle {
+    margin: 0 0 22px;
+    text-align: center;
+    color: var(--auth-muted);
+    font-size: 13.5px;
+}
+
+.auth-alert {
+    margin: 0 0 18px;
+    padding: 10px 12px;
+    border-radius: var(--auth-radius-sm);
+    background: #fbe9e6;
+    border: 1px solid #efc4bc;
+    color: #7a2e22;
+    font-size: 13px;
+}
+
+/* Aviso informativo, no un error: sesión caducada, etc. En tonos de la
+   marca en vez de rojo, para que no parezca que el usuario ha hecho algo
+   mal. */
+.auth-notice {
+    margin: 0 0 18px;
+    padding: 10px 12px;
+    border-radius: var(--auth-radius-sm);
+    background: #f0ede0;
+    border: 1px solid var(--auth-border);
+    color: var(--auth-text);
+    font-size: 13px;
+}
+
+/* ---- Campos ---- */
+
+.auth-field { margin-bottom: 16px; }
+
+.auth-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.auth-input {
+    width: 100%;
+    font: 15px/1.4 var(--auth-body);
+    color: var(--auth-text);
+    background: #fff;
+    border: 1px solid var(--auth-border);
+    border-radius: var(--auth-radius-sm);
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.auth-input::placeholder { color: #a39f92; }
+
+.auth-input:focus {
+    border-color: var(--auth-primary);
+    box-shadow: 0 0 0 3px var(--auth-ring);
+}
+
+/* Contraseña + botón del ojo: el borde y el anillo de foco viven en el
+   contenedor (.auth-group), no en el input, para que al escribir el
+   contorno verde rodee también al botón del ojo como una sola pieza. */
+.auth-group {
+    display: flex;
+    background: #fff;
+    border: 1px solid var(--auth-border);
+    border-radius: var(--auth-radius-sm);
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.auth-group:focus-within {
+    border-color: var(--auth-primary);
+    box-shadow: 0 0 0 3px var(--auth-ring);
+}
+
+.auth-group .auth-input {
+    border: 0;
+    border-radius: var(--auth-radius-sm) 0 0 var(--auth-radius-sm);
+}
+
+.auth-group .auth-input:focus { box-shadow: none; }
+
+.auth-eye {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    background: transparent;
+    border: 0;
+    border-radius: 0 var(--auth-radius-sm) var(--auth-radius-sm) 0;
+    color: var(--auth-muted);
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.auth-eye:hover { color: var(--auth-primary); }
+.auth-eye:focus-visible { outline: 2px solid var(--auth-primary); outline-offset: -2px; }
+
+/* ---- Botón principal ---- */
+
+.auth-btn {
+    display: block;
+    width: 100%;
+    margin-top: 22px;
+    appearance: none;
+    border: 1px solid var(--auth-primary);
+    background: var(--auth-primary);
+    color: #fff;
+    font: 600 15px/1 var(--auth-body);
+    padding: 13px 16px;
+    border-radius: var(--auth-radius-md);
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.auth-btn:hover {
+    background: var(--auth-primary-dark);
+    border-color: var(--auth-primary-dark);
+}
+
+.auth-btn:focus-visible { outline: 2px solid var(--auth-primary); outline-offset: 2px; }
+
+/* ---- Pie de tarjeta y vuelta al inicio ---- */
+
+.auth-foot {
+    margin: 18px 0 0;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--auth-muted);
+}
+
+.auth-foot a {
+    color: var(--auth-primary);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.auth-foot a:hover { text-decoration: underline; }
+
+.auth-back {
+    font-size: 13px;
+    color: var(--auth-muted);
+    text-decoration: none;
+}
+
+.auth-back:hover { color: var(--auth-primary); }
