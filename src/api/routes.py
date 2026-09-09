@@ -22,33 +22,6 @@ api = Blueprint("api", __name__)
 # Permite que el frontend (puerto 3000) llame a esta API (puerto 3001).
 # Sin esto el navegador bloquearía las respuestas por ser otro origen.
 CORS(api)
-
-
-def required_role(role):
-    """
-    Decorator that allows access to a route only to users
-    with the specified role.
-    """
-
-    def decorator(function):
-        @wraps(function)
-        @jwt_required()
-        def wrapper(*args, **kwargs):
-
-            claims = get_jwt()
-
-            if claims.get("role") != role:
-                return jsonify({
-                    "message": f"Se requiere el rol {role}"
-                }), 403
-
-            return function(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
 @api.route("/hello", methods=["POST", "GET"])
 def handle_hello():
 
@@ -60,7 +33,7 @@ def handle_hello():
 
 
 @api.route("/workers", methods=["POST"])
-@required_role("manager")
+@role_required("manager")
 def create_worker():
 
     data = request.get_json()
@@ -142,7 +115,7 @@ def create_worker():
 
 
 @api.route("/workers", methods=["GET"])
-@required_role("manager")
+@role_required("manager")
 def get_workers():
 
     workers = Worker.query.all()
@@ -183,7 +156,7 @@ def get_worker(worker_id):
 
 
 @api.route("/workers/<int:worker_id>", methods=["PUT"])
-@required_role("manager")
+@role_required("manager")
 def update_worker(worker_id):
 
     worker = db.session.get(Worker, worker_id)
@@ -243,7 +216,7 @@ def update_worker(worker_id):
 
 
 @api.route("/workers/<int:worker_id>", methods=["DELETE"])
-@required_role("manager")
+@role_required("manager")
 def delete_worker(worker_id):
 
     worker = db.session.get(Worker, worker_id)
@@ -428,11 +401,3 @@ def get_profile():
 # rol en el navegador; lo único que de verdad protege los datos es este
 # decorador. Toda ruta del dashboard necesita el suyo.
 # ----------------------------------------------------------------------
-
-# Endpoint de prueba, para verificar que @role_required funciona. Cuando
-# alguien construya /workers de verdad, sustituye este bloque manteniendo
-# el decorador.
-@api.route("/workers", methods=["GET"])
-@role_required("manager")
-def get_workers():
-    return jsonify({"message": "Solo un manager puede ver esto"}), 200
