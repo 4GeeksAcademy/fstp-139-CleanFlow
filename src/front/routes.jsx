@@ -8,8 +8,6 @@ import {
 import { PublicLayout } from "./pages/web/PublicLayout";
 import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
-import { Single } from "./pages/web/Single";
-import { Demo } from "./pages/web/Demo";
 import { Register } from "./pages/web/Register";
 import { Login } from "./pages/web/Login";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
@@ -22,14 +20,12 @@ export const router = createBrowserRouter(
       {/* ---------- ZONA PÚBLICA ---------- */}
       <Route path="/" element={<PublicLayout />} errorElement={<h1>Not found!</h1>}>
         <Route index element={<Home />} />
-        <Route path="single/:theId" element={<Single />} />
-        <Route path="demo" element={<Demo />} />
-        <Route path="register" element={<Register />} />
       </Route>
 
-      {/* ---------- LOGIN: layout propio, sin navbar/footer ---------- */}
+      {/* ---------- LOGIN & REGISTER: layout propio, sin navbar/footer ---------- */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
+        <Route path="register" element={<Register />} />
       </Route>
 
       {/* ---------- ZONA PRIVADA ---------- */}

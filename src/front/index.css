@@ -1,0 +1,156 @@
+/* ======================================================================
+   CLEANFLOW · TOKENS DE DISEÑO
+
+   El único sitio donde se escriben colores, tipografías, tamaños y
+   espaciados. Lo carga main.jsx, así que vale para toda la aplicación.
+
+   DOS NORMAS DEL EQUIPO
+   ---------------------
+   1. Ningún componente escribe un valor a pelo:
+
+          color: var(--cf-primary);   ✅
+          color: #2E3B26;             ❌
+
+      Así, cambiar la marca es cambiar una línea aquí. Con los colores
+      repartidos por veinte archivos, siempre se queda alguno sin tocar.
+      ¿Necesitas uno que no está? Añádelo aquí y dilo en el grupo.
+
+   2. En la WEB PÚBLICA no se usan los componentes de Bootstrap (.btn,
+      .card, .navbar, .form-control); sus utilidades de colocación
+      (container, d-flex, gap) sí. En el DASHBOARD no hay restricción.
+
+      Las clases propias llevan el prefijo `cf-`: sin él, una clase como
+      .nav-link chocaría con la de Bootstrap sin dar ningún error.
+
+   Paleta decidida por el equipo el 07/09/2026: se adopta el
+   DESIGN_SYSTEM.md y del kit de marca se conserva Montserrat, solo para
+   el logotipo.
+   ====================================================================== */
+
+:root {
+
+    /* ---- COLOR ----
+       Nombres por FUNCIÓN y no por aspecto: --cf-primary y no --cf-verde,
+       para que el nombre siga valiendo si la marca cambia de color. */
+
+    --cf-bg: #F7F3E8;              /* fondo general, crema */
+    --cf-surface: #FFFFFF;         /* tarjetas y bloques sobre el fondo */
+    --cf-primary: #2E3B26;         /* color de marca: botones, enlaces */
+    --cf-primary-dark: #222D1C;    /* el mismo, al pasar el ratón */
+    --cf-primary-soft: #E7EDDF;    /* fondo suave del color de marca */
+    --cf-accent: #C97B4A;          /* terracota: destacados puntuales */
+    --cf-text: #26261F;            /* texto normal */
+    --cf-muted: #6E6B5E;           /* texto secundario, pies de foto */
+    --cf-border: #E1DAC5;          /* líneas y bordes */
+    --cf-ring: rgba(46, 59, 38, 0.22);   /* halo del foco del teclado */
+    --cf-on-primary: #F7F3E8;         /* el crema del fondo, invertido */
+    --cf-on-primary-muted: #B0B3A4;   /* el mismo, apagado: textos secundarios */
+
+    /* ---- TIPOGRAFÍA ----
+       Las alternativas del final se usan mientras la fuente carga. */
+
+    --cf-font-heading: "Fraunces", Georgia, "Times New Roman", serif;
+    --cf-font-body: "Inter", system-ui, -apple-system, sans-serif;
+
+    /* Solo para el logotipo. Si aparece en un titular o un botón, es un error. */
+    --cf-font-brand: "Montserrat", system-ui, sans-serif;
+
+    /* Escala cerrada, para que nadie invente su propio "un poco más
+       grande". En rem: crece si el usuario agranda la letra del navegador. */
+
+    --cf-text-sm: 0.875rem;    /* 14px: notas, pies */
+    --cf-text-base: 1rem;      /* 16px: texto normal */
+    --cf-text-lg: 1.125rem;    /* 18px: entradillas */
+    --cf-text-xl: 1.5rem;      /* 24px: títulos de bloque */
+    --cf-text-2xl: 2rem;       /* 32px: títulos de sección */
+    --cf-text-3xl: 2.5rem;     /* 40px: el titular del hero */
+
+    /* ---- ESPACIADO ----
+       Múltiplos de 4px: con una escala, la página se ve ordenada aunque
+       nadie sepa explicar por qué. */
+
+    --cf-space-1: 0.25rem;   /*  4px */
+    --cf-space-2: 0.5rem;    /*  8px */
+    --cf-space-3: 0.75rem;   /* 12px */
+    --cf-space-4: 1rem;      /* 16px */
+    --cf-space-6: 1.5rem;    /* 24px */
+    --cf-space-8: 2rem;      /* 32px */
+    --cf-space-12: 3rem;     /* 48px */
+    --cf-space-16: 4rem;     /* 64px */
+
+    /* ---- FORMAS ---- */
+
+    --cf-radius-sm: 8px;     /* campos, botones */
+    --cf-radius-md: 12px;    /* tarjetas */
+    --cf-radius-lg: 20px;    /* bloques grandes */
+
+    --cf-shadow-sm: 0 1px 3px rgba(38, 38, 31, 0.06);
+    --cf-shadow-md: 0 4px 16px rgba(38, 38, 31, 0.08);
+
+    /* ---- DISPOSICIÓN ---- */
+
+    /* Ancho máximo del contenido: sin él, en pantallas anchas las líneas
+       de texto se alargan tanto que cuesta leerlas. */
+    --cf-container: 1140px;
+
+    --cf-transition: 0.15s ease;
+}
+
+
+/* ======================================================================
+   BASE
+
+   No es diseño: es quitar de en medio los valores por defecto del
+   navegador para partir de un sitio razonable.
+   ====================================================================== */
+
+*,
+*::before,
+*::after {
+    /* Que el padding y el borde cuenten dentro del ancho declarado. */
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background-color: var(--cf-bg);
+    color: var(--cf-text);
+    font-family: var(--cf-font-body);
+    font-size: var(--cf-text-base);
+    line-height: 1.6;
+}
+
+h1, h2, h3, h4 {
+    font-family: var(--cf-font-heading);
+    color: var(--cf-primary);
+    line-height: 1.2;
+}
+
+a {
+    color: var(--cf-primary);
+}
+
+img {
+    /* Evita que una imagen desborde y provoque scroll horizontal, que es
+       el fallo más habitual en móvil. */
+    max-width: 100%;
+    height: auto;
+}
+
+/* El foco del teclado tiene que verse SIEMPRE: quitarlo con outline:none
+   deja la web inutilizable para quien no usa ratón. */
+:focus-visible {
+    outline: 2px solid var(--cf-primary);
+    outline-offset: 2px;
+}
+
+/* Solo para lectores de pantalla: se saca de la vista sin ocultarlo,
+   porque display:none también lo escondería de ellos. */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}

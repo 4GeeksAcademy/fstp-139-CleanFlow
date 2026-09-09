@@ -1,52 +1,76 @@
-import React, { useEffect } from "react"
-import rigoImageUrl from "../../assets/img/rigo-baby.jpg";
-import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
+/**
+ * LANDING.
+ *
+ * ⚠️ ANDAMIO PROVISIONAL — LO SUSTITUYE LA ISSUE WEB-04.
+ *
+ * Seis huecos vacíos que existen por un motivo: dar destino a las anclas
+ * del navbar mientras las secciones reales no están hechas.
+ *
+ * Lo único intocable son los seis `id`: el navbar y el pie apuntan a
+ * ellos. Cambiar uno rompe esos enlaces sin dar ningún error.
+ */
+
+// El orden del array es el orden en pantalla: reordenar la landing es
+// mover una línea.
+const SECTIONS = [
+    { id: "hero",      titulo: "Hero",                         },
+    { id: "services",  titulo: "Nuestros servicios",           },
+    { id: "about-us",  titulo: "Sobre nosotros",               },
+    { id: "reviews",   titulo: "Qué opinan nuestros clientes", },
+    { id: "partners",  titulo: "Nuestros partners",            },
+    { id: "location",  titulo: "Dónde estamos",                },
+]
+
+// ---- CÓMO SE AÑADE UNA SECCIÓN ----
+//
+// Hoy las seis están aquí porque esto es un andamio. Cuando WEB-04 lo
+// sustituya, cada una será un componente en pages/web/home/ y este
+// archivo solo las importará y ordenará:
+//
+//     export const Home = () => (
+//         <main>
+//             <Hero />
+//             <ServicesSection />
+//         </main>
+//     )
+//
+// El contrato: cada componente devuelve SU PROPIA <section id="...">.
+// No la envuelve Home. Así el id vive junto a su contenido y nadie tiene
+// que tocar este archivo para rellenar el suyo.
+//
+// Para añadir una sección: créala, impórtala arriba y colócala en su
+// sitio. Si además debe aparecer en el menú, añade su id a NAV_LINKS
+// en components/web/Navbar.jsx.
 
 export const Home = () => {
-
-	const { store, dispatch } = useGlobalReducer()
-
-	const loadMessage = async () => {
-		try {
-			const backendUrl = import.meta.env.VITE_BACKEND_URL
-
-			if (!backendUrl) throw new Error("VITE_BACKEND_URL is not defined in .env file")
-
-			const response = await fetch(backendUrl + "/api/hello")
-			const data = await response.json()
-
-			if (response.ok) dispatch({ type: "set_hello", payload: data.message })
-
-			return data
-
-		} catch (error) {
-			if (error.message) throw new Error(
-				`Could not fetch the message from the backend.
-				Please check if the backend is running and the backend port is public.`
-			);
-		}
-
-	}
-
-	useEffect(() => {
-		loadMessage()
-	}, [])
-
-	return (
-		<div className="text-center mt-5">
-			<h1 className="display-4">Hello Rigo!!</h1>
-			<p className="lead">
-				<img src={rigoImageUrl} className="img-fluid rounded-circle mb-3" alt="Rigo Baby" />
-			</p>
-			<div className="alert alert-info">
-				{store.message ? (
-					<span>{store.message}</span>
-				) : (
-					<span className="text-danger">
-						Loading message from the backend (make sure your python 🐍 backend is running)...
-					</span>
-				)}
-			</div>
-		</div>
-	);
-}; 
+    return (
+        <main>
+            {SECTIONS.map((section) => (
+                <section
+                    key={section.id}
+                    id={section.id}
+                    // Estilos en línea: son de usar y tirar, este archivo
+                    // entero desaparece en WEB-04.
+                    style={{
+                        // Alto suficiente para que haya scroll y se pueda
+                        // probar el salto entre anclas.
+                        minHeight: "80vh",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        borderBottom: "1px dashed #bbb",
+                        padding: "40px 20px",
+                        textAlign: "center",
+                    }}
+                >
+                    <h2>{section.titulo}</h2>
+                    <p style={{ color: "#777", margin: 0 }}>
+                        Sección provisional · <code>#{section.id}</code>
+                    </p>
+                </section>
+            ))}
+        </main>
+    )
+}

@@ -1,23 +1,28 @@
-/* Estilos de las pantallas de autenticación (AuthLayout + Login).
-   Todo va con prefijo "auth-" y las variables se definen en .auth-screen,
-   no en :root, para no tocar ninguna otra pantalla ni chocar con Bootstrap.
-   Colores y radios: DESIGN_SYSTEM.md. Wordmark del logo: kit de marca. */
+/* ESTILOS DE LAS PANTALLAS DE AUTENTICACIÓN (AuthLayout + Login).
 
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600&family=Montserrat:wght@400;700&display=swap");
+   Se importa desde AuthLayout.jsx, igual que web.css desde PublicLayout.
+   Todo lleva el prefijo "auth-" para no chocar con Bootstrap.
+
+   Los colores salen de los tokens de index.css: aquí solo se les pone el
+   nombre que tienen EN ESTA PANTALLA. Cambiar la marca es tocar index.css
+   y este archivo se entera solo. */
+
 
 .auth-screen {
-    --auth-bg: #F7F3E8;
-    --auth-primary: #2E3B26;
-    --auth-primary-dark: #222d1c;
-    --auth-text: #26261F;
-    --auth-muted: #6E6B5E;
-    --auth-border: #E1DAC5;
-    --auth-ring: rgba(46, 59, 38, 0.22);
-    --auth-heading: "Fraunces", Georgia, serif;
-    --auth-body: "Inter", system-ui, sans-serif;
-    --auth-radius-sm: 8px;
-    --auth-radius-md: 12px;
-    --auth-radius-lg: 20px;
+    /* Las variables se declaran en .auth-screen y no en :root para que
+       ninguna otra pantalla las herede sin querer. */
+    --auth-bg: var(--cf-bg);
+    --auth-primary: var(--cf-primary);
+    --auth-primary-dark: var(--cf-primary-dark);
+    --auth-text: var(--cf-text);
+    --auth-muted: var(--cf-muted);
+    --auth-border: var(--cf-border);
+    --auth-ring: var(--cf-ring);
+    --auth-heading: var(--cf-font-heading);
+    --auth-body: var(--cf-font-body);
+    --auth-radius-sm: var(--cf-radius-sm);
+    --auth-radius-md: var(--cf-radius-md);
+    --auth-radius-lg: var(--cf-radius-lg);
 
     min-height: 100vh;
     display: flex;
@@ -43,7 +48,7 @@
 }
 
 .auth-word {
-    font-family: "Montserrat", system-ui, sans-serif;
+    font-family: var(--cf-font-brand);
     font-size: 28px;
     line-height: 1;
     letter-spacing: -0.02em;
@@ -83,6 +88,9 @@
     font-size: 13.5px;
 }
 
+/* ⚠️ Los colores de aviso y error están escritos a mano: la paleta no
+   tiene todavía tokens de estado. Cuando se decidan (los necesitarán
+   WEB-09, WEB-11 y el dashboard), sustituir aquí. */
 .auth-alert {
     margin: 0 0 18px;
     padding: 10px 12px;
@@ -93,9 +101,8 @@
     font-size: 13px;
 }
 
-/* Aviso informativo, no un error: sesión caducada, etc. En tonos de la
-   marca en vez de rojo, para que no parezca que el usuario ha hecho algo
-   mal. */
+/* Aviso informativo, no un error (sesión caducada). En tonos de marca y
+   no en rojo, para no dar a entender que el usuario se equivocó. */
 .auth-notice {
     margin: 0 0 18px;
     padding: 10px 12px;
@@ -136,9 +143,8 @@
     box-shadow: 0 0 0 3px var(--auth-ring);
 }
 
-/* Contraseña + botón del ojo: el borde y el anillo de foco viven en el
-   contenedor (.auth-group), no en el input, para que al escribir el
-   contorno verde rodee también al botón del ojo como una sola pieza. */
+/* Contraseña + ojo: el borde y el anillo de foco van en el contenedor y
+   no en el input, para que el contorno los rodee como una sola pieza. */
 .auth-group {
     display: flex;
     background: #fff;
