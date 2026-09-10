@@ -52,7 +52,7 @@ const NAV_LINKS = [
     { label: "Inicio",           to: "/",             section: "hero" },
     { label: "Servicios",        to: "/#services",    section: "services", dropdown: true },
     { label: "Sobre CleanFlow",  to: "/#about-us",    section: "about-us" },
-    { label: "Contacto",         to: "/contact",      section: null },
+    { label: "Contacto",         to: "/#contact",     section: "contact" },
 ]
 
 
