@@ -19,8 +19,8 @@
     width: 100%;
     max-width: var(--cf-container);
     margin: 0 auto;
-    padding-left: var(--cf-space-4);
-    padding-right: var(--cf-space-4);
+    padding-left: var(--cf-gutter);
+    padding-right: var(--cf-gutter);
 }
 
 
@@ -284,6 +284,445 @@ section[id] {
     }
 }
 
+
+/* ======================================================================
+   SECCIONES DE LA LANDING
+
+   El armazón común de las ocho. Cada issue rellena su contenido, pero
+   todas usan estas clases: así el espaciado y los títulos son idénticos
+   aunque las escriban cuatro personas distintas.
+
+   Uso:
+       <section id="services" className="cf-section">
+           <div className="cf-container">
+               <p className="cf-section__label">Nuestros servicios</p>
+               <h2 className="cf-section__title">Elige lo que necesitas</h2>
+               <p className="cf-section__lede">Una frase de entrada.</p>
+               ...
+           </div>
+       </section>
+   ====================================================================== */
+
+.cf-section {
+    padding: var(--cf-space-16) 0;
+}
+
+/* Fondo alterno, para que ocho secciones seguidas no se lean como un
+   bloque único. Va por posición y no por una clase que haya que añadir a
+   mano: al reordenar la landing, sigue alternando solo. */
+main > section:nth-of-type(even) {
+    background-color: var(--cf-surface);
+}
+
+/* La etiqueta pequeña de encima del título. Es opcional, pero ayuda a
+   situarse cuando se llega por un ancla. */
+.cf-section__label {
+    font-size: var(--cf-text-sm);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--cf-muted);
+    margin: 0 0 var(--cf-space-2);
+}
+
+.cf-section__title {
+    font-family: var(--cf-font-heading);
+    font-size: var(--cf-text-2xl);
+    color: var(--cf-primary);
+    line-height: 1.15;
+    margin: 0 0 var(--cf-space-3);
+
+    /* Reparte las líneas de un título largo en vez de dejar una palabra
+       suelta en la última. */
+    text-wrap: balance;
+}
+
+.cf-section__lede {
+    color: var(--cf-muted);
+    font-size: var(--cf-text-lg);
+
+    /* Un párrafo a todo lo ancho de una pantalla grande cansa de leer.
+       Las 62 letras son el ancho de lectura cómodo de toda la vida. */
+    max-width: 62ch;
+    margin: 0;
+}
+
+/* Rejilla para las tarjetas de las secciones: servicios, razones,
+   opiniones, partners...
+
+   auto-fit + minmax hace que el navegador decida cuántas columnas caben.
+   Nadie tiene que escribir una regla por cada tamaño de pantalla. */
+.cf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--cf-space-6);
+    margin-top: var(--cf-space-8);
+}
+
+
+@media (max-width: 768px) {
+
+    .cf-section {
+        padding: var(--cf-space-12) 0;
+    }
+
+    .cf-section__title {
+        font-size: var(--cf-text-xl);
+    }
+
+    .cf-section__lede {
+        font-size: var(--cf-text-base);
+    }
+}
+
+
+
+
+
+/* ======================================================================
+   BOTONES
+
+   El botón de TODA la web pública, no solo del hero: servicios,
+   contacto, trabaja con nosotros... Por eso vive en su propio bloque.
+
+   Dos variantes:
+       <Link className="cf-btn">                 acción principal
+       <Link className="cf-btn cf-btn--ghost">   la secundaria
+
+   Píldora y no esquina redondeada: así se distingue de una tarjeta de un
+   vistazo.
+   ====================================================================== */
+
+.cf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--cf-space-2);
+    padding: var(--cf-space-4) var(--cf-space-8);
+
+    border: 1px solid var(--cf-primary);
+    border-radius: 999px;
+    background-color: var(--cf-primary);
+    color: var(--cf-on-primary);
+
+    font-family: var(--cf-font-body);
+    font-size: var(--cf-text-base);
+    font-weight: 600;
+
+    /* line-height 1: que el alto lo mande el padding y no la fuente. Si
+       no, dos botones con distinta letra salen de distinto alto. */
+    line-height: 1;
+
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--cf-transition),
+                border-color var(--cf-transition),
+                color var(--cf-transition);
+}
+
+.cf-btn:hover {
+    background-color: var(--cf-primary-dark);
+    border-color: var(--cf-primary-dark);
+    color: var(--cf-on-primary);
+}
+
+/* focus-visible y no focus: el halo sale al tabular, no al hacer clic. */
+.cf-btn:focus-visible {
+    outline: 3px solid var(--cf-ring);
+    outline-offset: 2px;
+}
+
+.cf-btn--ghost {
+    background-color: transparent;
+    color: var(--cf-primary);
+}
+
+.cf-btn--ghost:hover {
+    background-color: var(--cf-primary-soft);
+    border-color: var(--cf-primary);
+    color: var(--cf-primary);
+}
+
+
+/* ======================================================================
+   HERO
+
+   Primera pantalla: foto a sangre, velo crema por la izquierda y el
+   texto encima.
+
+   Tres capas apiladas, en este orden en el HTML:
+       1. <img>  la foto
+       2. <div>  el velo
+       3. el contenido
+
+   El velo es lo único que hace legible el texto. Si algún día se cambia
+   la foto por una más oscura, se ajusta aquí y no en el JSX.
+   ====================================================================== */
+
+.cf-hero {
+    position: relative;
+
+    /* La foto se sale del contenedor por los lados: esto la recorta. */
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
+
+    /* min() para que no se coma la pantalla en un portátil bajito. */
+    min-height: min(660px, 80vh);
+
+    padding: var(--cf-space-12) 0 0;
+}
+
+/* object-fit: cover recorta la foto para llenar el hueco sin deformarla.
+   object-position decide qué parte se conserva al recortar: aquí, algo
+   por debajo del centro, que es donde está el sofá. */
+.cf-hero__photo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 60%;
+}
+
+/* EL VELO.
+   Primer degradado: crema sólido a la izquierda que se disuelve hacia la
+   derecha. El ángulo (96deg) lo inclina un pelín para que no parezca una
+   banda pegada.
+   Segundo: una bajada suave por el pie, para asentar las valoraciones.
+
+   Si el titular no se lee bien con la foto, se suben estos números. */
+.cf-hero__veil {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(96deg,
+            rgba(var(--cf-bg-rgb), 0.93) 0%,
+            rgba(var(--cf-bg-rgb), 0.88) 30%,
+            rgba(var(--cf-bg-rgb), 0.46) 56%,
+            rgba(var(--cf-bg-rgb), 0) 78%),
+        linear-gradient(to top,
+            rgba(var(--cf-bg-rgb), 0.72),
+            transparent 34%);
+}
+
+/* position: relative para quedar por encima de las dos capas de arriba.
+
+   margin-block: auto = el hueco libre se reparte por igual arriba y
+   abajo, así que el texto queda centrado a lo alto y las valoraciones se
+   quedan al fondo. Nada se posiciona de forma absoluta: el reparto lo
+   hace el propio flex.
+
+   Las dos alternativas, por si hay que volver a probarlas:
+       margin-block: 0 auto   → texto pegado a la cabecera
+       margin-block: auto 0   → texto pegado a las valoraciones */
+.cf-hero__content {
+    position: relative;
+    margin-block: auto;
+}
+
+/* El antetítulo, con su rayita. En terracota: es el único destello de
+   color de la pantalla, y engancha con las estrellas de abajo. */
+.cf-hero__label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cf-space-3);
+    margin: 0 0 var(--cf-space-4);
+
+    color: var(--cf-accent);
+    font-size: var(--cf-text-sm);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.cf-hero__label::before {
+    content: "";
+    width: 26px;
+    height: 1px;
+    background-color: currentColor;
+}
+
+/* En la letra de la marca, no en la de titulares: el hero hace de
+   portada y es el único sitio de la web donde se permite (ver la
+   nota de --cf-font-brand en index.css).
+
+   letter-spacing negativo porque Montserrat es ancha de nacimiento:
+   sin apretarla, un titular grande se ve blando.
+
+   clamp: crece con la pantalla, pero sin salirse de la escala de
+   index.css. Nunca baja de 2xl ni sube de 3xl. */
+.cf-hero__title {
+    margin: 0;
+    max-width: 14ch;
+
+    font-family: var(--cf-font-brand);
+    font-size: clamp(var(--cf-text-2xl), 5vw, var(--cf-text-3xl));
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.028em;
+    color: var(--cf-primary);
+    text-wrap: balance;
+}
+
+/* Sobre foto no vale el gris de un párrafo normal: era gris apagado
+   encima de una foto gris. Tres ajustes a la vez:
+       - color --cf-text en lugar de --cf-muted
+       - peso 500 en lugar del normal
+       - 38ch en lugar de 44ch, para que la línea no llegue hasta
+         donde el velo ya se ha disuelto
+   El contraste de una frase sobre imagen se arregla aquí, no
+   subiendo el velo hasta tapar la foto. */
+.cf-hero__lede {
+    margin: var(--cf-space-4) 0 0;
+    max-width: 38ch;
+    color: var(--cf-text);
+    font-size: var(--cf-text-lg);
+    font-weight: 500;
+}
+
+.cf-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--cf-space-3);
+    margin-top: var(--cf-space-8);
+}
+
+/* Sobre la foto, el botón secundario necesita fondo: uno solo de
+   contorno desaparece en cuanto la imagen se aclara detrás.
+   backdrop-filter desenfoca lo que queda debajo del botón. */
+.cf-hero .cf-btn--ghost {
+    background-color: rgba(var(--cf-surface-rgb), 0.72);
+    border-color: var(--cf-ring);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.cf-hero .cf-btn--ghost:hover {
+    background-color: var(--cf-surface);
+    border-color: var(--cf-primary);
+}
+
+
+/* ---------- VALORACIONES ---------- */
+
+/* Al pie del hero y separadas por una línea: son una prueba, no parte
+   del discurso. */
+.cf-hero__rating {
+    position: relative;
+}
+
+.cf-hero__rating-in {
+    display: flex;
+    align-items: center;
+    gap: var(--cf-space-3);
+    padding: var(--cf-space-4) 0 var(--cf-space-6);
+    border-top: 1px solid var(--cf-ring);
+}
+
+/* En la letra del titular: una Fraunces suelta aquí abajo cantaría. */
+.cf-hero__score {
+    font-family: var(--cf-font-brand);
+    font-size: var(--cf-text-2xl);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--cf-primary);
+}
+
+.cf-hero__stars {
+    display: flex;
+    gap: 2px;
+    color: var(--cf-accent);
+    font-size: 0.9rem;
+}
+
+.cf-hero__reviews {
+    font-size: var(--cf-text-sm);
+    line-height: 1.3;
+    color: var(--cf-muted);
+}
+
+.cf-hero__reviews b {
+    display: block;
+    color: var(--cf-text);
+}
+
+
+@media (max-width: 768px) {
+
+    /* En móvil el texto no puede convivir con la foto al lado, así que se
+       reparten de arriba abajo:
+
+           texto          arriba, sobre crema, pegado a la cabecera
+           FRANJA DE FOTO en medio, sin nada encima
+           valoraciones   abajo, sobre crema otra vez
+
+       El velo de una sola pieza desaparece: aquí el crema va pegado a
+       cada bloque de texto y se desvanece en sus propios bordes. Así no
+       hay ningún número que cuadrar con el alto del contenido: si el
+       titular gana una línea, el crema crece con él. */
+    .cf-hero {
+        min-height: 0;
+        padding: 0;
+    }
+
+    .cf-hero__veil {
+        background: none;
+    }
+
+    /* El bloque de texto trae su propio crema. Sólido casi hasta el
+       final y transparente en el último tramo, que cae dentro de su
+       relleno inferior: por eso el degradado no toca a los botones. */
+    .cf-hero__content {
+        margin-block: 0;
+        padding: var(--cf-space-6) 0 var(--cf-space-8);
+        background: linear-gradient(to bottom,
+            rgba(var(--cf-bg-rgb), 0.97) 0%,
+            rgba(var(--cf-bg-rgb), 0.96) 86%,
+            rgba(var(--cf-bg-rgb), 0) 100%);
+    }
+
+    /* Este margen ES la ventana por la que se ve la foto. Súbelo o bájalo
+       para enseñar más o menos imagen; es el único número que hay que
+       tocar aquí. */
+    .cf-hero__rating {
+        margin-top: 140px;
+        background: linear-gradient(to bottom,
+            rgba(var(--cf-bg-rgb), 0) 0%,
+            rgba(var(--cf-bg-rgb), 0.90) 42%,
+            rgba(var(--cf-bg-rgb), 0.95) 100%);
+    }
+
+    /* La franja de foto ya separa las valoraciones del resto: una línea
+       encima quedaría flotando sobre la imagen. */
+    .cf-hero__rating-in {
+        border-top: 0;
+    }
+
+    /* OJO CON ESTE VALOR: en un móvil solo cuenta el primero.
+
+       La foto es apaisada y el hueco es vertical, así que `cover` la
+       escala hasta que el ALTO encaja; sobra anchura por los lados y no
+       sobra nada por arriba y por abajo. Es decir: se ve la foto entera
+       de arriba abajo y solo un tercio de su ancho. El segundo valor
+       (el vertical) no hace nada aquí.
+
+       Muévete entre 30% y 70% para elegir qué franja vertical de la foto
+       se conserva. */
+    .cf-hero__photo {
+        object-position: center center;
+    }
+
+    .cf-hero__title,
+    .cf-hero__lede {
+        max-width: none;
+    }
+}
+
+
+
 /* ======================================================================
    PIE DE PÁGINA
 
@@ -311,6 +750,22 @@ section[id] {
     overflow: hidden;
 
     padding-top: var(--cf-space-12);
+}
+
+/* EL PIE VA UN ESCALÓN POR DENTRO Y HAY QUE DESCONTARLO.
+
+   Aquí el contenedor no arranca en el borde de la pantalla como en la
+   cabecera, sino dentro del panel verde, que ya está metido el ancho del
+   marco. Si no se descuenta, el texto del pie queda ese ancho más adentro
+   que el logo del navbar, y se nota en cuanto los miras seguidos.
+
+   Se descuenta en los dos sitios: al ancho máximo (por eso el doble, uno
+   por lado) y al relleno. Resultado: el pie y la cabecera empiezan en la
+   misma columna en cualquier pantalla. */
+.cf-footer__panel .cf-container {
+    max-width: calc(var(--cf-container) - var(--cf-space-8));
+    padding-left: calc(var(--cf-gutter) - var(--cf-space-4));
+    padding-right: calc(var(--cf-gutter) - var(--cf-space-4));
 }
 
 

@@ -46,13 +46,24 @@
     --cf-on-primary: #F7F3E8;         /* el crema del fondo, invertido */
     --cf-on-primary-muted: #B0B3A4;   /* el mismo, apagado: textos secundarios */
 
+    /* Los dos mismos colores en RGB. Hacen falta porque rgba() no admite
+       un hex: sin ellos habría que escribir el crema a mano en cada
+       degradado con transparencia (el velo del hero, por ejemplo).
+       Si cambias --cf-bg, cambia también este. */
+
+    --cf-bg-rgb: 247, 243, 232;        /* = --cf-bg */
+    --cf-surface-rgb: 255, 255, 255;   /* = --cf-surface */
+
     /* ---- TIPOGRAFÍA ----
        Las alternativas del final se usan mientras la fuente carga. */
 
     --cf-font-heading: "Fraunces", Georgia, "Times New Roman", serif;
     --cf-font-body: "Inter", system-ui, -apple-system, sans-serif;
 
-    /* Solo para el logotipo. Si aparece en un titular o un botón, es un error. */
+    /* La letra de la marca. Dos sitios y no más: el logotipo y el
+       titular del hero, que es la primera pantalla y hace de portada.
+       En un titular de sección o en un botón sigue siendo un error:
+       para eso están --cf-font-heading y --cf-font-body. */
     --cf-font-brand: "Montserrat", system-ui, sans-serif;
 
     /* Escala cerrada, para que nadie invente su propio "un poco más
@@ -63,7 +74,7 @@
     --cf-text-lg: 1.125rem;    /* 18px: entradillas */
     --cf-text-xl: 1.5rem;      /* 24px: títulos de bloque */
     --cf-text-2xl: 2rem;       /* 32px: títulos de sección */
-    --cf-text-3xl: 2.5rem;     /* 40px: el titular del hero */
+    --cf-text-3xl: 3rem;       /* 48px: el titular del hero */
 
     /* ---- ESPACIADO ----
        Múltiplos de 4px: con una escala, la página se ve ordenada aunque
@@ -90,8 +101,18 @@
     /* ---- DISPOSICIÓN ---- */
 
     /* Ancho máximo del contenido: sin él, en pantallas anchas las líneas
-       de texto se alargan tanto que cuesta leerlas. */
-    --cf-container: 1140px;
+       de texto se alargan tanto que cuesta leerlas.
+
+       Es EL número que decide cuánto aire queda a los lados en un monitor
+       grande. Subirlo pega el contenido a los bordes; bajarlo lo estrecha.
+       Las líneas de texto no se descontrolan al subirlo porque los
+       párrafos tienen su propio tope en caracteres. */
+    --cf-container: 1320px;
+
+    /* Margen lateral mínimo, el mismo para la cabecera, las secciones y
+       el pie. Cambiarlo aquí los mueve a los tres a la vez: si alguna
+       vez dejan de estar alineados, el fallo está en otro sitio. */
+    --cf-gutter: var(--cf-space-8);
 
     --cf-transition: 0.15s ease;
 }
