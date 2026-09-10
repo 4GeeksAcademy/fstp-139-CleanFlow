@@ -103,11 +103,15 @@
        un monitor grande: subirlo lo pega a los bordes, bajarlo lo
        estrecha. Los párrafos no se descontrolan al subirlo porque tienen
        su propio tope en caracteres. */
-    --cf-container: 1320px;
+    --cf-container: 1440px;
 
-    /* Margen lateral, el mismo para cabecera, secciones y pie. Cambiarlo
-       aquí los mueve a los tres a la vez. */
-    --cf-gutter: var(--cf-space-8);
+    /* Margen lateral, el mismo para cabecera, secciones y pie: cambiarlo
+       aquí mueve a los tres a la vez.
+
+       En clamp para que crezca un poco con la pantalla y no haya tanto
+       salto entre un portátil y un monitor: 32px como mínimo, el 3,5%
+       del ancho en medio, y 48px como tope. */
+    --cf-gutter: clamp(var(--cf-space-8), 3.5vw, var(--cf-space-12));
 
     --cf-transition: 0.15s ease;
 }
