@@ -782,6 +782,21 @@ main > section:nth-of-type(even) {
     padding-right: calc(var(--cf-gutter) - var(--cf-space-4));
 }
 
+/* SOLO EN ESCRITORIO: las cuatro columnas se separan un poco más del
+   borde del panel verde.
+
+   Mueve únicamente el texto. El marco no se toca, y la marca grande de
+   abajo tampoco: vive fuera de .cf-container, colgando directamente del
+   panel, y por eso sigue ocupándolo de lado a lado.
+
+   En móvil no se aplica: allí el pie sigue alineado con la cabecera. */
+@media (min-width: 769px) {
+
+    .cf-footer__panel .cf-container {
+        padding-inline: calc(var(--cf-gutter) + var(--cf-space-2));
+    }
+}
+
 
 /* ---------- LAS COLUMNAS ---------- */
 

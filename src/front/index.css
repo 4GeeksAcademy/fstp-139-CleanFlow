@@ -117,6 +117,20 @@
 }
 
 
+/* En escritorio el contenido se mete un poco más hacia dentro. Se
+   redefine el token y no el padding de una clase suelta: así se mueven a
+   la vez la cabecera, las secciones y el pie, que es lo que los mantiene
+   alineados entre sí.
+
+   Por debajo de 769px manda el valor de arriba y el móvil no se entera. */
+@media (min-width: 769px) {
+
+    :root {
+        --cf-gutter: clamp(var(--cf-space-12), 4.5vw, var(--cf-space-16));
+    }
+}
+
+
 /* ======================================================================
    BASE
 
