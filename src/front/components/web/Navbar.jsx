@@ -56,6 +56,15 @@ const NAV_LINKS = [
 ]
 
 
+// El botón de acción va aparte y NO se añade al array de arriba: no es un
+// item de navegación, así que no se resalta con el scroll ni entra en
+// isActive. Es el mismo que el del hero.
+//
+// Provisional: apunta al login porque reservar exige cuenta. WEB-15 lo
+// llevará al catálogo del cliente, y hay que cambiar los dos a la vez.
+const CTA = { label: "Reservar ahora", to: "/login" }
+
+
 // Los ids a vigilar salen de los propios enlaces: al añadir un item con
 // su sección, el observador se entera solo.
 const SECTION_IDS = NAV_LINKS
@@ -185,6 +194,15 @@ export const Navbar = () => {
                                 </li>
                             )
                         ))}
+
+                        {/* Último de la lista y no fuera de ella: así en
+                            móvil se pliega con el resto del menú, en vez de
+                            competir por sitio con el logo y la hamburguesa. */}
+                        <li className="cf-nav__cta">
+                            <Link to={CTA.to} className="cf-btn cf-btn--sm">
+                                {CTA.label}
+                            </Link>
+                        </li>
                     </ul>
 
                 </div>

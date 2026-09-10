@@ -115,6 +115,12 @@ section[id] {
     gap: var(--cf-space-6);
 }
 
+/* Separado de los enlaces: es una acción, no un sitio al que ir. El
+   margen extra lo aparta del último item sin tocar el gap de la lista. */
+.cf-nav__cta {
+    margin-left: var(--cf-space-2);
+}
+
 .cf-nav__link {
     color: var(--cf-text);
     text-decoration: none;
@@ -260,6 +266,21 @@ section[id] {
         display: block;
         padding: var(--cf-space-3) 0;
         border-bottom: 1px solid var(--cf-border);
+    }
+
+    /* Dentro del menú desplegado: separado del último enlace y a todo el
+       ancho, que es lo que se espera de un botón en una lista vertical.
+       El margen negativo compensa el gap 0 de .cf-nav en móvil. */
+    .cf-nav__cta {
+        margin-left: 0;
+        margin-top: var(--cf-space-4);
+    }
+
+    .cf-nav__cta .cf-btn {
+        display: flex;
+        width: 100%;
+        padding: var(--cf-space-4) var(--cf-space-6);
+        font-size: var(--cf-text-base);
     }
 
     .cf-nav__link.is-active {
@@ -426,6 +447,13 @@ main > section:nth-of-type(even) {
 .cf-btn:focus-visible {
     outline: 3px solid var(--cf-ring);
     outline-offset: 2px;
+}
+
+/* Para sitios con poca altura, como la fila del navbar: el botón normal
+   mide casi lo mismo que la fila entera. */
+.cf-btn--sm {
+    padding: var(--cf-space-3) var(--cf-space-6);
+    font-size: var(--cf-text-sm);
 }
 
 .cf-btn--ghost {
