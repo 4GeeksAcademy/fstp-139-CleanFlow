@@ -1,7 +1,7 @@
 /**
  * FOOTER DE LA WEB
  *
- * Cuatro columnas (marca, navegación, servicios y contacto) y 
+ * Cuatro columnas (marca, navegación, servicios y contacto) y
  * la línea legal centrada.
  *
  * Los servicios salen del store, la misma fuente que el desplegable del

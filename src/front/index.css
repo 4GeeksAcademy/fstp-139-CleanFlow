@@ -46,10 +46,9 @@
     --cf-on-primary: #F7F3E8;         /* el crema del fondo, invertido */
     --cf-on-primary-muted: #B0B3A4;   /* el mismo, apagado: textos secundarios */
 
-    /* Los dos mismos colores en RGB. Hacen falta porque rgba() no admite
-       un hex: sin ellos habría que escribir el crema a mano en cada
-       degradado con transparencia (el velo del hero, por ejemplo).
-       Si cambias --cf-bg, cambia también este. */
+    /* Los mismos colores en RGB. rgba() no admite un hex, así que sin
+       ellos habría que escribir el crema a mano en cada degradado con
+       transparencia. Si cambias el de arriba, cambia también este. */
 
     --cf-bg-rgb: 247, 243, 232;        /* = --cf-bg */
     --cf-surface-rgb: 255, 255, 255;   /* = --cf-surface */
@@ -100,18 +99,14 @@
 
     /* ---- DISPOSICIÓN ---- */
 
-    /* Ancho máximo del contenido: sin él, en pantallas anchas las líneas
-       de texto se alargan tanto que cuesta leerlas.
-
-       Es EL número que decide cuánto aire queda a los lados en un monitor
-       grande. Subirlo pega el contenido a los bordes; bajarlo lo estrecha.
-       Las líneas de texto no se descontrolan al subirlo porque los
-       párrafos tienen su propio tope en caracteres. */
+    /* Ancho máximo del contenido. Decide cuánto aire queda a los lados en
+       un monitor grande: subirlo lo pega a los bordes, bajarlo lo
+       estrecha. Los párrafos no se descontrolan al subirlo porque tienen
+       su propio tope en caracteres. */
     --cf-container: 1320px;
 
-    /* Margen lateral mínimo, el mismo para la cabecera, las secciones y
-       el pie. Cambiarlo aquí los mueve a los tres a la vez: si alguna
-       vez dejan de estar alineados, el fallo está en otro sitio. */
+    /* Margen lateral, el mismo para cabecera, secciones y pie. Cambiarlo
+       aquí los mueve a los tres a la vez. */
     --cf-gutter: var(--cf-space-8);
 
     --cf-transition: 0.15s ease;

@@ -40,7 +40,7 @@ const ACCESS_LINKS = [
 //     no llevará a ninguna parte y no dará ningún error.
 //
 //   - ¿Lleva a una PÁGINA propia? Va sin almohadilla:
-//         to: "/contact"        y   section: null
+//         to: "/work-with-us"   y   section: null
 //     Las páginas no se resaltan por scroll, sino por la URL: de ahí el
 //     null.
 //
@@ -97,7 +97,7 @@ export const Navbar = () => {
 
     // Un item se marca por uno de dos motivos, según su tipo:
     //   con section -> cuando esa sección es la que se está viendo.
-    //   sin section -> cuando la URL coincide (el caso de Contacto).
+    //   sin section -> cuando la URL coincide (el caso de una página).
     //
     // Se calcula a mano porque <NavLink> ignora el "#": marcaría a la vez
     // Inicio, Servicios y Sobre CleanFlow, que apuntan los tres a "/".

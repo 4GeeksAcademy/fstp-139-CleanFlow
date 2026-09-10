@@ -1,8 +1,9 @@
 /**
  * Sección de contacto de la landing.
  *
- * ⚠️ Contenido pendiente. Es un resumen, no la página entera: los datos
- * de contacto y un enlace a /contact, donde está el formulario (WEB-09).
+ * ⚠️ Contenido pendiente: issue WEB-09. Los datos de contacto y el
+ * formulario para pedir información. No hay página /contact: contacto
+ * vive aquí, dentro de la landing.
  *
  * Los datos salen de data/company.js, no se escriben aquí.
  */
@@ -12,7 +13,7 @@ export const ContactSection = () => {
         <section
             id="contact"
             className="cf-section"
-            // PROVISIONAL: quítalo al rellenar la sección.
+            // PROVISIONAL: quítalo al rellenar la sección (WEB-09).
             style={{ minHeight: "50vh" }}
         >
             <div className="cf-container">

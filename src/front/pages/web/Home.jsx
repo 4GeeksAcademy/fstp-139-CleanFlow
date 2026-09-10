@@ -20,17 +20,17 @@ import { LocationSection } from "./home/LocationSection";
 
 // ---- CÓMO SE AÑADE UNA SECCIÓN ----
 //
-// 1. Crea su componente en home/. Devuelve SU PROPIA <section id="...">:
-//    no la envuelve Home. Así el id vive junto a su contenido y nadie
-//    tiene que tocar este archivo para rellenar el suyo.
+// 1. Crea su componente en home/. Devuelve SU PROPIA <section id="...">,
+//    no la envuelve Home: así nadie tiene que tocar este archivo para
+//    rellenar el suyo.
 //
 // 2. Impórtala arriba y colócala aquí en su sitio.
 //
-// 3. Si además debe salir en el menú, añade su id a NAV_LINKS en
+// 3. Si debe salir en el menú, añade su id a NAV_LINKS en
 //    components/web/Navbar.jsx.
 //
-// Los ocho id actuales son un contrato: el navbar y el pie apuntan a
-// ellos. Cambiar uno rompe esos enlaces sin dar ningún error.
+// Los ocho id son un contrato: el navbar y el pie apuntan a ellos, y
+// cambiar uno rompe esos enlaces sin dar ningún error.
 
 export const Home = () => {
     return (

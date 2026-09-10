@@ -1,11 +1,9 @@
 /**
  * Sección "¿Por qué CleanFlow?" de la landing.
  *
- * ⚠️ Contenido pendiente. Razones para contratar: personal propio,
- * productos incluidos, seguro, sin permanencia... argumentos concretos,
- * nada genérico.
- *
- * Pendiente decidir de qué issue es. Ver la nota de abajo.
+ * ⚠️ Contenido pendiente: issue WEB-14. Razones para contratar: personal
+ * propio, productos incluidos, seguro, sin permanencia... argumentos
+ * concretos, nada genérico.
  */
 
 export const WhyCleanFlowSection = () => {
@@ -13,7 +11,7 @@ export const WhyCleanFlowSection = () => {
         <section
             id="why-cleanflow"
             className="cf-section"
-            // PROVISIONAL: quítalo al rellenar la sección.
+            // PROVISIONAL: quítalo al rellenar la sección (WEB-14).
             style={{ minHeight: "60vh" }}
         >
             <div className="cf-container">
