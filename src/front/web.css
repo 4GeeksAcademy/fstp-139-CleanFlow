@@ -78,12 +78,25 @@ section[id] {
 
 /* ---------- FILA PRINCIPAL ---------- */
 
+/* padding-block y NO el atajo `padding`.
+
+   Esta clase comparte elemento con .cf-container:
+
+       <div className="cf-container cf-navbar">
+
+   El atajo escribe los cuatro lados, así que un `padding: 12px 0` dejaba
+   los laterales en cero y se cargaba el margen que pone .cf-container.
+   Las dos clases pesan igual, y al ir esta después, ganaba.
+
+   Resultado: el logo y la hamburguesa pegados al borde mientras las
+   secciones y el pie estaban bien. padding-block solo toca arriba y
+   abajo, y deja los lados en paz. */
 .cf-navbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--cf-space-6);
-    padding: var(--cf-space-3) 0;
+    padding-block: var(--cf-space-3);
 }
 
 .cf-brand {
