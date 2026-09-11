@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+
 
 export const Register = () => {
+    const navigate = useNavigate();
 
 
     const [formData, setFormData] = useState({
@@ -47,7 +50,7 @@ export const Register = () => {
                 return;
             }
 
-            setSuccess("¡Tu cuenta se ha creado correctamente");
+            setSuccess("¡Tu cuenta se ha creado correctamente!");
             setFormData({
                 name: "",
                 last_name: "",
@@ -56,73 +59,134 @@ export const Register = () => {
                 password: "",
 
             });
+
+            setTimeout(() => {
+                navigate("/login");
+            }, 1500);
+
         } catch {
             setError(
-                "No se epudo completar la solicitud. Comprueba tu conexión e inténtalo de nuevo."
+                "No se pudo completar la solicitud. Comprueba tu conexión e inténtalo de nuevo."
             );
         } finally {
             setLoading(false);
         }
     };
     return (
+        <div className="auth-card">
+            <h1 className="auth-title">Crear cuenta</h1>
 
-        <div>
-            <h1>Create account</h1>
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            {success && <p style={{ color: "green" }}>{success}</p>}
+            <p className="auth-subtitle">
+                Regístrate para solicitar y gestionar tus servicios
+            </p>
+
+            {error && (
+                <div className="auth-alert" role="alert">
+                    {error}
+                </div>
+            )}
+
+            {success && (
+                <div className="auth-notice" role="status">
+                    {success}
+                </div>
+            )}
 
             <form onSubmit={handleSubmit}>
-                <input
-                    type="text"
-                    name="name"
-                    placeholder="Name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                />
+                <div className="auth-field">
+                    <label htmlFor="name" className="auth-label">
+                        Nombre
+                    </label>
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        className="auth-input"
+                        placeholder="Tu nombre"
+                        autoComplete="given-name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
 
-                <input
-                    type="text"
-                    name="last_name"
-                    placeholder="Last name"
-                    value={formData.last_name}
-                    onChange={handleChange}
-                    required
-                />
+                <div className="auth-field">
+                    <label htmlFor="last_name" className="auth-label">
+                        Apellidos
+                    </label>
+                    <input
+                        type="text"
+                        id="last_name"
+                        name="last_name"
+                        className="auth-input"
+                        placeholder="Tus apellidos"
+                        autoComplete="family-name"
+                        value={formData.last_name}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
 
-                <input
-                    type="email"
-                    name="email"
-                    placeholder="Email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                />
+                <div className="auth-field">
+                    <label htmlFor="email" className="auth-label">
+                        Correo electrónico
+                    </label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        className="auth-input"
+                        placeholder="tucorreo@ejemplo.com"
+                        autoComplete="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
 
-                <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                />
+                <div className="auth-field">
+                    <label htmlFor="phone" className="auth-label">
+                        Teléfono
+                    </label>
+                    <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        className="auth-input"
+                        placeholder="600 123 456"
+                        autoComplete="tel"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
 
-                <input
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    minLength={6}
-                />
+                <div className="auth-field">
+                    <label htmlFor="password" className="auth-label">
+                        Contraseña
+                    </label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        className="auth-input"
+                        placeholder="Mínimo 6 caracteres"
+                        autoComplete="new-password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                        minLength={6}
+                    />
+                </div>
 
-                <button type="submit" disabled={loading}>
-                    {loading ? "Registering..." : "Register"}
+                <button type="submit" className="auth-btn" disabled={loading}>
+                    {loading ? "Creando cuenta..." : "Crear cuenta"}
                 </button>
             </form>
-        </div>
 
+            <p className="auth-foot">
+                ¿Ya tienes una cuenta? <Link to="/login">Inicia sesión</Link>
+            </p>
+        </div>
     );
 };
