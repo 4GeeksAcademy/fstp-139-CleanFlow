@@ -28,74 +28,72 @@
    ====================================================================== */
 
 :root {
-
-    /* ---- COLOR ----
+  /* ---- COLOR ----
        Nombres por FUNCIÓN y no por aspecto: --cf-primary y no --cf-verde,
        para que el nombre siga valiendo si la marca cambia de color. */
 
-    --cf-bg: #F7F3E8;              /* fondo general, crema */
-    --cf-surface: #FFFFFF;         /* tarjetas y bloques sobre el fondo */
-    --cf-primary: #2E3B26;         /* color de marca: botones, enlaces */
-    --cf-primary-dark: #222D1C;    /* el mismo, al pasar el ratón */
-    --cf-primary-soft: #E7EDDF;    /* fondo suave del color de marca */
-    --cf-accent: #C97B4A;          /* terracota: destacados puntuales */
-    --cf-text: #26261F;            /* texto normal */
-    --cf-muted: #6E6B5E;           /* texto secundario, pies de foto */
-    --cf-border: #E1DAC5;          /* líneas y bordes */
-    --cf-ring: rgba(46, 59, 38, 0.22);   /* halo del foco del teclado */
-    --cf-on-primary: #F7F3E8;         /* el crema del fondo, invertido */
-    --cf-on-primary-muted: #B0B3A4;   /* el mismo, apagado: textos secundarios */
+  --cf-bg: #f7f3e8; /* fondo general, crema */
+  --cf-surface: #ffffff; /* tarjetas y bloques sobre el fondo */
+  --cf-primary: #2e3b26; /* color de marca: botones, enlaces */
+  --cf-primary-dark: #222d1c; /* el mismo, al pasar el ratón */
+  --cf-primary-soft: #e7eddf; /* fondo suave del color de marca */
+  --cf-accent: #c97b4a; /* terracota: destacados puntuales */
+  --cf-text: #26261f; /* texto normal */
+  --cf-muted: #6e6b5e; /* texto secundario, pies de foto */
+  --cf-border: #e1dac5; /* líneas y bordes */
+  --cf-ring: rgba(46, 59, 38, 0.22); /* halo del foco del teclado */
+  --cf-on-primary: #f7f3e8; /* el crema del fondo, invertido */
+  --cf-on-primary-muted: #b0b3a4; /* el mismo, apagado: textos secundarios */
 
-    /* ---- TIPOGRAFÍA ----
+  /* ---- TIPOGRAFÍA ----
        Las alternativas del final se usan mientras la fuente carga. */
 
-    --cf-font-heading: "Fraunces", Georgia, "Times New Roman", serif;
-    --cf-font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --cf-font-heading: "Fraunces", Georgia, "Times New Roman", serif;
+  --cf-font-body: "Inter", system-ui, -apple-system, sans-serif;
 
-    /* Solo para el logotipo. Si aparece en un titular o un botón, es un error. */
-    --cf-font-brand: "Montserrat", system-ui, sans-serif;
+  /* Solo para el logotipo. Si aparece en un titular o un botón, es un error. */
+  --cf-font-brand: "Montserrat", system-ui, sans-serif;
 
-    /* Escala cerrada, para que nadie invente su propio "un poco más
+  /* Escala cerrada, para que nadie invente su propio "un poco más
        grande". En rem: crece si el usuario agranda la letra del navegador. */
 
-    --cf-text-sm: 0.875rem;    /* 14px: notas, pies */
-    --cf-text-base: 1rem;      /* 16px: texto normal */
-    --cf-text-lg: 1.125rem;    /* 18px: entradillas */
-    --cf-text-xl: 1.5rem;      /* 24px: títulos de bloque */
-    --cf-text-2xl: 2rem;       /* 32px: títulos de sección */
-    --cf-text-3xl: 2.5rem;     /* 40px: el titular del hero */
+  --cf-text-sm: 0.875rem; /* 14px: notas, pies */
+  --cf-text-base: 1rem; /* 16px: texto normal */
+  --cf-text-lg: 1.125rem; /* 18px: entradillas */
+  --cf-text-xl: 1.5rem; /* 24px: títulos de bloque */
+  --cf-text-2xl: 2rem; /* 32px: títulos de sección */
+  --cf-text-3xl: 2.5rem; /* 40px: el titular del hero */
 
-    /* ---- ESPACIADO ----
+  /* ---- ESPACIADO ----
        Múltiplos de 4px: con una escala, la página se ve ordenada aunque
        nadie sepa explicar por qué. */
 
-    --cf-space-1: 0.25rem;   /*  4px */
-    --cf-space-2: 0.5rem;    /*  8px */
-    --cf-space-3: 0.75rem;   /* 12px */
-    --cf-space-4: 1rem;      /* 16px */
-    --cf-space-6: 1.5rem;    /* 24px */
-    --cf-space-8: 2rem;      /* 32px */
-    --cf-space-12: 3rem;     /* 48px */
-    --cf-space-16: 4rem;     /* 64px */
+  --cf-space-1: 0.25rem; /*  4px */
+  --cf-space-2: 0.5rem; /*  8px */
+  --cf-space-3: 0.75rem; /* 12px */
+  --cf-space-4: 1rem; /* 16px */
+  --cf-space-6: 1.5rem; /* 24px */
+  --cf-space-8: 2rem; /* 32px */
+  --cf-space-12: 3rem; /* 48px */
+  --cf-space-16: 4rem; /* 64px */
 
-    /* ---- FORMAS ---- */
+  /* ---- FORMAS ---- */
 
-    --cf-radius-sm: 8px;     /* campos, botones */
-    --cf-radius-md: 12px;    /* tarjetas */
-    --cf-radius-lg: 20px;    /* bloques grandes */
+  --cf-radius-sm: 8px; /* campos, botones */
+  --cf-radius-md: 12px; /* tarjetas */
+  --cf-radius-lg: 20px; /* bloques grandes */
 
-    --cf-shadow-sm: 0 1px 3px rgba(38, 38, 31, 0.06);
-    --cf-shadow-md: 0 4px 16px rgba(38, 38, 31, 0.08);
+  --cf-shadow-sm: 0 1px 3px rgba(38, 38, 31, 0.06);
+  --cf-shadow-md: 0 4px 16px rgba(38, 38, 31, 0.08);
 
-    /* ---- DISPOSICIÓN ---- */
+  /* ---- DISPOSICIÓN ---- */
 
-    /* Ancho máximo del contenido: sin él, en pantallas anchas las líneas
+  /* Ancho máximo del contenido: sin él, en pantallas anchas las líneas
        de texto se alargan tanto que cuesta leerlas. */
-    --cf-container: 1140px;
+  --cf-container: 1140px;
 
-    --cf-transition: 0.15s ease;
+  --cf-transition: 0.15s ease;
 }
-
 
 /* ======================================================================
    BASE
@@ -107,50 +105,316 @@
 *,
 *::before,
 *::after {
-    /* Que el padding y el borde cuenten dentro del ancho declarado. */
-    box-sizing: border-box;
+  /* Que el padding y el borde cuenten dentro del ancho declarado. */
+  box-sizing: border-box;
 }
 
 body {
-    margin: 0;
-    background-color: var(--cf-bg);
-    color: var(--cf-text);
-    font-family: var(--cf-font-body);
-    font-size: var(--cf-text-base);
-    line-height: 1.6;
+  margin: 0;
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-base);
+  line-height: 1.6;
 }
 
-h1, h2, h3, h4 {
-    font-family: var(--cf-font-heading);
-    color: var(--cf-primary);
-    line-height: 1.2;
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--cf-font-heading);
+  color: var(--cf-primary);
+  line-height: 1.2;
 }
 
 a {
-    color: var(--cf-primary);
+  color: var(--cf-primary);
 }
 
 img {
-    /* Evita que una imagen desborde y provoque scroll horizontal, que es
+  /* Evita que una imagen desborde y provoque scroll horizontal, que es
        el fallo más habitual en móvil. */
-    max-width: 100%;
-    height: auto;
+  max-width: 100%;
+  height: auto;
 }
 
 /* El foco del teclado tiene que verse SIEMPRE: quitarlo con outline:none
    deja la web inutilizable para quien no usa ratón. */
 :focus-visible {
-    outline: 2px solid var(--cf-primary);
-    outline-offset: 2px;
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
 }
 
 /* Solo para lectores de pantalla: se saca de la vista sin ocultarlo,
    porque display:none también lo escondería de ellos. */
 .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* ======================================================================
+   SOBRE CLEANFLOW
+   ====================================================================== */
+
+.cf-about {
+  padding: var(--cf-space-16) var(--cf-space-6);
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+}
+
+.cf-about .cf-container {
+  width: min(var(--cf-container), 100%);
+  margin: 0 auto;
+}
+
+.cf-about__hero {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  align-items: center;
+  gap: var(--cf-space-16);
+  margin-bottom: var(--cf-space-12);
+}
+
+.cf-about__content {
+  max-width: 520px;
+}
+
+.cf-about__eyebrow {
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+.cf-about__title {
+  margin: 0 0 var(--cf-space-6);
+  color: var(--cf-text);
+  font-size: var(--cf-text-3xl);
+}
+
+.cf-about__title span {
+  display: table;
+  margin-top: var(--cf-space-2);
+  padding: var(--cf-space-1) var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+.cf-about__text {
+  margin: 0 0 var(--cf-space-4);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-base);
+}
+
+.cf-about__image {
+  min-height: 360px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-primary-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-space-4);
+  color: var(--cf-primary);
+  overflow: hidden;
+}
+
+.cf-about__image i {
+  font-size: var(--cf-text-3xl);
+}
+
+.cf-about__image span {
+  font-size: var(--cf-text-base);
+  font-weight: 700;
+}
+
+.cf-about__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: var(--cf-space-8);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+  overflow: hidden;
+}
+
+.cf-about__stat {
+  padding: var(--cf-space-6);
+  text-align: center;
+}
+
+.cf-about__stat:not(:last-child) {
+  border-right: 1px solid var(--cf-border);
+}
+
+.cf-about__stat strong {
+  display: block;
+  margin-bottom: var(--cf-space-2);
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+}
+
+.cf-about__stat span {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-about__values {
+  margin-bottom: var(--cf-space-8);
+  padding: var(--cf-space-8);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+.cf-about__values > h3 {
+  margin: 0 0 var(--cf-space-8);
+  color: var(--cf-on-primary);
+  font-size: var(--cf-text-xl);
+}
+
+.cf-about__values-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--cf-space-8);
+}
+
+.cf-about__value {
+  text-align: center;
+}
+
+.cf-about__value i {
+  margin-bottom: var(--cf-space-3);
+  color: var(--cf-on-primary);
+  font-size: var(--cf-text-xl);
+}
+
+.cf-about__value h4 {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-on-primary);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-base);
+}
+
+.cf-about__value p {
+  margin: 0;
+  color: var(--cf-on-primary-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-about__satisfaction {
+  min-height: 190px;
+  padding: var(--cf-space-8) var(--cf-space-12);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--cf-shadow-sm);
+  overflow: hidden;
+}
+
+.cf-about__satisfaction h3 {
+  max-width: 460px;
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-text);
+  font-size: var(--cf-text-2xl);
+}
+
+.cf-about__satisfaction h3 span {
+  display: block;
+  color: var(--cf-primary);
+}
+
+.cf-about__satisfaction p {
+  margin: 0;
+  color: var(--cf-muted);
+}
+
+.cf-about__satisfaction > i {
+  margin-right: var(--cf-space-16);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-3xl);
+}
+
+/* TABLET */
+
+@media (max-width: 850px) {
+  .cf-about__hero {
+    grid-template-columns: 1fr;
+    gap: var(--cf-space-8);
+  }
+
+  .cf-about__content {
+    max-width: none;
+  }
+
+  .cf-about__stats,
+  .cf-about__values-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cf-about__stat:nth-child(2) {
+    border-right: none;
+  }
+
+  .cf-about__stat:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--cf-border);
+  }
+}
+
+/* MÓVIL */
+
+@media (max-width: 520px) {
+  .cf-about {
+    padding: var(--cf-space-12) var(--cf-space-4);
+  }
+
+  .cf-about__title {
+    font-size: var(--cf-text-2xl);
+  }
+
+  .cf-about__image {
+    min-height: 250px;
+  }
+
+  .cf-about__stats,
+  .cf-about__values-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-about__stat:not(:last-child) {
+    border-right: none;
+    border-bottom: 1px solid var(--cf-border);
+  }
+
+  .cf-about__values {
+    padding: var(--cf-space-6);
+  }
+
+  .cf-about__value {
+    padding: var(--cf-space-2) 0;
+  }
+
+  .cf-about__satisfaction {
+    padding: var(--cf-space-6);
+  }
+
+  .cf-about__satisfaction > i {
+    margin-right: 0;
+    font-size: var(--cf-text-2xl);
+  }
+}
+.cf-about__image img {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  object-fit: cover;
 }

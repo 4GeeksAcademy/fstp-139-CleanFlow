@@ -9,16 +9,17 @@
  * Lo único intocable son los seis `id`: el navbar y el pie apuntan a
  * ellos. Cambiar uno rompe esos enlaces sin dar ningún error.
  */
+import { AboutSection } from "./home/AboutSection"
 
 // El orden del array es el orden en pantalla: reordenar la landing es
 // mover una línea.
 const SECTIONS = [
-    { id: "hero",      titulo: "Hero",                         },
-    { id: "services",  titulo: "Nuestros servicios",           },
-    { id: "about-us",  titulo: "Sobre nosotros",               },
-    { id: "reviews",   titulo: "Qué opinan nuestros clientes", },
-    { id: "partners",  titulo: "Nuestros partners",            },
-    { id: "location",  titulo: "Dónde estamos",                },
+    { id: "hero", titulo: "Hero", },
+    { id: "services", titulo: "Nuestros servicios", },
+    { id: "about-us", titulo: "Sobre nosotros", },
+    { id: "reviews", titulo: "Qué opinan nuestros clientes", },
+    { id: "partners", titulo: "Nuestros partners", },
+    { id: "location", titulo: "Dónde estamos", },
 ]
 
 // ---- CÓMO SE AÑADE UNA SECCIÓN ----
@@ -45,32 +46,32 @@ const SECTIONS = [
 export const Home = () => {
     return (
         <main>
-            {SECTIONS.map((section) => (
-                <section
-                    key={section.id}
-                    id={section.id}
-                    // Estilos en línea: son de usar y tirar, este archivo
-                    // entero desaparece en WEB-04.
-                    style={{
-                        // Alto suficiente para que haya scroll y se pueda
-                        // probar el salto entre anclas.
-                        minHeight: "80vh",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        borderBottom: "1px dashed #bbb",
-                        padding: "40px 20px",
-                        textAlign: "center",
-                    }}
-                >
-                    <h2>{section.titulo}</h2>
-                    <p style={{ color: "#777", margin: 0 }}>
-                        Sección provisional · <code>#{section.id}</code>
-                    </p>
-                </section>
-            ))}
+            {SECTIONS.map((section) =>
+                section.id === "about-us" ? (
+                    <AboutSection key={section.id} />
+                ) : (
+                    <section
+                        key={section.id}
+                        id={section.id}
+                        style={{
+                            minHeight: "80vh",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            borderBottom: "1px dashed #bbb",
+                            padding: "40px 20px",
+                            textAlign: "center",
+                        }}
+                    >
+                        <h2>{section.titulo}</h2>
+                        <p style={{ color: "#777", margin: 0 }}>
+                            Sección provisional · <code>{section.id}</code>
+                        </p>
+                    </section>
+                )
+            )}
         </main>
     )
 }
