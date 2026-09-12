@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" role="img" aria-labelledby="title">
+  <title id="title">Logo de VerdeCasa</title>
+
+  <path
+    d="M112 65L160 25L208 65"
+    fill="none"
+    stroke="#2E3B26"
+    stroke-width="7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <path
+    d="M125 58V105H195V58"
+    fill="none"
+    stroke="#2E3B26"
+    stroke-width="7"
+    stroke-linejoin="round"
+  />
+
+  <path
+    d="M160 102C139 91 137 69 138 52C158 55 170 69 160 102Z"
+    fill="#7B925B"
+  />
+
+  <text
+    x="160"
+    y="140"
+    text-anchor="middle"
+    fill="#2E3B26"
+    font-family="Georgia, serif"
+    font-size="30"
+    font-weight="700"
+  >
+    VerdeCasa
+  </text>
+</svg>

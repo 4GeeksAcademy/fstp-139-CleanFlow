@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" role="img" aria-labelledby="title">
+  <title id="title">Logo de HigienePro</title>
+
+  <path
+    d="M160 18L202 35V66C202 90 185 108 160 119C135 108 118 90 118 66V35L160 18Z"
+    fill="#2E3B26"
+  />
+
+  <path
+    d="M140 66L154 80L182 50"
+    fill="none"
+    stroke="#F7F3E8"
+    stroke-width="7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <text
+    x="160"
+    y="142"
+    text-anchor="middle"
+    font-family="Georgia, serif"
+    font-size="29"
+    font-weight="700"
+  >
+    <tspan fill="#2E3B26">Higiene</tspan>
+    <tspan fill="#C97B4A">Pro</tspan>
+  </text>
+</svg>

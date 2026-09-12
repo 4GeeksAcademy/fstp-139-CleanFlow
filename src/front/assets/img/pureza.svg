@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" role="img" aria-labelledby="title">
+  <title id="title">Logo de Pureza</title>
+
+  <path
+    d="M160 18C160 18 122 62 122 88C122 109 139 124 160 124C181 124 198 109 198 88C198 62 160 18 160 18Z"
+    fill="#2E3B26"
+  />
+
+  <path
+    d="M147 96C151 106 162 111 173 106"
+    fill="none"
+    stroke="#F7F3E8"
+    stroke-width="6"
+    stroke-linecap="round"
+  />
+
+  <text
+    x="160"
+    y="151"
+    text-anchor="middle"
+    fill="#2E3B26"
+    font-family="Georgia, serif"
+    font-size="29"
+    font-weight="700"
+  >
+    Pureza
+  </text>
+</svg>

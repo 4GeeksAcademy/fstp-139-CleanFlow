@@ -1,0 +1,41 @@
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 320 160"
+    role="img"
+    aria-labelledby="title description"
+>
+    <title id="title">EcoLimpio</title>
+    <desc id="description">
+        Logotipo de demostración de EcoLimpio con hojas verdes
+    </desc>
+
+    <g fill="none" stroke="#2E3B26" stroke-width="6" stroke-linecap="round">
+        <path d="M160 74V34" />
+        <path d="M158 58C125 58 108 43 108 20C137 20 157 33 158 58Z" fill="#6F875F" />
+        <path d="M162 58C195 58 212 43 212 20C183 20 163 33 162 58Z" fill="#A8B99A" />
+    </g>
+
+    <text
+        x="160"
+        y="108"
+        text-anchor="middle"
+        fill="#2E3B26"
+        font-family="Georgia, serif"
+        font-size="34"
+        font-weight="700"
+    >
+        EcoLimpio
+    </text>
+
+    <text
+        x="160"
+        y="136"
+        text-anchor="middle"
+        fill="#6E6B5E"
+        font-family="Arial, sans-serif"
+        font-size="12"
+        letter-spacing="4"
+    >
+        UN HOGAR MÁS VERDE
+    </text>
+</svg>

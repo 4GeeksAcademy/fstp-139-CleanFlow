@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" role="img" aria-labelledby="title">
+  <title id="title">Logo de Brillo Plus</title>
+
+  <path
+    d="M160 18C164 42 177 55 201 59C177 63 164 76 160 100C156 76 143 63 119 59C143 55 156 42 160 18Z"
+    fill="#C97B4A"
+  />
+
+  <path
+    d="M207 31C209 43 216 50 228 52C216 54 209 61 207 73C205 61 198 54 186 52C198 50 205 43 207 31Z"
+    fill="#2E3B26"
+  />
+
+  <text
+    x="160"
+    y="140"
+    text-anchor="middle"
+    font-family="Georgia, serif"
+    font-size="31"
+    font-weight="700"
+  >
+    <tspan fill="#2E3B26">Brillo</tspan>
+    <tspan fill="#C97B4A">+</tspan>
+  </text>
+</svg>
