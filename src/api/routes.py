@@ -11,7 +11,7 @@ Tres niveles de acceso, de menos a más restrictivo:
 """
 import re
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task
+from api.models import db, User, Task, Service
 from api.utils import generate_sitemap, APIException, role_required
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -606,3 +606,28 @@ def update_task_status(task_id):
     db.session.commit()
 
     return jsonify({"task": task.serialize()}), 200
+
+
+# ----------------------------------------------------------------------
+# CATÁLOGO DE SERVICIOS (ENCARGADO)
+#
+# Los tipos de limpieza: esencial, integral, profunda, fin de obra...
+# Solo los gestiona el encargado. La lista pública, sin los desactivados,
+# es de la issue #36.
+#
+#   GET    /api/manage/services       todos, activos y desactivados
+# ----------------------------------------------------------------------
+
+@api.route("/manage/services", methods=["GET"])
+@role_required("manager")
+def get_all_services():
+    """Todos los servicios, activos y desactivados, con todos sus campos.
+
+    serialize() y no serialize_public(): el encargado necesita ver también
+    el id y el estado, que la vista pública esconde.
+    """
+    services = db.session.execute(
+        db.select(Service).order_by(Service.service_id)
+    ).scalars().all()
+
+    return jsonify({"services": [service.serialize() for service in services]}), 200
