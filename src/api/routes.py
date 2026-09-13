@@ -12,7 +12,7 @@ Tres niveles de acceso, de menos a más restrictivo:
 import re
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Task, Service
-from api.utils import generate_sitemap, APIException, role_required
+from api.utils import generate_sitemap, APIException, role_required, slugify
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
@@ -616,6 +616,7 @@ def update_task_status(task_id):
 # es de la issue #36.
 #
 #   GET    /api/manage/services       todos, activos y desactivados
+#   POST   /api/services              crear
 # ----------------------------------------------------------------------
 
 @api.route("/manage/services", methods=["GET"])
@@ -631,3 +632,187 @@ def get_all_services():
     ).scalars().all()
 
     return jsonify({"services": [service.serialize() for service in services]}), 200
+
+
+# Mismos topes que las columnas de Service en models.py.
+SERVICE_NAME_MAX_LENGTH = 100
+IMAGE_URL_MAX_LENGTH = 255
+
+# Los minutos por tarea tienen que dividir la hora en partes enteras. Si
+# no, el cliente acabaría con media tarea, y el aviso de "te falta una
+# tarea para aprovechar la hora" nunca saldría a cuenta redonda.
+ALLOWED_MINUTES_PER_TASK = (10, 12, 15, 20, 30, 60)
+
+
+def is_whole_number(value):
+    """True si es un número entero de verdad.
+
+    bool se descarta a propósito: en Python True cuenta como el entero 1,
+    y "min_hours": true colaría como una hora.
+    """
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def clean_optional_text(value, field_label, max_length=None):
+    """Para textos opcionales: devuelve (texto o None, None) o (None, mensaje)."""
+    if value is None:
+        return None, None
+
+    if not isinstance(value, str):
+        return None, f"{field_label} debe ser un texto"
+
+    value = value.strip()
+
+    if max_length and len(value) > max_length:
+        return None, f"{field_label} no puede superar los {max_length} caracteres"
+
+    return value or None, None
+
+
+def validate_service(data, current=None):
+    """Valida un servicio. Devuelve (campos, None) si vale, o (None, mensaje).
+
+    Al CREAR (current=None) tienen que venir los obligatorios.
+
+    Al EDITAR se pasa el servicio actual, y lo que no venga en el cuerpo se
+    toma de él. Hace falta para las reglas que cruzan dos campos: si solo
+    se envía un min_hours nuevo, hay que compararlo con el max_hours que
+    ya tenía el servicio.
+    """
+
+    def pick(field, default=None):
+        if field in data:
+            return data[field]
+        if current is not None:
+            return getattr(current, field)
+        return default
+
+    fields = {}
+
+    # ---- nombre ----
+    name = pick("name")
+    if not isinstance(name, str) or not name.strip():
+        return None, "El nombre del servicio es obligatorio"
+    name = name.strip()
+    if len(name) > SERVICE_NAME_MAX_LENGTH:
+        return None, f"El nombre no puede superar los {SERVICE_NAME_MAX_LENGTH} caracteres"
+    # Sin letras ni números no hay de dónde sacar la URL del servicio.
+    if not slugify(name):
+        return None, "El nombre tiene que contener al menos una letra o un número"
+    fields["name"] = name
+
+    # ---- descripción corta: obligatoria ----
+    description = pick("description")
+    if not isinstance(description, str) or not description.strip():
+        return None, "La descripción es obligatoria"
+    fields["description"] = description.strip()
+
+    # ---- textos opcionales ----
+    fields["long_description"], error = clean_optional_text(pick("long_description"), "La descripción larga")
+    if error:
+        return None, error
+
+    fields["image_url"], error = clean_optional_text(pick("image_url"), "La URL de la imagen", IMAGE_URL_MAX_LENGTH)
+    if error:
+        return None, error
+
+    # ---- precio ----
+    rate = pick("base_hourly_rate")
+    if isinstance(rate, bool) or not isinstance(rate, (int, float)) or rate <= 0:
+        return None, "El precio por hora tiene que ser un número mayor que cero"
+    fields["base_hourly_rate"] = rate
+
+    # ---- minutos por tarea ----
+    minutes = pick("minutes_per_task")
+    if minutes is not None and (not is_whole_number(minutes) or minutes not in ALLOWED_MINUTES_PER_TASK):
+        allowed = ", ".join(str(m) for m in ALLOWED_MINUTES_PER_TASK)
+        return None, f"Los minutos por tarea tienen que ser uno de estos: {allowed}. O vacío si el servicio no lleva tareas"
+    fields["minutes_per_task"] = minutes
+
+    # ---- horas contratables ----
+    min_hours = pick("min_hours", 1)
+    if not is_whole_number(min_hours) or min_hours < 1:
+        return None, "El mínimo de horas tiene que ser un número entero, 1 o más"
+    fields["min_hours"] = min_hours
+
+    hour_step = pick("hour_step", 1)
+    if not is_whole_number(hour_step) or hour_step < 1:
+        return None, "El salto de horas tiene que ser un número entero, 1 o más"
+    fields["hour_step"] = hour_step
+
+    max_hours = pick("max_hours")
+    if max_hours is not None and (not is_whole_number(max_hours) or max_hours < min_hours):
+        return None, "El máximo de horas tiene que ser un número entero, igual o mayor que el mínimo"
+    fields["max_hours"] = max_hours
+
+    # ---- estado ----
+    is_active = pick("is_active", True)
+    if not isinstance(is_active, bool):
+        return None, "is_active debe ser true o false"
+    fields["is_active"] = is_active
+
+    return fields, None
+
+
+def service_name_taken(name, exclude_service_id=None):
+    """Indica si ya hay otro servicio con ese nombre, sin mirar mayúsculas.
+
+    Igual que con las tareas: dos "Limpieza integral" confundirían al
+    cliente al elegir en el desplegable.
+    """
+    query = db.select(Service).where(func.lower(Service.name) == name.lower())
+
+    if exclude_service_id is not None:
+        query = query.where(Service.service_id != exclude_service_id)
+
+    return db.session.execute(query).scalar_one_or_none() is not None
+
+
+def generate_unique_slug(name):
+    """Genera el slug a partir del nombre y, si ya está cogido, le añade
+    un número: limpieza-integral, limpieza-integral-2, -3...
+
+    Puede pasar aunque los nombres no se repitan: "Limpieza integral" y
+    "Limpieza-Integral" son nombres distintos, pero dan el mismo slug.
+    """
+    base = slugify(name)
+    slug = base
+    suffix = 2
+
+    while db.session.execute(
+        db.select(Service).where(Service.slug == slug)
+    ).scalar_one_or_none():
+        slug = f"{base}-{suffix}"
+        suffix += 1
+
+    return slug
+
+
+@api.route("/services", methods=["POST"])
+@role_required("manager")
+def create_service():
+    """Crea un servicio. El slug se genera solo, y nace activo salvo que
+    se envíe lo contrario."""
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    fields, error = validate_service(data)
+    if error:
+        return jsonify({"message": error}), 400
+
+    if service_name_taken(fields["name"]):
+        return jsonify({"message": "Ya existe un servicio con ese nombre"}), 409
+
+    service = Service(slug=generate_unique_slug(fields["name"]), **fields)
+    db.session.add(service)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Dos altas casi a la vez con el mismo nombre o el mismo slug.
+        db.session.rollback()
+        return jsonify({"message": "Ya existe un servicio con ese nombre"}), 409
+
+    return jsonify({"service": service.serialize()}), 201
