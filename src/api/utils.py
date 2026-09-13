@@ -1,12 +1,15 @@
 """
 Utilidades compartidas del backend de CleanFlow.
 
-Contiene tres cosas independientes entre sí:
+Contiene cuatro cosas independientes entre sí:
   - APIException:      errores controlados que se devuelven como JSON.
   - generate_sitemap:  página de bienvenida de la API (de la plantilla).
   - role_required:     el decorador que protege endpoints por rol.
+  - slugify:           convierte un nombre en un trozo de URL.
 """
 
+import re
+import unicodedata
 from functools import wraps
 from flask import jsonify, url_for
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
@@ -130,3 +133,33 @@ def role_required(*roles):
             return fn(*args, **kwargs)
         return wrapper
     return decorator
+
+
+# ----------------------------------------------------------------------
+# SLUGS
+# ----------------------------------------------------------------------
+
+def slugify(text):
+    """Convierte un nombre en un trozo de URL limpio.
+
+        "Limpieza integral"        ->  "limpieza-integral"
+        "Fin de obra (+6 horas)"   ->  "fin-de-obra-6-horas"
+        "  Plánchado  Ñoño "       ->  "planchado-nono"
+
+    Solo transforma el texto: NO comprueba si el slug ya existe. Añadir
+    un sufijo cuando está repetido es cosa del endpoint que crea el
+    servicio, que es quien tiene acceso a la base de datos.
+    """
+    # NFKD separa cada letra de su tilde ("á" -> "a" + "´"), y el encode a
+    # ASCII con "ignore" tira la tilde y se queda con la letra.
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+
+    text = text.lower()
+
+    # Todo lo que no sea letra o número pasa a guion; varios seguidos,
+    # uno solo.
+    text = re.sub(r"[^a-z0-9]+", "-", text)
+
+    # Sin guiones sueltos al principio ni al final.
+    return text.strip("-")
