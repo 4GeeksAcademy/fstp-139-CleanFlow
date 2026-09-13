@@ -10,71 +10,67 @@
    .is-active un estado.
    ====================================================================== */
 
-
 /* ---------- CONTENEDOR ----------
    Centra el contenido y limita su ancho. Lo usan la cabecera, el pie y
    lo usarán las secciones de la landing (WEB-04). */
 
 .cf-container {
-    width: 100%;
-    max-width: var(--cf-container);
-    margin: 0 auto;
-    padding-left: var(--cf-gutter);
-    padding-right: var(--cf-gutter);
+  width: 100%;
+  max-width: var(--cf-container);
+  margin: 0 auto;
+  padding-left: var(--cf-gutter);
+  padding-right: var(--cf-gutter);
 }
-
 
 /* ======================================================================
    CABECERA
    ====================================================================== */
 
 .cf-header {
-    /* La cabecera acompaña al usuario mientras baja. En una landing larga
+  /* La cabecera acompaña al usuario mientras baja. En una landing larga
        evita tener que subir del todo para cambiar de sección. */
-    position: sticky;
-    top: 0;
+  position: sticky;
+  top: 0;
 
-    /* Por encima del contenido, o el desplegable quedaría por debajo de
+  /* Por encima del contenido, o el desplegable quedaría por debajo de
        las secciones al abrirse. */
-    z-index: 100;
+  z-index: 100;
 
-    background-color: var(--cf-surface);
-    border-bottom: 1px solid var(--cf-border);
+  background-color: var(--cf-surface);
+  border-bottom: 1px solid var(--cf-border);
 }
 
 /* Al saltar a un ancla, la cabecera fija taparía el título de la sección.
    scroll-margin-top le dice al navegador que se pare antes. */
 section[id] {
-    scroll-margin-top: 140px;
+  scroll-margin-top: 140px;
 }
-
 
 /* ---------- FILA SUPERIOR: ACCESOS ---------- */
 
 .cf-header__utility {
-    background-color: var(--cf-primary-soft);
-    font-size: var(--cf-text-sm);
+  background-color: var(--cf-primary-soft);
+  font-size: var(--cf-text-sm);
 }
 
 .cf-utility-list {
-    list-style: none;
-    margin: 0;
-    padding: var(--cf-space-2) 0;
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--cf-space-6);
+  list-style: none;
+  margin: 0;
+  padding: var(--cf-space-2) 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cf-space-6);
 }
 
 .cf-utility-list a {
-    color: var(--cf-muted);
-    text-decoration: none;
-    transition: color var(--cf-transition);
+  color: var(--cf-muted);
+  text-decoration: none;
+  transition: color var(--cf-transition);
 }
 
 .cf-utility-list a:hover {
-    color: var(--cf-primary);
+  color: var(--cf-primary);
 }
-
 
 /* ---------- FILA PRINCIPAL ---------- */
 
@@ -92,146 +88,150 @@ section[id] {
    secciones y el pie estaban bien. padding-block solo toca arriba y
    abajo, y deja los lados en paz. */
 .cf-navbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--cf-space-6);
-    padding-block: var(--cf-space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-6);
+  padding-block: var(--cf-space-3);
 }
 
 .cf-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cf-space-2);
-    color: var(--cf-primary);
-    text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-primary);
+  text-decoration: none;
 }
 
 .cf-brand__name {
-    /* El logotipo del kit de marca, igual que en el login (.auth-word) y
+  /* El logotipo del kit de marca, igual que en el login (.auth-word) y
        en el pie. Lo único que usa Montserrat. */
-    font-family: var(--cf-font-brand);
-    font-size: var(--cf-text-xl);
-    line-height: 1;
-    letter-spacing: 0.02em;
+  font-family: var(--cf-font-brand);
+  font-size: var(--cf-text-xl);
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
-.cf-brand__name b { font-weight: 700; }
-.cf-brand__name span { font-weight: 400; margin-left: 0.22em; }
+.cf-brand__name b {
+  font-weight: 700;
+}
+.cf-brand__name span {
+  font-weight: 400;
+  margin-left: 0.22em;
+}
 
 .cf-nav {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--cf-space-6);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-6);
 }
 
 /* Separado de los enlaces: es una acción, no un sitio al que ir. El
    margen extra lo aparta del último item sin tocar el gap de la lista. */
 .cf-nav__cta {
-    margin-left: var(--cf-space-2);
+  margin-left: var(--cf-space-2);
 }
 
 .cf-nav__link {
-    color: var(--cf-text);
-    text-decoration: none;
-    font-weight: 500;
-    padding: var(--cf-space-2) 0;
+  color: var(--cf-text);
+  text-decoration: none;
+  font-weight: 500;
+  padding: var(--cf-space-2) 0;
 
-    /* Transparente desde el principio: si el borde apareciera solo al
+  /* Transparente desde el principio: si el borde apareciera solo al
        marcarse, el texto daría un salto de 2px. */
-    border-bottom: 2px solid transparent;
+  border-bottom: 2px solid transparent;
 
-    transition: color var(--cf-transition), border-color var(--cf-transition);
+  transition:
+    color var(--cf-transition),
+    border-color var(--cf-transition);
 }
 
 .cf-nav__link:hover {
-    color: var(--cf-primary);
+  color: var(--cf-primary);
 }
 
 /* El resaltado de la sección visible, que hasta ahora era un subrayado
    provisional. Aquí es donde el terracota tiene su primer uso real. */
 .cf-nav__link.is-active {
-    color: var(--cf-primary);
-    border-bottom-color: var(--cf-accent);
+  color: var(--cf-primary);
+  border-bottom-color: var(--cf-accent);
 }
-
 
 /* ---------- DESPLEGABLE DE SERVICIOS ---------- */
 
 .cf-dropdown {
-    /* relative convierte el <li> en la referencia de la que cuelga el
+  /* relative convierte el <li> en la referencia de la que cuelga el
        panel. Sin esto aparecería en cualquier sitio de la página. */
-    position: relative;
+  position: relative;
 
-    display: flex;
-    align-items: center;
-    gap: var(--cf-space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-1);
 }
 
 .cf-dropdown__toggle {
-    /* Solo aparece en móvil: en escritorio el menú se abre con el ratón. */
-    display: none;
+  /* Solo aparece en móvil: en escritorio el menú se abre con el ratón. */
+  display: none;
 
-    background: none;
-    border: 0;
-    padding: var(--cf-space-1);
-    color: var(--cf-muted);
-    cursor: pointer;
+  background: none;
+  border: 0;
+  padding: var(--cf-space-1);
+  color: var(--cf-muted);
+  cursor: pointer;
 }
 
 .cf-dropdown__panel {
-    position: absolute;
-    top: 100%;          /* justo debajo del item */
-    left: 0;
-    min-width: 240px;
+  position: absolute;
+  top: 100%; /* justo debajo del item */
+  left: 0;
+  min-width: 240px;
 
-    list-style: none;
-    margin: 0;
-    padding: var(--cf-space-2) 0;
+  list-style: none;
+  margin: 0;
+  padding: var(--cf-space-2) 0;
 
-    background-color: var(--cf-surface);
-    border: 1px solid var(--cf-border);
-    border-radius: var(--cf-radius-md);
-    box-shadow: var(--cf-shadow-md);
+  background-color: var(--cf-surface);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  box-shadow: var(--cf-shadow-md);
 }
 
 .cf-dropdown__panel a {
-    display: block;     /* que toda la fila sea pulsable, no solo el texto */
-    padding: var(--cf-space-2) var(--cf-space-4);
-    color: var(--cf-text);
-    text-decoration: none;
-    transition: background-color var(--cf-transition);
+  display: block; /* que toda la fila sea pulsable, no solo el texto */
+  padding: var(--cf-space-2) var(--cf-space-4);
+  color: var(--cf-text);
+  text-decoration: none;
+  transition: background-color var(--cf-transition);
 }
 
 .cf-dropdown__panel a:hover {
-    background-color: var(--cf-primary-soft);
-    color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
 }
 
 .cf-dropdown__empty {
-    padding: var(--cf-space-2) var(--cf-space-4);
-    color: var(--cf-muted);
-    font-size: var(--cf-text-sm);
+  padding: var(--cf-space-2) var(--cf-space-4);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
 }
-
 
 /* ---------- BOTÓN DE MENÚ (MÓVIL) ---------- */
 
 .cf-nav-toggle {
-    display: none;      /* se enciende en la consulta de medios */
+  display: none; /* se enciende en la consulta de medios */
 
-    background: none;
-    border: 1px solid var(--cf-border);
-    border-radius: var(--cf-radius-sm);
-    padding: var(--cf-space-2) var(--cf-space-3);
-    color: var(--cf-primary);
-    font-size: var(--cf-text-lg);
-    cursor: pointer;
+  background: none;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: var(--cf-space-2) var(--cf-space-3);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-lg);
+  cursor: pointer;
 }
-
 
 /* ======================================================================
    MÓVIL
@@ -240,84 +240,82 @@ section[id] {
    ====================================================================== */
 
 @media (max-width: 768px) {
+  section[id] {
+    /* La cabecera ocupa menos alto aquí. */
+    scroll-margin-top: 90px;
+  }
 
-    section[id] {
-        /* La cabecera ocupa menos alto aquí. */
-        scroll-margin-top: 90px;
-    }
+  .cf-utility-list {
+    justify-content: center;
+    gap: var(--cf-space-4);
+  }
 
-    .cf-utility-list {
-        justify-content: center;
-        gap: var(--cf-space-4);
-    }
+  .cf-nav-toggle,
+  .cf-dropdown__toggle {
+    display: inline-flex;
+  }
 
-    .cf-nav-toggle,
-    .cf-dropdown__toggle {
-        display: inline-flex;
-    }
-
-    /* La fila principal pasa a dos alturas: marca y botón arriba, menú
+  /* La fila principal pasa a dos alturas: marca y botón arriba, menú
        desplegado debajo ocupando todo el ancho. */
-    .cf-navbar {
-        flex-wrap: wrap;
-    }
+  .cf-navbar {
+    flex-wrap: wrap;
+  }
 
-    .cf-nav {
-        display: none;
-        width: 100%;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0;
-        padding-bottom: var(--cf-space-4);
-    }
+  .cf-nav {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding-bottom: var(--cf-space-4);
+  }
 
-    .cf-nav.is-open {
-        display: flex;
-    }
+  .cf-nav.is-open {
+    display: flex;
+  }
 
-    .cf-nav__link {
-        display: block;
-        padding: var(--cf-space-3) 0;
-        border-bottom: 1px solid var(--cf-border);
-    }
+  .cf-nav__link {
+    display: block;
+    padding: var(--cf-space-3) 0;
+    border-bottom: 1px solid var(--cf-border);
+  }
 
-    /* Dentro del menú desplegado: separado del último enlace y a todo el
+  /* Dentro del menú desplegado: separado del último enlace y a todo el
        ancho, que es lo que se espera de un botón en una lista vertical.
        El margen negativo compensa el gap 0 de .cf-nav en móvil. */
-    .cf-nav__cta {
-        margin-left: 0;
-        margin-top: var(--cf-space-4);
-    }
+  .cf-nav__cta {
+    margin-left: 0;
+    margin-top: var(--cf-space-4);
+  }
 
-    .cf-nav__cta .cf-btn {
-        display: flex;
-        width: 100%;
-        padding: var(--cf-space-4) var(--cf-space-6);
-        font-size: var(--cf-text-base);
-    }
+  .cf-nav__cta .cf-btn {
+    display: flex;
+    width: 100%;
+    padding: var(--cf-space-4) var(--cf-space-6);
+    font-size: var(--cf-text-base);
+  }
 
-    .cf-nav__link.is-active {
-        border-bottom-color: var(--cf-accent);
-    }
+  .cf-nav__link.is-active {
+    border-bottom-color: var(--cf-accent);
+  }
 
-    .cf-dropdown {
-        flex-wrap: wrap;
-        justify-content: space-between;
-        border-bottom: 1px solid var(--cf-border);
-    }
+  .cf-dropdown {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--cf-border);
+  }
 
-    /* En móvil el panel deja de flotar y se mete en la lista, como un
+  /* En móvil el panel deja de flotar y se mete en la lista, como un
        submenú. Flotando taparía el resto del menú. */
-    .cf-dropdown__panel {
-        position: static;
-        width: 100%;
-        border: 0;
-        border-radius: 0;
-        box-shadow: none;
-        background-color: var(--cf-primary-soft);
-    }
+  .cf-dropdown__panel {
+    position: static;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background-color: var(--cf-primary-soft);
+  }
 }
-
 
 /* ======================================================================
    SECCIONES DE LA LANDING
@@ -338,46 +336,46 @@ section[id] {
    ====================================================================== */
 
 .cf-section {
-    padding: var(--cf-space-16) 0;
+  padding: var(--cf-space-16) 0;
 }
 
 /* Fondo alterno, para que ocho secciones seguidas no se lean como un
    bloque único. Va por posición y no por una clase que haya que añadir a
    mano: al reordenar la landing, sigue alternando solo. */
 main > section:nth-of-type(even) {
-    background-color: var(--cf-surface);
+  background-color: var(--cf-surface);
 }
 
 /* La etiqueta pequeña de encima del título. Es opcional, pero ayuda a
    situarse cuando se llega por un ancla. */
 .cf-section__label {
-    font-size: var(--cf-text-sm);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--cf-muted);
-    margin: 0 0 var(--cf-space-2);
+  font-size: var(--cf-text-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cf-muted);
+  margin: 0 0 var(--cf-space-2);
 }
 
 .cf-section__title {
-    font-family: var(--cf-font-heading);
-    font-size: var(--cf-text-2xl);
-    color: var(--cf-primary);
-    line-height: 1.15;
-    margin: 0 0 var(--cf-space-3);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  color: var(--cf-primary);
+  line-height: 1.15;
+  margin: 0 0 var(--cf-space-3);
 
-    /* Reparte las líneas de un título largo en vez de dejar una palabra
+  /* Reparte las líneas de un título largo en vez de dejar una palabra
        suelta en la última. */
-    text-wrap: balance;
+  text-wrap: balance;
 }
 
 .cf-section__lede {
-    color: var(--cf-muted);
-    font-size: var(--cf-text-lg);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-lg);
 
-    /* Un párrafo a todo lo ancho de una pantalla grande cansa de leer.
+  /* Un párrafo a todo lo ancho de una pantalla grande cansa de leer.
        Las 62 letras son el ancho de lectura cómodo de toda la vida. */
-    max-width: 62ch;
-    margin: 0;
+  max-width: 62ch;
+  margin: 0;
 }
 
 /* Rejilla para las tarjetas de las secciones: servicios, razones,
@@ -386,31 +384,25 @@ main > section:nth-of-type(even) {
    auto-fit + minmax hace que el navegador decida cuántas columnas caben.
    Nadie tiene que escribir una regla por cada tamaño de pantalla. */
 .cf-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: var(--cf-space-6);
-    margin-top: var(--cf-space-8);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--cf-space-6);
+  margin-top: var(--cf-space-8);
 }
-
 
 @media (max-width: 768px) {
+  .cf-section {
+    padding: var(--cf-space-12) 0;
+  }
 
-    .cf-section {
-        padding: var(--cf-space-12) 0;
-    }
+  .cf-section__title {
+    font-size: var(--cf-text-xl);
+  }
 
-    .cf-section__title {
-        font-size: var(--cf-text-xl);
-    }
-
-    .cf-section__lede {
-        font-size: var(--cf-text-base);
-    }
+  .cf-section__lede {
+    font-size: var(--cf-text-base);
+  }
 }
-
-
-
-
 
 /* ======================================================================
    BOTONES
@@ -423,63 +415,63 @@ main > section:nth-of-type(even) {
    ====================================================================== */
 
 .cf-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--cf-space-2);
-    padding: var(--cf-space-4) var(--cf-space-8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-4) var(--cf-space-8);
 
-    border: 1px solid var(--cf-primary);
-    border-radius: 999px;
-    background-color: var(--cf-primary);
-    color: var(--cf-on-primary);
+  border: 1px solid var(--cf-primary);
+  border-radius: 999px;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
 
-    font-family: var(--cf-font-body);
-    font-size: var(--cf-text-base);
-    font-weight: 600;
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-base);
+  font-weight: 600;
 
-    /* El alto lo manda el padding, no la fuente: así dos botones con
+  /* El alto lo manda el padding, no la fuente: así dos botones con
        distinta letra salen iguales. */
-    line-height: 1;
+  line-height: 1;
 
-    text-decoration: none;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background-color var(--cf-transition),
-                border-color var(--cf-transition),
-                color var(--cf-transition);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--cf-transition),
+    border-color var(--cf-transition),
+    color var(--cf-transition);
 }
 
 .cf-btn:hover {
-    background-color: var(--cf-primary-dark);
-    border-color: var(--cf-primary-dark);
-    color: var(--cf-on-primary);
+  background-color: var(--cf-primary-dark);
+  border-color: var(--cf-primary-dark);
+  color: var(--cf-on-primary);
 }
 
 /* focus-visible y no focus: el halo sale al tabular, no al hacer clic. */
 .cf-btn:focus-visible {
-    outline: 3px solid var(--cf-ring);
-    outline-offset: 2px;
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
 }
 
 /* Para sitios con poca altura, como la fila del navbar: el botón normal
    mide casi lo mismo que la fila entera. */
 .cf-btn--sm {
-    padding: var(--cf-space-3) var(--cf-space-6);
-    font-size: var(--cf-text-sm);
+  padding: var(--cf-space-3) var(--cf-space-6);
+  font-size: var(--cf-text-sm);
 }
 
 .cf-btn--ghost {
-    background-color: transparent;
-    color: var(--cf-primary);
+  background-color: transparent;
+  color: var(--cf-primary);
 }
 
 .cf-btn--ghost:hover {
-    background-color: var(--cf-primary-soft);
-    border-color: var(--cf-primary);
-    color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
 }
-
 
 /* ======================================================================
    HERO
@@ -498,29 +490,29 @@ main > section:nth-of-type(even) {
    ====================================================================== */
 
 .cf-hero {
-    position: relative;
+  position: relative;
 
-    /* La foto se sale por los lados: esto la recorta. */
-    overflow: hidden;
+  /* La foto se sale por los lados: esto la recorta. */
+  overflow: hidden;
 
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 
-    /* min() para que no se coma la pantalla en un portátil bajito. */
-    min-height: min(660px, 80vh);
+  /* min() para que no se coma la pantalla en un portátil bajito. */
+  min-height: min(660px, 80vh);
 
-    padding: var(--cf-space-12) 0 0;
+  padding: var(--cf-space-12) 0 0;
 }
 
 /* cover llena el hueco sin deformar la foto, recortando lo que sobra.
    object-position elige qué parte se conserva. */
 .cf-hero__photo {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 60%;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 60%;
 }
 
 /* EL VELO: crema sólido a la izquierda que se disuelve hacia la derecha,
@@ -528,17 +520,17 @@ main > section:nth-of-type(even) {
    El ángulo de 96deg lo inclina un pelín, para que no parezca una banda
    pegada encima. Si el titular no se lee, se suben estos números. */
 .cf-hero__veil {
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(96deg,
-            rgba(var(--cf-bg-rgb), 0.93) 0%,
-            rgba(var(--cf-bg-rgb), 0.88) 30%,
-            rgba(var(--cf-bg-rgb), 0.46) 56%,
-            rgba(var(--cf-bg-rgb), 0) 78%),
-        linear-gradient(to top,
-            rgba(var(--cf-bg-rgb), 0.72),
-            transparent 34%);
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      96deg,
+      rgba(var(--cf-bg-rgb), 0.93) 0%,
+      rgba(var(--cf-bg-rgb), 0.88) 30%,
+      rgba(var(--cf-bg-rgb), 0.46) 56%,
+      rgba(var(--cf-bg-rgb), 0) 78%
+    ),
+    linear-gradient(to top, rgba(var(--cf-bg-rgb), 0.72), transparent 34%);
 }
 
 /* relative para quedar por encima de la foto y el velo.
@@ -548,30 +540,30 @@ main > section:nth-of-type(even) {
        0 auto   pegado a la cabecera
        auto 0   pegado a las valoraciones */
 .cf-hero__content {
-    position: relative;
-    margin-block: auto;
+  position: relative;
+  margin-block: auto;
 }
 
 /* El antetítulo con su rayita. Terracota: el único destello de color de
    la pantalla, y engancha con las estrellas de abajo. */
 .cf-hero__label {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cf-space-3);
-    margin: 0 0 var(--cf-space-4);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  margin: 0 0 var(--cf-space-4);
 
-    color: var(--cf-accent);
-    font-size: var(--cf-text-sm);
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+  color: var(--cf-accent);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .cf-hero__label::before {
-    content: "";
-    width: 26px;
-    height: 1px;
-    background-color: currentColor;
+  content: "";
+  width: 26px;
+  height: 1px;
+  background-color: currentColor;
 }
 
 /* En la letra de la marca: el hero hace de portada y es el único sitio
@@ -582,95 +574,93 @@ main > section:nth-of-type(even) {
 
    clamp crece con la pantalla sin salirse de la escala de index.css. */
 .cf-hero__title {
-    margin: 0;
-    max-width: 14ch;
+  margin: 0;
+  max-width: 14ch;
 
-    font-family: var(--cf-font-brand);
-    font-size: clamp(var(--cf-text-2xl), 5vw, var(--cf-text-3xl));
-    font-weight: 700;
-    line-height: 1.08;
-    letter-spacing: -0.028em;
-    color: var(--cf-primary);
-    text-wrap: balance;
+  font-family: var(--cf-font-brand);
+  font-size: clamp(var(--cf-text-2xl), 5vw, var(--cf-text-3xl));
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.028em;
+  color: var(--cf-primary);
+  text-wrap: balance;
 }
 
 /* Encima de una foto, un párrafo normal no se lee: por eso va en el
    color del texto y no en el apagado, con algo más de peso, y cortado a
    38ch para no llegar a la zona donde el velo ya se ha disuelto. */
 .cf-hero__lede {
-    margin: var(--cf-space-4) 0 0;
-    max-width: 38ch;
-    color: var(--cf-text);
-    font-size: var(--cf-text-lg);
-    font-weight: 500;
+  margin: var(--cf-space-4) 0 0;
+  max-width: 38ch;
+  color: var(--cf-text);
+  font-size: var(--cf-text-lg);
+  font-weight: 500;
 }
 
 .cf-hero__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--cf-space-3);
-    margin-top: var(--cf-space-8);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-3);
+  margin-top: var(--cf-space-8);
 }
 
 /* Sobre la foto, el botón secundario necesita fondo: uno solo de
    contorno desaparece en cuanto la imagen se aclara detrás. */
 .cf-hero .cf-btn--ghost {
-    background-color: rgba(var(--cf-surface-rgb), 0.72);
-    border-color: var(--cf-ring);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(var(--cf-surface-rgb), 0.72);
+  border-color: var(--cf-ring);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .cf-hero .cf-btn--ghost:hover {
-    background-color: var(--cf-surface);
-    border-color: var(--cf-primary);
+  background-color: var(--cf-surface);
+  border-color: var(--cf-primary);
 }
-
 
 /* ---------- VALORACIONES ----------
    Al fondo del hero y tras una línea fina: son una prueba, no parte del
    discurso. */
 
 .cf-hero__rating {
-    position: relative;
+  position: relative;
 }
 
 .cf-hero__rating-in {
-    display: flex;
-    align-items: center;
-    gap: var(--cf-space-3);
-    padding: var(--cf-space-4) 0 var(--cf-space-6);
-    border-top: 1px solid var(--cf-ring);
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4) 0 var(--cf-space-6);
+  border-top: 1px solid var(--cf-ring);
 }
 
 /* En la letra del titular: una Fraunces suelta aquí abajo cantaría. */
 .cf-hero__score {
-    font-family: var(--cf-font-brand);
-    font-size: var(--cf-text-2xl);
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    color: var(--cf-primary);
+  font-family: var(--cf-font-brand);
+  font-size: var(--cf-text-2xl);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--cf-primary);
 }
 
 .cf-hero__stars {
-    display: flex;
-    gap: 2px;
-    color: var(--cf-accent);
-    font-size: 0.9rem;
+  display: flex;
+  gap: 2px;
+  color: var(--cf-accent);
+  font-size: 0.9rem;
 }
 
 .cf-hero__reviews {
-    font-size: var(--cf-text-sm);
-    line-height: 1.3;
-    color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  line-height: 1.3;
+  color: var(--cf-muted);
 }
 
 .cf-hero__reviews b {
-    display: block;
-    color: var(--cf-text);
+  display: block;
+  color: var(--cf-text);
 }
-
 
 /* ---------- EL HERO EN MÓVIL ----------
 
@@ -687,56 +677,476 @@ main > section:nth-of-type(even) {
    con él. */
 
 @media (max-width: 768px) {
+  .cf-hero {
+    min-height: 0;
+    padding: 0;
+  }
 
-    .cf-hero {
-        min-height: 0;
-        padding: 0;
-    }
+  .cf-hero__veil {
+    background: none;
+  }
 
-    .cf-hero__veil {
-        background: none;
-    }
-
-    /* El crema se apaga en el último tramo, que cae dentro del relleno
+  /* El crema se apaga en el último tramo, que cae dentro del relleno
        de abajo: por eso el degradado no llega a los botones. */
-    .cf-hero__content {
-        margin-block: 0;
-        padding: var(--cf-space-6) 0 var(--cf-space-8);
-        background: linear-gradient(to bottom,
-            rgba(var(--cf-bg-rgb), 0.97) 0%,
-            rgba(var(--cf-bg-rgb), 0.96) 86%,
-            rgba(var(--cf-bg-rgb), 0) 100%);
-    }
+  .cf-hero__content {
+    margin-block: 0;
+    padding: var(--cf-space-6) 0 var(--cf-space-8);
+    background: linear-gradient(
+      to bottom,
+      rgba(var(--cf-bg-rgb), 0.97) 0%,
+      rgba(var(--cf-bg-rgb), 0.96) 86%,
+      rgba(var(--cf-bg-rgb), 0) 100%
+    );
+  }
 
-    /* Este margen ES la ventana por la que se ve la foto. Súbelo o bájalo
+  /* Este margen ES la ventana por la que se ve la foto. Súbelo o bájalo
        para enseñar más o menos imagen. */
-    .cf-hero__rating {
-        margin-top: 140px;
-        background: linear-gradient(to bottom,
-            rgba(var(--cf-bg-rgb), 0) 0%,
-            rgba(var(--cf-bg-rgb), 0.90) 42%,
-            rgba(var(--cf-bg-rgb), 0.95) 100%);
-    }
+  .cf-hero__rating {
+    margin-top: 140px;
+    background: linear-gradient(
+      to bottom,
+      rgba(var(--cf-bg-rgb), 0) 0%,
+      rgba(var(--cf-bg-rgb), 0.9) 42%,
+      rgba(var(--cf-bg-rgb), 0.95) 100%
+    );
+  }
 
-    /* La franja de foto ya separa: una línea encima quedaría flotando. */
-    .cf-hero__rating-in {
-        border-top: 0;
-    }
+  /* La franja de foto ya separa: una línea encima quedaría flotando. */
+  .cf-hero__rating-in {
+    border-top: 0;
+  }
 
-    /* Aquí solo cuenta el primer valor. La foto es apaisada y el hueco
+  /* Aquí solo cuenta el primer valor. La foto es apaisada y el hueco
        vertical, así que `cover` la escala hasta que encaja el ALTO: se ve
        entera de arriba abajo y solo un tercio de su ancho. El segundo
        valor no hace nada. */
-    .cf-hero__photo {
-        object-position: center center;
-    }
+  .cf-hero__photo {
+    object-position: center center;
+  }
 
-    .cf-hero__title,
-    .cf-hero__lede {
-        max-width: none;
-    }
+  .cf-hero__title,
+  .cf-hero__lede {
+    max-width: none;
+  }
 }
 
+/* ======================================================================
+   OPINIONES DE CLIENTES
+   ====================================================================== */
+
+.cf-reviews {
+  padding: var(--cf-space-16) 0;
+  background-color: var(--cf-primary-soft);
+  scroll-margin-top: 120px;
+}
+
+.cf-reviews__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--cf-space-6);
+  margin-bottom: var(--cf-space-8);
+}
+
+.cf-reviews__eyebrow {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-accent);
+  font-size: var(--cf-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-reviews__title {
+  margin: 0;
+  font-size: var(--cf-text-2xl);
+}
+
+.cf-reviews__example-label {
+  flex-shrink: 0;
+  padding: var(--cf-space-2) var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-bg);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-reviews__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cf-space-6);
+}
+
+.cf-review-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+  padding: var(--cf-space-8);
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+  transition:
+    transform var(--cf-transition),
+    box-shadow var(--cf-transition);
+}
+
+.cf-review-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-review-card__quote {
+  position: absolute;
+  top: var(--cf-space-2);
+  right: var(--cf-space-6);
+  color: var(--cf-primary-soft);
+  font-family: var(--cf-font-heading);
+  font-size: 6rem;
+  line-height: 1;
+}
+
+.cf-review-card__stars {
+  position: relative;
+  display: flex;
+  gap: var(--cf-space-1);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-review-card__star {
+  color: var(--cf-border);
+  font-size: var(--cf-text-lg);
+}
+
+.cf-review-card__star--active {
+  color: var(--cf-accent);
+}
+
+.cf-review-card__comment {
+  position: relative;
+  flex-grow: 1;
+  margin: 0 0 var(--cf-space-6);
+  color: var(--cf-text);
+  font-size: var(--cf-text-lg);
+  line-height: 1.7;
+}
+
+.cf-review-card__client {
+  margin: 0;
+  color: var(--cf-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .cf-reviews__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .cf-reviews {
+    padding: var(--cf-space-12) 0;
+  }
+
+  .cf-reviews__heading {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: var(--cf-space-6);
+  }
+
+  .cf-reviews__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-review-card {
+    min-height: auto;
+    padding: var(--cf-space-6);
+  }
+}
+/* ======================================================================
+   PARTNERS
+   ====================================================================== */
+
+.cf-partners {
+  padding: var(--cf-space-16) 0;
+  background-color: var(--cf-surface);
+  scroll-margin-top: 120px;
+}
+
+.cf-partners__heading {
+  max-width: 760px;
+  margin: 0 auto var(--cf-space-8);
+  text-align: center;
+}
+
+.cf-partners__eyebrow {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-accent);
+  font-size: var(--cf-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-partners__title {
+  margin: 0;
+  font-size: var(--cf-text-2xl);
+}
+
+.cf-partners__description {
+  margin: var(--cf-space-4) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-lg);
+}
+
+.cf-partners__carousel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cf-space-4);
+}
+
+.cf-partners__track {
+  display: flex;
+  gap: var(--cf-space-6);
+  overflow-x: auto;
+  padding: var(--cf-space-2);
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.cf-partners__track::-webkit-scrollbar {
+  display: none;
+}
+
+.cf-partner-card {
+  flex: 0 0 clamp(210px, 22vw, 260px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 190px;
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+  scroll-snap-align: start;
+  transition:
+    transform var(--cf-transition),
+    box-shadow var(--cf-transition);
+}
+
+.cf-partner-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-partner-card__logo {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  height: 140px;
+  object-fit: contain;
+}
+
+.cf-partners__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: 50%;
+  background-color: var(--cf-bg);
+  color: var(--cf-primary);
+  cursor: pointer;
+  transition:
+    background-color var(--cf-transition),
+    border-color var(--cf-transition),
+    color var(--cf-transition);
+}
+
+.cf-partners__button:hover {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+.cf-partners__example-label {
+  width: fit-content;
+  margin: var(--cf-space-6) auto 0;
+  padding: var(--cf-space-2) var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .cf-partners {
+    padding: var(--cf-space-12) 0;
+  }
+
+  .cf-partners__heading {
+    margin-bottom: var(--cf-space-6);
+  }
+
+  .cf-partners__carousel {
+    gap: var(--cf-space-2);
+  }
+
+  .cf-partners__button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .cf-partners__track {
+    gap: var(--cf-space-4);
+  }
+
+  .cf-partner-card {
+    flex-basis: 80%;
+    min-height: 170px;
+    padding: var(--cf-space-4);
+  }
+
+  .cf-partner-card__logo {
+    height: 125px;
+  }
+}
+/* ======================================================================
+   UBICACIÓN
+   ====================================================================== */
+
+.cf-location {
+  padding: var(--cf-space-16) 0;
+  background-color: var(--cf-bg);
+  scroll-margin-top: 120px;
+}
+
+.cf-location__heading {
+  margin-bottom: var(--cf-space-8);
+}
+
+.cf-location__eyebrow {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-accent);
+  font-size: var(--cf-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-location__title {
+  margin: 0;
+  font-size: var(--cf-text-2xl);
+}
+
+.cf-location__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.75fr);
+  gap: var(--cf-space-6);
+  align-items: stretch;
+}
+
+.cf-office-map {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-office-map__iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  border: 0;
+}
+
+.cf-location__information {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--cf-space-8);
+  padding: var(--cf-space-8);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-location__block {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--cf-space-4);
+  align-items: start;
+}
+
+.cf-location__block > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: var(--cf-accent);
+  color: var(--cf-on-primary);
+}
+
+.cf-location__block h3 {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-on-primary);
+  font-size: var(--cf-text-lg);
+}
+
+.cf-location__block address {
+  color: var(--cf-on-primary-muted);
+  font-style: normal;
+}
+
+.cf-location__block ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--cf-on-primary-muted);
+}
+
+@media (max-width: 800px) {
+  .cf-location__content {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-office-map__iframe {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 600px) {
+  .cf-location {
+    padding: var(--cf-space-12) 0;
+  }
+
+  .cf-location__heading {
+    margin-bottom: var(--cf-space-6);
+  }
+
+  .cf-location__information {
+    padding: var(--cf-space-6);
+  }
+
+  .cf-office-map__iframe {
+    min-height: 280px;
+  }
+}
 
 /* ======================================================================
    PIE DE PÁGINA
@@ -747,24 +1157,24 @@ main > section:nth-of-type(even) {
    ====================================================================== */
 
 .cf-footer {
-    background-color: var(--cf-bg);
-    margin-top: var(--cf-space-16);
+  background-color: var(--cf-bg);
+  margin-top: var(--cf-space-16);
 }
 
 /* El marco. Sin padding abajo: la línea legal va sobre él. */
 .cf-footer__frame {
-    padding: var(--cf-space-4) var(--cf-space-4) 0;
+  padding: var(--cf-space-4) var(--cf-space-4) 0;
 }
 
 .cf-footer__panel {
-    background-color: var(--cf-primary);
-    color: var(--cf-on-primary);
-    border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  border-radius: var(--cf-radius-lg);
 
-    /* Recorta lo que se salga: es lo que da el borde limpio de abajo. */
-    overflow: hidden;
+  /* Recorta lo que se salga: es lo que da el borde limpio de abajo. */
+  overflow: hidden;
 
-    padding-top: var(--cf-space-12);
+  padding-top: var(--cf-space-12);
 }
 
 /* EL PIE VA UN ESCALÓN POR DENTRO Y HAY QUE DESCONTARLO.
@@ -777,9 +1187,9 @@ main > section:nth-of-type(even) {
    Se resta en los dos sitios: al ancho máximo (el doble, uno por lado) y
    al relleno. Así los dos empiezan en la misma columna. */
 .cf-footer__panel .cf-container {
-    max-width: calc(var(--cf-container) - var(--cf-space-8));
-    padding-left: calc(var(--cf-gutter) - var(--cf-space-4));
-    padding-right: calc(var(--cf-gutter) - var(--cf-space-4));
+  max-width: calc(var(--cf-container) - var(--cf-space-8));
+  padding-left: calc(var(--cf-gutter) - var(--cf-space-4));
+  padding-right: calc(var(--cf-gutter) - var(--cf-space-4));
 }
 
 /* SOLO EN ESCRITORIO: las cuatro columnas se separan un poco más del
@@ -791,101 +1201,103 @@ main > section:nth-of-type(even) {
 
    En móvil no se aplica: allí el pie sigue alineado con la cabecera. */
 @media (min-width: 769px) {
-
-    .cf-footer__panel .cf-container {
-        padding-inline: calc(var(--cf-gutter) + var(--cf-space-2));
-    }
+  .cf-footer__panel .cf-container {
+    padding-inline: calc(var(--cf-gutter) + var(--cf-space-2));
+  }
 }
-
 
 /* ---------- LAS COLUMNAS ---------- */
 
 .cf-footer__grid {
-    display: grid;
+  display: grid;
 
-    /* Desigual a propósito: la marca ocupa vez y media una columna. Esa
+  /* Desigual a propósito: la marca ocupa vez y media una columna. Esa
        diferencia ya crea jerarquía, sin líneas ni recuadros. */
-    grid-template-columns: 1.5fr repeat(3, 1fr);
-    gap: var(--cf-space-8);
-    align-items: start;
+  grid-template-columns: 1.5fr repeat(3, 1fr);
+  gap: var(--cf-space-8);
+  align-items: start;
 }
 
 /* La marca del pie es un enlace al inicio, igual que la de la cabecera:
    quien ha llegado hasta el final tiene ahí su camino de vuelta. */
 .cf-footer__brand {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cf-space-2);
-    color: var(--cf-on-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-on-primary);
 
-    /* La regla global de index.css solo fija el color de los enlaces, así
+  /* La regla global de index.css solo fija el color de los enlaces, así
        que el subrayado del navegador hay que quitarlo aquí. */
-    text-decoration: none;
+  text-decoration: none;
 }
 
 /* CLEAN en negrita y FLOW en fino: el logotipo del kit de marca, el
    mismo que usa la pantalla de login. */
 .cf-footer__word {
-    font-family: var(--cf-font-brand);
-    font-size: var(--cf-text-lg);
-    line-height: 1;
+  font-family: var(--cf-font-brand);
+  font-size: var(--cf-text-lg);
+  line-height: 1;
 }
-.cf-footer__word b { font-weight: 700; }
-.cf-footer__word span { font-weight: 400; margin-left: 0.22em; }
+.cf-footer__word b {
+  font-weight: 700;
+}
+.cf-footer__word span {
+  font-weight: 400;
+  margin-left: 0.22em;
+}
 
 .cf-footer__pitch {
-    color: var(--cf-on-primary-muted);
-    font-size: var(--cf-text-sm);
-    max-width: 32ch;
-    margin: var(--cf-space-3) 0 0;
+  color: var(--cf-on-primary-muted);
+  font-size: var(--cf-text-sm);
+  max-width: 32ch;
+  margin: var(--cf-space-3) 0 0;
 }
 
 /* El contraste entre el título y sus enlaces es lo que ordena cada
    columna: el título a plena luz, los enlaces apagados. */
 .cf-footer__title {
-    font-family: var(--cf-font-heading);
-    font-size: var(--cf-text-base);
-    color: var(--cf-on-primary);
-    margin: 0 0 var(--cf-space-3);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-base);
+  color: var(--cf-on-primary);
+  margin: 0 0 var(--cf-space-3);
 }
 
 .cf-footer__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--cf-space-2);
-    color: var(--cf-on-primary-muted);
-    font-size: var(--cf-text-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-space-2);
+  color: var(--cf-on-primary-muted);
+  font-size: var(--cf-text-sm);
 }
 
 .cf-footer__list a {
-    color: var(--cf-on-primary-muted);
-    text-decoration: none;
-    transition: color var(--cf-transition);
+  color: var(--cf-on-primary-muted);
+  text-decoration: none;
+  transition: color var(--cf-transition);
 }
 
 .cf-footer__list a:hover {
-    color: var(--cf-accent);
+  color: var(--cf-accent);
 }
 
 /* <address> viene en cursiva por defecto en el navegador. */
 .cf-footer__address {
-    font-style: normal;
+  font-style: normal;
 }
 
 .cf-footer__empty {
-    color: var(--cf-on-primary-muted);
-    font-size: var(--cf-text-sm);
-    margin: 0;
+  color: var(--cf-on-primary-muted);
+  font-size: var(--cf-text-sm);
+  margin: 0;
 }
 
 /* El foco del teclado en verde sería invisible sobre el panel verde. */
 .cf-footer__panel :focus-visible {
-    outline-color: var(--cf-on-primary);
+  outline-color: var(--cf-on-primary);
 }
-
 
 /* ---------- DATOS DE CONTACTO CON ETIQUETA ----------
    Jerarquía AL REVÉS que en las columnas de enlaces: aquí destaca la
@@ -893,78 +1305,77 @@ main > section:nth-of-type(even) {
    saber qué es cada cosa. */
 
 .cf-footer__data {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--cf-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-space-3);
 }
 
 .cf-footer__label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--cf-on-primary);
-    margin-bottom: 2px;
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cf-on-primary);
+  margin-bottom: 2px;
 }
 
 .cf-footer__value {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    color: var(--cf-on-primary-muted);
-    font-size: var(--cf-text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--cf-on-primary-muted);
+  font-size: var(--cf-text-sm);
 }
 
 .cf-footer__value a {
-    color: var(--cf-on-primary-muted);
-    text-decoration: none;
-    transition: color var(--cf-transition);
+  color: var(--cf-on-primary-muted);
+  text-decoration: none;
+  transition: color var(--cf-transition);
 }
 
 .cf-footer__value a:hover {
-    color: var(--cf-accent);
+  color: var(--cf-accent);
 }
-
 
 /* ---------- REDES SOCIALES ---------- */
 
 .cf-footer__social {
-    list-style: none;
-    margin: var(--cf-space-4) 0 0;
-    padding: 0;
-    display: flex;
-    gap: var(--cf-space-3);
+  list-style: none;
+  margin: var(--cf-space-4) 0 0;
+  padding: 0;
+  display: flex;
+  gap: var(--cf-space-3);
 }
 
 .cf-footer__social a {
-    /* Círculo con el icono centrado. El tamaño fijo garantiza una zona
+  /* Círculo con el icono centrado. El tamaño fijo garantiza una zona
        pulsable cómoda en móvil, no solo el dibujo del icono. */
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    border: 1px solid var(--cf-on-primary-muted);
-    color: var(--cf-on-primary-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--cf-on-primary-muted);
+  color: var(--cf-on-primary-muted);
 
-    /* index.css solo fija el color de los enlaces: el subrayado del
+  /* index.css solo fija el color de los enlaces: el subrayado del
        navegador hay que quitarlo aquí, o sale una raya bajo el icono. */
-    text-decoration: none;
+  text-decoration: none;
 
-    transition: background-color var(--cf-transition),
-                border-color var(--cf-transition),
-                color var(--cf-transition);
+  transition:
+    background-color var(--cf-transition),
+    border-color var(--cf-transition),
+    color var(--cf-transition);
 }
 
 .cf-footer__social a:hover {
-    background-color: var(--cf-accent);
-    border-color: var(--cf-accent);
-    color: var(--cf-on-primary);
+  background-color: var(--cf-accent);
+  border-color: var(--cf-accent);
+  color: var(--cf-on-primary);
 }
-
 
 /* ---------- LA MARCA GRANDE ---------- */
 
@@ -972,63 +1383,59 @@ main > section:nth-of-type(even) {
    disponible, entera y centrada, en cualquier pantalla. Con texto CSS
    habría que ajustar el tamaño por cada tamaño de pantalla. */
 .cf-footer__mark {
-    display: block;
-    width: 100%;
-    margin-top: var(--cf-space-8);
+  display: block;
+  width: 100%;
+  margin-top: var(--cf-space-8);
 }
 
 .cf-footer__mark text {
-    fill: var(--cf-bg);          /* el color del marco */
-    font-family: var(--cf-font-brand);
-    font-weight: 700;
+  fill: var(--cf-bg); /* el color del marco */
+  font-family: var(--cf-font-brand);
+  font-weight: 700;
 }
-
 
 /* ---------- LÍNEA LEGAL ---------- */
 
 /* Centrada y no repartida a los lados: los widgets de chat se anclan
    abajo a la derecha y taparían el aviso legal justo ahí. */
 .cf-footer__legal {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: var(--cf-space-2) var(--cf-space-4);
-    padding: var(--cf-space-3) var(--cf-space-4) var(--cf-space-2);
-    text-align: center;
-    color: var(--cf-muted);
-    font-size: var(--cf-text-sm);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--cf-space-2) var(--cf-space-4);
+  padding: var(--cf-space-3) var(--cf-space-4) var(--cf-space-2);
+  text-align: center;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
 }
 
 .cf-footer__legal p {
-    margin: 0;
+  margin: 0;
 }
 
 .cf-footer__legal a {
-    color: var(--cf-muted);
-    text-decoration: none;
-    transition: color var(--cf-transition);
+  color: var(--cf-muted);
+  text-decoration: none;
+  transition: color var(--cf-transition);
 }
 
 .cf-footer__legal a:hover {
-    color: var(--cf-accent);
+  color: var(--cf-accent);
 }
 
 .cf-footer__sep {
-    color: var(--cf-border);
+  color: var(--cf-border);
 }
 
-
 @media (max-width: 768px) {
-
-    .cf-footer__grid {
-        grid-template-columns: 1fr 1fr;
-    }
+  .cf-footer__grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 560px) {
-
-    .cf-footer__grid {
-        grid-template-columns: 1fr;
-    }
+  .cf-footer__grid {
+    grid-template-columns: 1fr;
+  }
 }
