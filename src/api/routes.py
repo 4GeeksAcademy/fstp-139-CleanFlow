@@ -11,11 +11,13 @@ Tres niveles de acceso, de menos a más restrictivo:
 """
 import re
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User
+from api.models import db, User, Task
 from api.utils import generate_sitemap, APIException, role_required
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 api = Blueprint("api", __name__)
 
@@ -401,3 +403,206 @@ def get_profile():
 # rol en el navegador; lo único que de verdad protege los datos es este
 # decorador. Toda ruta del dashboard necesita el suyo.
 # ----------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------
+# CATÁLOGO DE TAREAS (ENCARGADO)
+#
+# El catálogo compartido: limpiar cristales, hacer plancha... Solo lo
+# gestiona el encargado. La lista pública, sin las desactivadas, es de la
+# issue #36.
+#
+#   GET    /api/manage/tasks          todas, activas y desactivadas
+#   POST   /api/tasks                 crear
+#   PUT    /api/tasks/<id>            editar nombre y descripción
+#   PATCH  /api/tasks/<id>/status     activar o desactivar
+#
+# No hay DELETE: una tarea borrada dejaría reservas apuntando a la nada.
+# ----------------------------------------------------------------------
+
+# Mismo tope que la columna task_name en models.py.
+TASK_NAME_MAX_LENGTH = 100
+
+
+def get_json_body():
+    """Devuelve el cuerpo JSON si es un objeto, o None.
+
+    silent=True: con un cuerpo vacío o que no es JSON no lanza, devuelve
+    None. Y un JSON que no es objeto ([] o "texto") tampoco sirve, porque
+    luego se le piden claves con .get().
+    """
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
+
+
+def clean_task_name(raw_name):
+    """Devuelve (nombre, None) si vale, o (None, mensaje) si no."""
+    if not isinstance(raw_name, str) or not raw_name.strip():
+        return None, "El nombre de la tarea es obligatorio"
+
+    name = raw_name.strip()
+
+    if len(name) > TASK_NAME_MAX_LENGTH:
+        return None, f"El nombre no puede superar los {TASK_NAME_MAX_LENGTH} caracteres"
+
+    return name, None
+
+
+def task_name_taken(name, exclude_task_id=None):
+    """Indica si ya hay otra tarea con ese nombre, sin mirar mayúsculas.
+
+    La restricción unique de la base de datos SÍ distingue mayúsculas: por
+    ella sola entrarían "Limpiar cristales" y "limpiar cristales". Por eso
+    se comprueba aquí, comparando los dos en minúsculas.
+
+    exclude_task_id: al editar, la propia tarea no cuenta. Sin esto,
+    guardarla sin cambiarle el nombre daría "ya existe".
+    """
+    query = db.select(Task).where(func.lower(Task.task_name) == name.lower())
+
+    if exclude_task_id is not None:
+        query = query.where(Task.task_id != exclude_task_id)
+
+    return db.session.execute(query).scalar_one_or_none() is not None
+
+
+def clean_description(raw_description):
+    """Devuelve (descripción, None) si vale, o (None, mensaje) si no.
+
+    Vacía o ausente se guarda como NULL y no como texto vacío: así "sin
+    descripción" solo se representa de una forma.
+    """
+    if raw_description is None:
+        return None, None
+
+    if not isinstance(raw_description, str):
+        return None, "La descripción debe ser un texto"
+
+    return raw_description.strip() or None, None
+
+
+@api.route("/manage/tasks", methods=["GET"])
+@role_required("manager")
+def get_all_tasks():
+    """Todas las tareas, activas y desactivadas."""
+    tasks = db.session.execute(
+        db.select(Task).order_by(Task.task_id)
+    ).scalars().all()
+
+    return jsonify({"tasks": [task.serialize() for task in tasks]}), 200
+
+
+@api.route("/tasks", methods=["POST"])
+@role_required("manager")
+def create_task():
+    """Crea una tarea. Nace activa salvo que se envíe lo contrario."""
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    # Primero se valida TODO y después se escribe: si algo falla, la base
+    # de datos no llega a enterarse.
+    name, error = clean_task_name(data.get("task_name"))
+    if error:
+        return jsonify({"message": error}), 400
+
+    description, error = clean_description(data.get("description"))
+    if error:
+        return jsonify({"message": error}), 400
+
+    is_active = data.get("is_active", True)
+
+    # isinstance y no un simple `if`: el texto "false" es verdadero en
+    # Python, y colaría una tarea activa sin que nadie lo pidiera.
+    if not isinstance(is_active, bool):
+        return jsonify({"message": "is_active debe ser true o false"}), 400
+
+    # 409 y no 400, igual que el email repetido en /register: los datos
+    # están bien, el problema es que chocan con algo que ya existe.
+    if task_name_taken(name):
+        return jsonify({"message": "Ya existe una tarea con ese nombre"}), 409
+
+    task = Task(task_name=name, description=description, is_active=is_active)
+    db.session.add(task)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Dos altas casi a la vez con el mismo nombre: la comprobación de
+        # arriba no llega a verlo, pero la base de datos sí.
+        db.session.rollback()
+        return jsonify({"message": "Ya existe una tarea con ese nombre"}), 409
+
+    return jsonify({"task": task.serialize()}), 201
+
+
+@api.route("/tasks/<int:task_id>", methods=["PUT"])
+@role_required("manager")
+def update_task(task_id):
+    """Edita el nombre y la descripción.
+
+    Solo cambia lo que venga en el cuerpo. El estado NO se toca aquí: va
+    por su propia ruta, para que editar un texto nunca desactive una
+    tarea por error.
+    """
+    task = db.session.get(Task, task_id)
+
+    if not task:
+        return jsonify({"message": "Tarea no encontrada"}), 404
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    changes = {}
+
+    if "task_name" in data:
+        name, error = clean_task_name(data["task_name"])
+        if error:
+            return jsonify({"message": error}), 400
+
+        if task_name_taken(name, exclude_task_id=task_id):
+            return jsonify({"message": "Ya existe una tarea con ese nombre"}), 409
+
+        changes["task_name"] = name
+
+    if "description" in data:
+        description, error = clean_description(data["description"])
+        if error:
+            return jsonify({"message": error}), 400
+
+        changes["description"] = description
+
+    # Validado todo, ahora sí se aplica.
+    for field, value in changes.items():
+        setattr(task, field, value)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"message": "Ya existe una tarea con ese nombre"}), 409
+
+    return jsonify({"task": task.serialize()}), 200
+
+
+@api.route("/tasks/<int:task_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_task_status(task_id):
+    """Activa o desactiva una tarea. Es lo que sustituye al borrado."""
+    task = db.session.get(Task, task_id)
+
+    if not task:
+        return jsonify({"message": "Tarea no encontrada"}), 404
+
+    data = get_json_body()
+
+    if data is None or not isinstance(data.get("is_active"), bool):
+        return jsonify({"message": "Envía is_active con true o false"}), 400
+
+    task.is_active = data["is_active"]
+    db.session.commit()
+
+    return jsonify({"task": task.serialize()}), 200
