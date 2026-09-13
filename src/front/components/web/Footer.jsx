@@ -1,7 +1,7 @@
 /**
- * FOOTER DE LA WED
+ * FOOTER DE LA WEB
  *
- * Cuatro columnas (marca, navegación, servicios y contacto) y 
+ * Cuatro columnas (marca, navegación, servicios y contacto) y
  * la línea legal centrada.
  *
  * Los servicios salen del store, la misma fuente que el desplegable del
@@ -22,11 +22,11 @@ const FOOTER_LINKS = [
     { label: "Inicio", to: "/" },
     { label: "Servicios", to: "/#services" },
     { label: "Sobre CleanFlow", to: "/#about-us" },
-    { label: "Contacto", to: "/contact" },
+    { label: "Contacto", to: "/#contact" },
     { label: "Trabaja con nosotros", to: "/work-with-us" },
 ]
 
-// Páginas legales. Todavía no existenfd: pendiente de redactarlas.
+// Páginas legales. Todavía no existen: pendiente de redactarlas.
 const LEGAL_LINKS = [
     { label: "Política de privacidad", to: "/privacy" },
     { label: "Política de cookies", to: "/cookies" },

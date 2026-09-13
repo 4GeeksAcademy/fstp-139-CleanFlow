@@ -40,7 +40,7 @@ const ACCESS_LINKS = [
 //     no llevará a ninguna parte y no dará ningún error.
 //
 //   - ¿Lleva a una PÁGINA propia? Va sin almohadilla:
-//         to: "/contact"        y   section: null
+//         to: "/work-with-us"   y   section: null
 //     Las páginas no se resaltan por scroll, sino por la URL: de ahí el
 //     null.
 //
@@ -52,8 +52,17 @@ const NAV_LINKS = [
     { label: "Inicio",           to: "/",             section: "hero" },
     { label: "Servicios",        to: "/#services",    section: "services", dropdown: true },
     { label: "Sobre CleanFlow",  to: "/#about-us",    section: "about-us" },
-    { label: "Contacto",         to: "/contact",      section: null },
+    { label: "Contacto",         to: "/#contact",     section: "contact" },
 ]
+
+
+// El botón de acción va aparte y NO se añade al array de arriba: no es un
+// item de navegación, así que no se resalta con el scroll ni entra en
+// isActive. Es el mismo que el del hero.
+//
+// Provisional: apunta al login porque reservar exige cuenta. WEB-15 lo
+// llevará al catálogo del cliente, y hay que cambiar los dos a la vez.
+const CTA = { label: "Reservar ahora", to: "/login" }
 
 
 // Los ids a vigilar salen de los propios enlaces: al añadir un item con
@@ -97,7 +106,7 @@ export const Navbar = () => {
 
     // Un item se marca por uno de dos motivos, según su tipo:
     //   con section -> cuando esa sección es la que se está viendo.
-    //   sin section -> cuando la URL coincide (el caso de Contacto).
+    //   sin section -> cuando la URL coincide (el caso de una página).
     //
     // Se calcula a mano porque <NavLink> ignora el "#": marcaría a la vez
     // Inicio, Servicios y Sobre CleanFlow, que apuntan los tres a "/".
@@ -185,6 +194,15 @@ export const Navbar = () => {
                                 </li>
                             )
                         ))}
+
+                        {/* Último de la lista y no fuera de ella: así en
+                            móvil se pliega con el resto del menú, en vez de
+                            competir por sitio con el logo y la hamburguesa. */}
+                        <li className="cf-nav__cta">
+                            <Link to={CTA.to} className="cf-btn cf-btn--sm">
+                                {CTA.label}
+                            </Link>
+                        </li>
                     </ul>
 
                 </div>

@@ -44,6 +44,8 @@
   --cf-ring: rgba(46, 59, 38, 0.22); /* halo del foco del teclado */
   --cf-on-primary: #f7f3e8; /* el crema del fondo, invertido */
   --cf-on-primary-muted: #b0b3a4; /* el mismo, apagado: textos secundarios */
+  --cf-bg-rgb: 247, 243, 232;
+  --cf-surface-rgb: 255, 255, 255;
 
   /* ---- TIPOGRAFÍA ----
        Las alternativas del final se usan mientras la fuente carga. */
@@ -62,8 +64,7 @@
   --cf-text-lg: 1.125rem; /* 18px: entradillas */
   --cf-text-xl: 1.5rem; /* 24px: títulos de bloque */
   --cf-text-2xl: 2rem; /* 32px: títulos de sección */
-  --cf-text-3xl: 2.5rem; /* 40px: el titular del hero */
-
+  --cf-text-3xl: 3rem; /* 48px: el titular del hero */
   /* ---- ESPACIADO ----
        Múltiplos de 4px: con una escala, la página se ve ordenada aunque
        nadie sepa explicar por qué. */
@@ -90,9 +91,15 @@
 
   /* Ancho máximo del contenido: sin él, en pantallas anchas las líneas
        de texto se alargan tanto que cuesta leerlas. */
-  --cf-container: 1140px;
+  --cf-container: 1440px;
+  --cf-gutter: clamp(var(--cf-space-8), 3.5vw, var(--cf-space-12));
 
   --cf-transition: 0.15s ease;
+}
+@media (min-width: 769px) {
+  :root {
+    --cf-gutter: clamp(var(--cf-space-12), 4.5vw, var(--cf-space-16));
+  }
 }
 
 /* ======================================================================

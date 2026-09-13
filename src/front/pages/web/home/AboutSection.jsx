@@ -56,7 +56,7 @@ export const AboutSection = () => {
                         </p>
                     </div>
 
-                                        <div className="cf-about__image">
+                    <div className="cf-about__image">
                         <img
                             src={teamImage}
                             alt="Equipo profesional de CleanFlow"
@@ -64,7 +64,7 @@ export const AboutSection = () => {
                     </div>
                 </div>
 
-                <div className="cf-about__stats"></div>
+
                 <div className="cf-about__stats">
                     {STATS.map((stat) => (
                         <div className="cf-about__stat" key={stat.label}>
