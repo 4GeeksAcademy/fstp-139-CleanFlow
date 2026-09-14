@@ -22,16 +22,20 @@ export const DashboardLayout = () => {
         // defecto de dos <div>.
         // minHeight 100vh: que la barra oscura llegue hasta abajo aunque la
         // página tenga poco contenido.
-        <div className="d-flex" style={{ minHeight: "100vh" }} >
+        // cf-dash-layout y cf-dash-main: en móvil (dashboard.css) el marco
+        // pasa a columna, con la barra de la hamburguesa encima, y el margen
+        // baja a 16px. En tablet y escritorio no cambian nada.
+        <div className="cf-dash-layout d-flex" style={{ minHeight: "100vh" }} >
 
             {/* Fijo en todas las páginas del dashboard. Su ancho (280px)
-                lo define el propio componente. */}
+                lo define el propio componente. En móvil se esconde tras
+                una hamburguesa. */}
             <Sidebar />
 
             {/* flex-grow-1: ocupa todo el espacio que sobra a la derecha
                 del sidebar. p-4 separa el contenido del borde. */}
 
-            <main className="flex-grow-1 p-4">
+            <main className="cf-dash-main flex-grow-1 p-4">
                 {/* Aquí React Router inyecta la página hija según la URL. */}
                 <Outlet />
             </main>
