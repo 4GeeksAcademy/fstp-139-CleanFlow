@@ -167,8 +167,7 @@ const buildPayload = (form) => ({
 export const ServiceForm = ({ service, saving, apiError, onSubmit, onCancel }) => {
     const [form, setForm] = useState(() => (service ? formFromService(service) : EMPTY_FORM))
 
-    // Los errores se calculan al pulsar guardar. Al tocar un campo, se quita
-    // el suyo: no tiene sentido seguir en rojo lo que ya se está corrigiendo.
+    // Se calculan al guardar. Al tocar un campo se quita su error: ya se está corrigiendo.
     const [errors, setErrors] = useState({})
 
     const handleChange = (event) => {
@@ -196,7 +195,7 @@ export const ServiceForm = ({ service, saving, apiError, onSubmit, onCancel }) =
         const firstField = FIELD_ORDER.find((field) => found[field])
 
         if (firstField) {
-            // Los minutos no son un campo sino seis pastillas: el cursor va a la primera.
+            // Los minutos son seis pastillas, no un campo: el foco va a la primera.
             const target = firstField === "minutes_per_task" ? `minutes-${MINUTES_OPTIONS[0]}` : firstField
             document.getElementById(target)?.focus()
             return
@@ -205,7 +204,7 @@ export const ServiceForm = ({ service, saving, apiError, onSubmit, onCancel }) =
         onSubmit(buildPayload(form))
     }
 
-    // Mensaje bajo el campo y los atributos que lo conectan con él.
+    // Mensaje de error bajo el campo y atributos aria que lo enlazan con él.
     const fieldError = (field) =>
         errors[field] && (
             <p className="cf-dash-field__error" id={`${field}-error`}>
@@ -216,7 +215,9 @@ export const ServiceForm = ({ service, saving, apiError, onSubmit, onCancel }) =
     const invalidProps = (field) =>
         errors[field] ? { "aria-invalid": true, "aria-describedby": `${field}-error` } : {}
 
-    // ---- Lo que se calcula mientras se escribe ----
+    // ----------------------------------------------------------------------
+    // VISTA PREVIA (SE RECALCULA MIENTRAS SE ESCRIBE)
+    // ----------------------------------------------------------------------
     const price = toPrice(form.base_hourly_rate)
     const minHours = toWholeNumber(form.min_hours)
     const hourStep = toWholeNumber(form.hour_step)
@@ -372,8 +373,8 @@ export const ServiceForm = ({ service, saving, apiError, onSubmit, onCancel }) =
                         </span>
                     </label>
 
-                    {/* Marcar "no lleva tareas" apaga las pastillas: es el null
-                        de minutes_per_task. Al desmarcar, vuelve lo elegido. */}
+                    {/* "No lleva tareas" desactiva las pastillas (minutes_per_task = null).
+                        Al desmarcar, vuelve lo que estaba elegido. */}
                     <div
                         className="cf-dash-field"
                         role="radiogroup"
@@ -484,7 +485,7 @@ export const ServiceForm = ({ service, saving, apiError, onSubmit, onCancel }) =
             </form>
 
             {/* ---- ASÍ LO VERÁ EL CLIENTE ----
-                aria-live: un lector de pantalla anuncia los cambios del resumen. */}
+                aria-live: el lector de pantalla anuncia los cambios del resumen. */}
             <aside className="cf-services__preview" aria-live="polite">
                 <p className="cf-services__preview-label">Así lo verá el cliente</p>
 

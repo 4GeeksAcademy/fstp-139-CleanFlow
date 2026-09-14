@@ -2,35 +2,27 @@
    CLEANFLOW · TOKENS DE DISEÑO
 
    El único sitio donde se escriben colores, tipografías, tamaños y
-   espaciados. Lo carga main.jsx, así que vale para toda la aplicación.
+   espacios. Lo carga main.jsx: vale para toda la aplicación.
 
-   DOS NORMAS DEL EQUIPO
-   ---------------------
-   1. Ningún componente escribe un valor a pelo:
+   NORMAS DEL EQUIPO
+   1. Nada de valores a pelo: `var(--cf-primary)` ✅, `#2E3B26` ❌. Así,
+      cambiar la marca es cambiar una línea aquí. ¿Falta uno? Añádelo y
+      dilo en el grupo.
+   2. En la web pública, nada de componentes de Bootstrap (.btn, .card,
+      .navbar...); sus utilidades (container, d-flex, gap) sí.
+   3. Clases propias con prefijo `cf-`, o chocan con Bootstrap sin avisar.
 
-          color: var(--cf-primary);   ✅
-          color: #2E3B26;             ❌
+   Paleta (07/09/2026): la de DESIGN_SYSTEM.md; Montserrat solo en el logo.
+   ====================================================================== */
 
-      Así, cambiar la marca es cambiar una línea aquí. Con los colores
-      repartidos por veinte archivos, siempre se queda alguno sin tocar.
-      ¿Necesitas uno que no está? Añádelo aquí y dilo en el grupo.
-
-   2. En la WEB PÚBLICA no se usan los componentes de Bootstrap (.btn,
-      .card, .navbar, .form-control); sus utilidades de colocación
-      (container, d-flex, gap) sí. En el DASHBOARD no hay restricción.
-
-      Las clases propias llevan el prefijo `cf-`: sin él, una clase como
-      .nav-link chocaría con la de Bootstrap sin dar ningún error.
-
-   Paleta decidida por el equipo el 07/09/2026: se adopta el
-   DESIGN_SYSTEM.md y del kit de marca se conserva Montserrat, solo para
-   el logotipo.
+/* ======================================================================
+   1. TOKENS
    ====================================================================== */
 
 :root {
-  /* ---- COLOR ----
-       Nombres por FUNCIÓN y no por aspecto: --cf-primary y no --cf-verde,
-       para que el nombre siga valiendo si la marca cambia de color. */
+  /* ---------- COLOR ----------
+     Nombres por función y no por aspecto (--cf-primary, no --cf-verde):
+     siguen valiendo si la marca cambia de color. */
 
   --cf-bg: #f7f3e8; /* fondo general, crema */
   --cf-surface: #ffffff; /* tarjetas y bloques sobre el fondo */
@@ -38,19 +30,20 @@
   --cf-primary-dark: #222d1c; /* el mismo, al pasar el ratón */
   --cf-primary-soft: #e7eddf; /* fondo suave del color de marca */
   --cf-accent: #c97b4a; /* terracota: destacados puntuales */
-  --cf-accent-dark: #9a5227; /* el terracota para TEXTO: #c97b4a no se lee en pequeño sobre blanco */
+  --cf-accent-dark: #9a5227; /* terracota para texto: el claro no se lee en pequeño */
   --cf-accent-soft: #f6e6da; /* fondo suave del terracota */
   --cf-text: #26261f; /* texto normal */
   --cf-muted: #6e6b5e; /* texto secundario, pies de foto */
   --cf-border: #e1dac5; /* líneas y bordes */
   --cf-ring: rgba(46, 59, 38, 0.22); /* halo del foco del teclado */
-  --cf-on-primary: #f7f3e8; /* el crema del fondo, invertido */
+  --cf-on-primary: #f7f3e8; /* texto sobre fondo --cf-primary */
   --cf-on-primary-muted: #b0b3a4; /* el mismo, apagado: textos secundarios */
+  /* Fondo y superficie en R, G, B, para usarlos con rgba(). */
   --cf-bg-rgb: 247, 243, 232;
   --cf-surface-rgb: 255, 255, 255;
 
-  /* ---- TIPOGRAFÍA ----
-       Las alternativas del final se usan mientras la fuente carga. */
+  /* ---------- TIPOGRAFÍA ----------
+     Las alternativas del final se usan mientras la fuente carga. */
 
   --cf-font-heading: "Fraunces", Georgia, "Times New Roman", serif;
   --cf-font-body: "Inter", system-ui, -apple-system, sans-serif;
@@ -58,8 +51,8 @@
   /* Solo para el logotipo. Si aparece en un titular o un botón, es un error. */
   --cf-font-brand: "Montserrat", system-ui, sans-serif;
 
-  /* Escala cerrada, para que nadie invente su propio "un poco más
-       grande". En rem: crece si el usuario agranda la letra del navegador. */
+  /* Escala cerrada, para que nadie invente su "un poco más grande". En rem:
+     crece si el usuario agranda la letra del navegador. */
 
   --cf-text-sm: 0.875rem; /* 14px: notas, pies */
   --cf-text-base: 1rem; /* 16px: texto normal */
@@ -67,9 +60,8 @@
   --cf-text-xl: 1.5rem; /* 24px: títulos de bloque */
   --cf-text-2xl: 2rem; /* 32px: títulos de sección */
   --cf-text-3xl: 3rem; /* 48px: el titular del hero */
-  /* ---- ESPACIADO ----
-       Múltiplos de 4px: con una escala, la página se ve ordenada aunque
-       nadie sepa explicar por qué. */
+  /* ---------- ESPACIADO ----------
+     Múltiplos de 4px: con una escala, la página se ve ordenada. */
 
   --cf-space-1: 0.25rem; /*  4px */
   --cf-space-2: 0.5rem; /*  8px */
@@ -80,7 +72,7 @@
   --cf-space-12: 3rem; /* 48px */
   --cf-space-16: 4rem; /* 64px */
 
-  /* ---- FORMAS ---- */
+  /* ---------- FORMAS Y SOMBRAS ---------- */
 
   --cf-radius-sm: 8px; /* campos, botones */
   --cf-radius-md: 12px; /* tarjetas */
@@ -89,11 +81,13 @@
   --cf-shadow-sm: 0 1px 3px rgba(38, 38, 31, 0.06);
   --cf-shadow-md: 0 4px 16px rgba(38, 38, 31, 0.08);
 
-  /* ---- DISPOSICIÓN ---- */
+  /* ---------- DISPOSICIÓN ---------- */
 
   /* Ancho máximo del contenido: sin él, en pantallas anchas las líneas
-       de texto se alargan tanto que cuesta leerlas. */
+     de texto se alargan tanto que cuesta leerlas. */
   --cf-container: 1440px;
+  /* Margen lateral de la página: crece con la ventana, entre un mínimo y
+     un máximo. Por encima de 769px sube de escalón (ver @media). */
   --cf-gutter: clamp(var(--cf-space-8), 3.5vw, var(--cf-space-12));
 
   --cf-transition: 0.15s ease;
@@ -105,11 +99,10 @@
 }
 
 /* ======================================================================
-   BASE
-
-   No es diseño: es quitar de en medio los valores por defecto del
-   navegador para partir de un sitio razonable.
+   2. BASE
    ====================================================================== */
+
+/* No es diseño: quita los valores por defecto del navegador que estorban. */
 
 *,
 *::before,
@@ -141,8 +134,8 @@ a {
 }
 
 img {
-  /* Evita que una imagen desborde y provoque scroll horizontal, que es
-       el fallo más habitual en móvil. */
+  /* Evita que una imagen desborde y provoque scroll horizontal, el fallo
+     más habitual en móvil. */
   max-width: 100%;
   height: auto;
 }
@@ -166,7 +159,7 @@ img {
 }
 
 /* ======================================================================
-   SOBRE CLEANFLOW
+   3. SECCIÓN SOBRE CLEANFLOW (AboutSection.jsx, en la home)
    ====================================================================== */
 
 .cf-about {
@@ -179,6 +172,8 @@ img {
   width: min(var(--cf-container), 100%);
   margin: 0 auto;
 }
+
+/* ---------- PRESENTACIÓN: TEXTO + FOTO ---------- */
 
 .cf-about__hero {
   display: grid;
@@ -232,6 +227,7 @@ img {
   overflow: hidden;
 }
 
+/* Icono y texto de relleno para cuando no hay foto (ahora la hay). */
 .cf-about__image i {
   font-size: var(--cf-text-3xl);
 }
@@ -240,6 +236,8 @@ img {
   font-size: var(--cf-text-base);
   font-weight: 700;
 }
+
+/* ---------- CIFRAS ---------- */
 
 .cf-about__stats {
   display: grid;
@@ -273,6 +271,8 @@ img {
   color: var(--cf-muted);
   font-size: var(--cf-text-sm);
 }
+
+/* ---------- VALORES ---------- */
 
 .cf-about__values {
   margin-bottom: var(--cf-space-8);
@@ -317,6 +317,8 @@ img {
   font-size: var(--cf-text-sm);
 }
 
+/* ---------- SATISFACCIÓN ---------- */
+
 .cf-about__satisfaction {
   min-height: 190px;
   padding: var(--cf-space-8) var(--cf-space-12);
@@ -353,7 +355,7 @@ img {
   font-size: var(--cf-text-3xl);
 }
 
-/* TABLET */
+/* ---------- TABLET (hasta 850px) ---------- */
 
 @media (max-width: 850px) {
   .cf-about__hero {
@@ -379,7 +381,7 @@ img {
   }
 }
 
-/* MÓVIL */
+/* ---------- MÓVIL (hasta 520px) ---------- */
 
 @media (max-width: 520px) {
   .cf-about {
@@ -421,6 +423,7 @@ img {
     font-size: var(--cf-text-2xl);
   }
 }
+/* La foto del equipo llena el hueco de .cf-about__image. */
 .cf-about__image img {
   width: 100%;
   height: 100%;

@@ -1,20 +1,16 @@
 /* ======================================================================
-   ESTILOS DE LAS PÁGINAS DEL DASHBOARD
+   ESTILOS DEL DASHBOARD
 
-   Lo importa cada archivo que lo usa (ManageTasks.jsx, ManageServices.jsx
-   y Sidebar.jsx). Importarlo en varios no lo duplica: Vite lo carga una
-   sola vez.
+   Lo importan ManageTasks.jsx, ManageServices.jsx y Sidebar.jsx (Vite lo
+   carga una sola vez). Valores de index.css, salvo los marcados con ⚠️.
 
-   Dos bloques:
-     1. COMPONENTES COMPARTIDOS (cf-dash-*): botones, campos, interruptor,
-        avisos... Para reutilizar en cualquier página del dashboard.
-     2. PÁGINAS (cf-tasks__*...): la colocación propia de cada una.
+     1. Componentes compartidos (cf-dash-*) y sidebar (cf-side-*)
+     2. Página de tareas (cf-tasks__*)
+     3. Página de servicios (cf-services__*)
+     4. Movimiento reducido
 
-   Todos los valores salen de los tokens de index.css. El sidebar y el
-   marco del dashboard NO se estilan aquí.
-
-   Prefijo cf-dash- y no cf-: al navegar de la web al dashboard, web.css
-   sigue cargado, y un .cf-btn de aquí pisaría el de la web pública.
+   Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
+   .cf-btn de aquí pisaría el de la web pública.
    ====================================================================== */
 
 /* ======================================================================
@@ -22,11 +18,8 @@
    ====================================================================== */
 
 /* ---------- BOTONES ----------
-   La pastilla de la web pública (.cf-btn), en tamaño de dashboard.
-
-       <button className="cf-dash-btn">                       principal
-       <button className="cf-dash-btn cf-dash-btn--ghost">    secundario
-       añadir cf-dash-btn--sm                                 dentro de una fila */
+   La pastilla de la web pública (.cf-btn) en tamaño dashboard.
+   Variantes: --ghost (secundario) y --sm (dentro de una fila). */
 
 .cf-dash-btn {
   display: inline-flex;
@@ -85,7 +78,7 @@
   font-size: 0.8125rem;
 }
 
-/* Iconos de Font Awesome dentro del botón. */
+/* Icono de Font Awesome dentro del botón. */
 .cf-dash-btn i {
   font-size: 0.8125rem;
 }
@@ -149,8 +142,7 @@ textarea.cf-dash-input {
 }
 
 /* ---------- AVISO DE ERROR ----------
-   ⚠️ Colores a mano, los mismos que .auth-alert: la paleta todavía no
-   tiene tokens de estado. Cuando existan, sustituir aquí. */
+   ⚠️ Colores a mano (los de .auth-alert): aún no hay tokens de estado. */
 
 .cf-dash-alert {
   margin: 0;
@@ -163,8 +155,8 @@ textarea.cf-dash-input {
 }
 
 /* ---------- INTERRUPTOR ----------
-   Un checkbox de verdad (role="switch") dibujado como interruptor: se
-   sigue pudiendo usar con teclado y lector de pantalla.
+   Un checkbox de verdad (role="switch") con aspecto de interruptor: sigue
+   funcionando con teclado y lector de pantalla.
 
        <label className="cf-dash-switch">
            <input type="checkbox" role="switch" />
@@ -282,9 +274,8 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-sm);
 }
 
-/* ---------- CARGANDO ----------
-   Barras grises con un brillo que pasa: dejan ver la forma de lo que
-   va a llegar, en vez de un texto suelto. */
+/* ---------- BARRAS DE CARGA ----------
+   Barras con un brillo que pasa: anticipan la forma de lo que va a llegar. */
 
 .cf-dash-skel {
   display: block;
@@ -305,9 +296,8 @@ textarea.cf-dash-input {
 }
 
 /* ---------- ERROR Y NOTA DE UN CAMPO ----------
-   El error va debajo del campo, conectado con aria-describedby, y el
-   campo lleva aria-invalid. La nota es un texto de ayuda.
-   ⚠️ Rojos a mano: ver .cf-dash-alert. */
+   Debajo del campo, enlazados con aria-describedby; con error, el campo
+   lleva aria-invalid. ⚠️ Rojos a mano: ver .cf-dash-alert. */
 
 .cf-dash-input[aria-invalid="true"] {
   border-color: #c2574a;
@@ -330,7 +320,7 @@ textarea.cf-dash-input {
 }
 
 /* ---------- CAMPO CON UNIDAD ----------
-   Un texto fijo dentro del campo, a la derecha: "€/h". */
+   Texto fijo dentro del campo, a la derecha: "€/h". */
 
 .cf-dash-affix {
   position: relative;
@@ -417,9 +407,8 @@ textarea.cf-dash-input {
 }
 
 /* ---------- PASTILLAS DE OPCIÓN ----------
-   Radios de verdad, dibujados como pastillas: se elige uno.
-   El input queda invisible encima de la pastilla, para que el clic y el
-   teclado sigan funcionando.
+   Radios de verdad con aspecto de pastilla. El input va invisible encima,
+   así el clic y el teclado siguen funcionando.
 
        <label className="cf-dash-chip">
            <input type="radio" name="…" />
@@ -496,7 +485,7 @@ textarea.cf-dash-input {
 }
 
 /* ---------- BOTÓN PELIGROSO ----------
-   Para confirmar algo que quita cosas de la vista del cliente.
+   Confirma acciones que quitan algo de la vista del cliente.
    ⚠️ Rojo a mano: ver .cf-dash-alert. */
 
 .cf-dash-btn--danger {
@@ -512,11 +501,9 @@ textarea.cf-dash-input {
 }
 
 /* ---------- VENTANA DE CONFIRMACIÓN ----------
-   Para un <dialog> abierto con showModal(): el navegador lo centra,
-   oscurece el fondo (::backdrop) y bloquea el resto de la página.
-
-   El padding va en __body y no en el dialog: así un clic en el dialog
-   mismo solo puede ser un clic en el fondo oscuro. */
+   <dialog> abierto con showModal(): el navegador lo centra, oscurece el
+   fondo (::backdrop) y bloquea la página. El padding va en __body y no en
+   el dialog: así un clic en el propio dialog solo puede ser en el fondo. */
 
 .cf-dash-modal {
   width: min(460px, calc(100% - 2rem));
@@ -574,8 +561,8 @@ textarea.cf-dash-input {
 }
 
 /* ---------- RÓTULO SOBRE EL TÍTULO ----------
-   El grupo del sidebar al que pertenece la página: "Administrar catálogo".
-   En terracota oscuro: es texto pequeño, y el terracota claro no se lee. */
+   El grupo del sidebar de la página ("Administrar catálogo"). En
+   --cf-accent-dark: el terracota claro no se lee en letra pequeña. */
 
 .cf-dash-eyebrow {
   margin: 0 0 var(--cf-space-1);
@@ -587,8 +574,8 @@ textarea.cf-dash-input {
 }
 
 /* ---------- BARRA DE PESTAÑAS Y BUSCADOR ----------
-   Pestañas a la izquierda y buscador a la derecha, sobre la misma línea.
-   La línea la pone la barra: las pestañas de dentro pierden la suya. */
+   Pestañas a la izquierda y buscador a la derecha. La línea inferior la
+   pone la barra, así que las pestañas de dentro pierden la suya. */
 
 .cf-dash-toolbar {
   display: flex;
@@ -673,9 +660,8 @@ textarea.cf-dash-input {
   color: var(--cf-text);
 }
 
-/* Las sugerencias. max(): nunca más estrechas que 320px, aunque el
-   input lo sea. max-height: caben las 6 sugerencias enteras, sin cortar
-   la última. */
+/* Sugerencias. max(): nunca más estrechas que 320px aunque el input lo
+   sea. max-height: caben las 6 enteras, sin cortar la última. */
 .cf-dash-search__list {
   position: absolute;
   z-index: 20;
@@ -707,9 +693,8 @@ textarea.cf-dash-input {
   background-color: var(--cf-primary-soft);
 }
 
-/* grid-column: 1 en nombre y línea gris: sin él, cuando no hay etiqueta
-   "Desactivada", la línea gris se iría a la segunda columna, al lado del
-   nombre en vez de debajo. */
+/* grid-column: 1 en nombre y línea gris: sin él, si no hay "Desactivada",
+   la línea gris subiría a la segunda columna, al lado del nombre. */
 .cf-dash-search__name {
   grid-column: 1;
   color: var(--cf-text);
@@ -726,7 +711,7 @@ textarea.cf-dash-input {
   text-overflow: ellipsis;
 }
 
-/* "Desactivada", a la derecha de la sugerencia, en terracota. */
+/* "Desactivada", a la derecha de la sugerencia. */
 .cf-dash-search__state {
   grid-column: 2;
   grid-row: 1 / span 2;
@@ -778,8 +763,8 @@ textarea.cf-dash-input {
   cursor: pointer;
 }
 
-/* Pantallas estrechas: el buscador pasa encima de las pestañas, a todo lo
-   ancho. Cada página tiene su propio corte (el mismo que el de su lista). */
+/* Estrecho: el buscador pasa encima de las pestañas, a todo lo ancho.
+   Cada página usa el mismo corte que su lista (tareas 620px, servicios 860px). */
 @container (max-width: 620px) {
   .cf-dash-toolbar {
     flex-direction: column-reverse;
@@ -805,9 +790,8 @@ textarea.cf-dash-input {
 }
 
 /* ---------- LO DESACTIVADO, EN TERRACOTA ----------
-   El texto "Desactivada" del interruptor, con un punto delante, y el
-   contador de la pestaña "Desactivadas" cuando hay alguna. El punto va en
-   --cf-accent; el texto, en --cf-accent-dark, que sí se lee en pequeño. */
+   "Desactivada" en el interruptor (con un punto delante) y el contador de
+   la pestaña "Desactivadas". Punto en --cf-accent; texto en --cf-accent-dark. */
 
 .cf-dash-switch input:not(:checked) + .cf-dash-switch__text {
   display: inline-flex;
@@ -825,8 +809,8 @@ textarea.cf-dash-input {
   background-color: var(--cf-accent);
 }
 
-/* Con [aria-pressed] y la clase del contador para pesar más que la regla
-   de la pestaña pulsada, que pinta el contador en verde y va después. */
+/* Selectores largos a propósito: tienen que pesar más que la regla de la
+   pestaña pulsada, que pinta el contador en verde y va después. */
 .cf-tasks__tab .cf-dash-count--attention,
 .cf-services__tab .cf-dash-count--attention,
 .cf-tasks__tab[aria-pressed="true"] .cf-tasks__count.cf-dash-count--attention,
@@ -837,9 +821,8 @@ textarea.cf-dash-input {
 }
 
 /* ---------- SIDEBAR: GRUPO DESPLEGABLE (Sidebar.jsx) ----------
-   Encima del aspecto provisional de Bootstrap: solo lo que hace falta
-   para que el grupo se distinga. Los blancos transparentes son para el
-   fondo oscuro de ese sidebar. */
+   Solo lo mínimo sobre el sidebar provisional de Bootstrap. Los blancos
+   transparentes son para su fondo oscuro. */
 
 .cf-side-group {
   display: flex;
@@ -880,17 +863,11 @@ textarea.cf-dash-input {
 }
 
 /* ---------- SIDEBAR EN MÓVIL (Sidebar.jsx y DashboardLayout.jsx) ----------
-   Por debajo de 768px: barra arriba con hamburguesa, y el sidebar como
-   panel que entra por la derecha encima de la página.
-
-   TODO lo que cambia algo visible va dentro de la consulta: en tablet y
-   escritorio (768px o más) el dashboard se ve exactamente como antes.
-   Fuera de ella solo se ocultan las piezas nuevas.
-
-   767.98px y no 768px (el corte de web.css): así una tablet en vertical
-   conserva el sidebar fijo. Mismo valor que MOBILE_QUERY en Sidebar.jsx.
-
-   Los colores a mano son los del sidebar provisional de Bootstrap. */
+   Por debajo de 768px: barra superior con hamburguesa y el sidebar como
+   panel que entra por la derecha. Todo lo visible va dentro del @media:
+   tablet y escritorio no cambian; fuera solo se ocultan las piezas nuevas.
+   767.98px: una tablet en vertical conserva el sidebar fijo. Mismo valor
+   que MOBILE_QUERY en Sidebar.jsx. Colores a mano: los de Bootstrap. */
 
 .cf-side-topbar,
 .cf-side-close,
@@ -904,7 +881,7 @@ textarea.cf-dash-input {
     flex-direction: column;
   }
 
-  /* !important: p-4 de Bootstrap también lo lleva. */
+  /* !important: el p-4 de Bootstrap también lo lleva. */
   .cf-dash-main {
     padding: var(--cf-space-4) !important;
   }
@@ -954,11 +931,9 @@ textarea.cf-dash-input {
     outline-offset: 2px;
   }
 
-  /* El sidebar de siempre, convertido en panel fijo a la derecha.
-     !important en el ancho: el de 280px va escrito en línea en el JSX.
-     Cerrado: fuera de la pantalla y con visibility hidden, para que el
-     tabulador no llegue a sus enlaces. La visibilidad cambia al terminar
-     de salir (0.25s), no de golpe. */
+  /* Panel fijo a la derecha. !important: el ancho de 280px va en línea en
+     el JSX. Cerrado lleva visibility hidden para que el tabulador no llegue
+     a sus enlaces; cambia al terminar de salir (0.25s), no de golpe. */
   .cf-side {
     position: fixed;
     top: 0;
@@ -1001,7 +976,7 @@ textarea.cf-dash-input {
     display: none;
   }
 
-  /* Las pestañas pueden desplazarse de lado sin enseñar la barra. */
+  /* Las pestañas se desplazan de lado sin enseñar la barra de scroll. */
   .cf-tasks__tabs,
   .cf-services__tabs {
     scrollbar-width: none;
@@ -1017,8 +992,8 @@ textarea.cf-dash-input {
    2. PÁGINA: CATÁLOGO DE TAREAS (ManageTasks.jsx)
    ====================================================================== */
 
-/* container-type: el diseño de móvil lo decide el hueco que deja el
-   sidebar, no el ancho de la ventana (ver @container al final). */
+/* container-type: el diseño estrecho lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final del bloque). */
 .cf-tasks {
   container-type: inline-size;
   max-width: 1080px;
@@ -1214,7 +1189,7 @@ textarea.cf-dash-input {
 }
 
 /* La fila recién creada o editada se ilumina un momento. La duración
-   tiene que coincidir con FLASH_MS de ManageTasks.jsx. */
+   debe coincidir con FLASH_MS de ManageTasks.jsx y ManageServices.jsx. */
 .cf-tasks__row--flash {
   animation: cf-tasks-flash 1.6s ease-out;
 }
@@ -1228,8 +1203,7 @@ textarea.cf-dash-input {
   }
 }
 
-/* Anchos de las barras de carga, variados para que no parezcan una
-   rejilla. */
+/* Barras de carga con anchos variados, para que no parezcan una rejilla. */
 .cf-tasks__skel-name {
   width: 40%;
 }
@@ -1260,16 +1234,15 @@ textarea.cf-dash-input {
 }
 
 /* ---------- PANTALLAS ESTRECHAS ----------
-   Cada fila pasa a dos pisos: arriba la tarea, abajo el interruptor y
-   el botón. La cabecera de columnas sobra. */
+   Cada fila pasa a dos pisos: arriba la tarea, abajo interruptor y botón.
+   Sin cabecera de columnas. */
 
 @container (max-width: 620px) {
   .cf-tasks__title {
     font-size: var(--cf-text-xl);
   }
 
-  /* Menos hueco entre pestañas: con el de escritorio, «Desactivadas»
-     se corta en el borde de un móvil. */
+  /* Menos hueco: con el de escritorio, «Desactivadas» se corta en móvil. */
   .cf-tasks__tabs {
     gap: var(--cf-space-4);
   }
@@ -1308,8 +1281,7 @@ textarea.cf-dash-input {
    3. PÁGINA: CATÁLOGO DE SERVICIOS (ManageServices.jsx y ServiceForm.jsx)
    ====================================================================== */
 
-/* container-type: igual que en tareas, el diseño estrecho lo decide el
-   hueco que deja el sidebar (ver @container al final del bloque). */
+/* container-type: como en tareas (ver @container al final del bloque). */
 .cf-services {
   container-type: inline-size;
   max-width: 1180px;
@@ -1447,8 +1419,8 @@ textarea.cf-dash-input {
   box-shadow: var(--cf-shadow-sm);
 }
 
-/* Seis columnas con nombre (grid-template-areas): en pantallas estrechas
-   solo cambia cómo se colocan las áreas, no el JSX. */
+/* Seis columnas con nombre (grid-template-areas): en estrecho solo cambia
+   cómo se colocan las áreas, no el JSX. */
 .cf-services__head,
 .cf-services__row {
   display: grid;
@@ -1565,7 +1537,7 @@ textarea.cf-dash-input {
   text-align: right;
 }
 
-/* Barras de carga. */
+/* Barras de carga, como en tareas. */
 .cf-services__skel-name {
   width: 40%;
 }
@@ -1633,16 +1605,14 @@ textarea.cf-dash-input {
 }
 
 /* La línea va en el legend y no en el fieldset: el legend se monta sobre
-   el borde de su fieldset y lo corta, y el padding quedaría debajo del
-   título en vez de encima. */
+   el borde del fieldset y lo corta. */
 .cf-services__section + .cf-services__section > .cf-services__legend {
   width: 100%;
   padding-top: var(--cf-space-6);
   border-top: 1px solid var(--cf-border);
 }
 
-/* float y width: Bootstrap pone el legend flotando a todo lo ancho y con
-   letra grande. */
+/* Deshace el legend de Bootstrap: flotante, a todo lo ancho y grande. */
 .cf-services__legend {
   float: none;
   width: auto;
@@ -1657,8 +1627,8 @@ textarea.cf-dash-input {
   text-transform: uppercase;
 }
 
-/* align-items: start. Sin él, si un campo de la fila tiene error y otro
-   no, el que no lo tiene se estira hasta la misma altura y su input crece. */
+/* align-items: start. Sin él, si un campo de la fila tiene error, los
+   demás se estiran a su altura y sus inputs crecen. */
 .cf-services__grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1781,9 +1751,8 @@ textarea.cf-dash-input {
 }
 
 /* ---------- PANTALLAS ESTRECHAS ----------
-   Cada servicio pasa a tarjeta: arriba el nombre, en medio los tres datos
-   con su etiqueta, abajo el interruptor y el botón. El resumen se va
-   debajo del formulario. */
+   Cada servicio pasa a tarjeta: nombre, los tres datos con su etiqueta e
+   interruptor y botón. El resumen baja debajo del formulario. */
 
 @container (max-width: 860px) {
   .cf-services__title {
@@ -1833,9 +1802,10 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   MOVIMIENTO REDUCIDO
-   Quien lo pide en su sistema no ve brillos ni destellos.
+   4. MOVIMIENTO REDUCIDO
    ====================================================================== */
+
+/* Sin animaciones ni transiciones para quien lo pide en su sistema. */
 
 @media (prefers-reduced-motion: reduce) {
   .cf-dash-skel,

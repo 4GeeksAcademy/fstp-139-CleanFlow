@@ -1,18 +1,11 @@
 /**
- * BUSCADOR CON AUTOCOMPLETADO (DASHBOARD).
+ * BUSCADOR CON AUTOCOMPLETADO (DASHBOARD). Lo usan ManageTasks y ManageServices.
  *
- * Una lupa que abre sugerencias mientras se escribe. Lo usan
- * ManageTasks.jsx y ManageServices.jsx.
+ * No filtra la lista: avisa del texto con `onChange` y de la sugerencia elegida
+ * con `onSelect`. Lista y sugerencias usan matchesSearch(), así coinciden.
+ * Teclado: flechas para moverse, Enter elige, Escape cierra (otro Escape borra).
  *
- * No filtra la lista de la página: avisa del texto con `onChange` y de la
- * sugerencia elegida con `onSelect`, y la página decide qué enseñar. Para
- * que lista y sugerencias coincidan, las dos usan matchesSearch().
- *
- * Con teclado: flechas para moverse, Enter elige, Escape cierra y un
- * segundo Escape borra lo escrito.
- *
- *   options: [{ id, name, description, meta, active }]
- *     meta: la línea gris bajo el nombre en cada sugerencia.
+ *   options: [{ id, name, description, meta, active }]   meta: línea gris bajo el nombre
  */
 
 import { useRef, useState } from "react"
@@ -20,10 +13,14 @@ import { useRef, useState } from "react"
 // Sugerencias como máximo. El resto se ve en la lista de la página.
 const MAX_SUGGESTIONS = 6
 
+// ----------------------------------------------------------------------
+// BÚSQUEDA Y RESALTADO (TAMBIÉN LOS USAN LAS PÁGINAS)
+// ----------------------------------------------------------------------
+
 // Quita tildes y mayúsculas: "Baño" y "bano" se comparan igual.
 const fold = (text) => (text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
 
-/** true si alguno de los textos contiene lo buscado. Con la búsqueda vacía, siempre true. */
+/** true si algún texto contiene lo buscado (sin tildes ni mayúsculas). Búsqueda vacía: true. */
 export const matchesSearch = (query, ...texts) => {
     const wanted = fold(query.trim())
     return !wanted || texts.some((text) => fold(text).includes(wanted))
@@ -36,8 +33,8 @@ export const Highlight = ({ text, query }) => {
 
     if (start < 0) return text
 
-    // fold() no cambia la longitud de un texto con tildes normales
-    // ("ñ" pasa a "n"), así que las posiciones valen para el original.
+    // fold() conserva la longitud con tildes normales ("ñ" -> "n"), así que
+    // las posiciones valen también para el texto original.
     return (
         <>
             {text.slice(0, start)}
@@ -46,6 +43,10 @@ export const Highlight = ({ text, query }) => {
         </>
     )
 }
+
+// ----------------------------------------------------------------------
+// COMPONENTE
+// ----------------------------------------------------------------------
 
 export const SearchBox = ({ id, label, value, onChange, options, inactiveLabel, onSelect }) => {
     const inputRef = useRef(null)
@@ -56,8 +57,7 @@ export const SearchBox = ({ id, label, value, onChange, options, inactiveLabel, 
 
     const wanted = fold(value.trim())
 
-    // Primero lo que coincide en el nombre; después, lo que solo coincide
-    // en la descripción.
+    // Primero lo que coincide en el nombre; después, lo que solo coincide en la descripción.
     const matches = wanted ? options.filter((option) => matchesSearch(value, option.name, option.description)) : []
     const ordered = [
         ...matches.filter((option) => fold(option.name).includes(wanted)),
@@ -169,8 +169,8 @@ export const SearchBox = ({ id, label, value, onChange, options, inactiveLabel, 
                                 role="option"
                                 aria-selected={index === activeIndex}
                                 className="cf-dash-search__option"
-                                // onMouseDown y no onClick: se elige antes de que el
-                                // input pierda el foco y cierre la lista.
+                                // onMouseDown y no onClick: se elige antes del blur
+                                // del input, que cerraría la lista.
                                 onMouseDown={(event) => {
                                     event.preventDefault()
                                     choose(option)
