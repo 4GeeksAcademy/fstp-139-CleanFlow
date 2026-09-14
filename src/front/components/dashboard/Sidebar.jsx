@@ -60,6 +60,7 @@ const LINKS = [
     // --- Solo MANAGER ---
     { to: "/dashboard/workers",            label: "Trabajadores",  roles: ["manager"] },
     { to: "/dashboard/services",           label: "Servicios",     roles: ["manager"] },
+    { to: "/dashboard/task-catalog",       label: "Tareas",        roles: ["manager"] },
     { to: "/dashboard/shifts",             label: "Turnos",        roles: ["manager"] },
 ]
 
