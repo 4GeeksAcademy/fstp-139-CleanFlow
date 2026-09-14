@@ -9,21 +9,27 @@ Tres niveles de acceso, de menos a más restrictivo:
   - Con sesión:    @jwt_required()          -> hace falta un token válido
   - Con permiso:   @role_required("...")    -> además, el rol correcto
 """
+
 import re
+
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task, Service
+from api.models import db, User, Task, Service, Worker
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from flask_cors import CORS
+from datetime import datetime
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+
 
 api = Blueprint("api", __name__)
 
 # Permite que el frontend (puerto 3000) llame a esta API (puerto 3001).
 # Sin esto el navegador bloquearía las respuestas por ser otro origen.
 CORS(api)
+
+
 @api.route("/hello", methods=["POST", "GET"])
 def handle_hello():
 
@@ -34,10 +40,13 @@ def handle_hello():
     return jsonify(response_body), 200
 
 
+# ----------------------------------------------------------------------
+# WORKERS
+# ----------------------------------------------------------------------
+
 @api.route("/workers", methods=["POST"])
 @role_required("manager")
 def create_worker():
-
     data = request.get_json()
 
     if not data:
@@ -45,55 +54,83 @@ def create_worker():
             "message": "No se han enviado datos"
         }), 400
 
+    name = data.get("name")
+    last_name = data.get("last_name")
+    phone = data.get("phone")
     email = data.get("email")
     password = data.get("password")
-    role = data.get("role")
+    role = data.get("role", "worker")
     shift_id = data.get("shift_id")
     hire_date = data.get("hire_date")
     position = data.get("position")
 
-    if hire_date:
-        try:
-            hire_date = datetime.strptime(
-                hire_date, "%Y-%m-%d"
-            ).date()
-        except ValueError:
-            return jsonify({
-                "message": "hire_date debe tener el formato YYYY-MM-DD"
-            }), 400
-
-    if not email or not password or not role:
+    if not name or not last_name or not phone or not email or not password:
         return jsonify({
-            "message": "email, password y role son obligatorios"
+            "message": "Nombre, apellidos, teléfono, email y contraseña son obligatorios"
         }), 400
 
-    if role != "worker":
+    # Validar email
+    email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+    if not re.match(email_pattern, email):
         return jsonify({
-            "message": "El usuario creado debe tener rol worker"
+            "message": "El correo electrónico no es válido"
         }), 400
 
+    # Validar contraseña
+    if len(password) < 6:
+        return jsonify({
+            "message": "La contraseña debe tener mínimo 6 caracteres"
+        }), 400
+
+    # Solo se pueden crear trabajadores o managers
+    if role not in ["worker", "manager"]:
+        return jsonify({
+            "message": "El rol debe ser worker o manager"
+        }), 400
+
+    # Comprobar email duplicado
     existing_user = User.query.filter_by(email=email).first()
 
     if existing_user:
         return jsonify({
-            "message": "Ya existe un usuario con ese email"
+            "message": "El correo electrónico ya está registrado"
         }), 409
+
+    # Validar fecha solo si se ha enviado
+    parsed_hire_date = None
+
+    if hire_date:
+        try:
+            parsed_hire_date = datetime.strptime(
+                hire_date,
+                "%Y-%m-%d"
+            ).date()
+
+        except (ValueError, TypeError):
+            return jsonify({
+                "message": "hire_date debe tener el formato YYYY-MM-DD"
+            }), 400
 
     try:
         user = User(
+            name=name,
+            last_name=last_name,
+            phone=phone,
             email=email,
-            password=password,
-            role="worker",
+            role=role,
             is_active=True
         )
+
+        user.set_password(password)
 
         db.session.add(user)
         db.session.flush()
 
         worker = Worker(
-            user_id=user.id,
+            user_id=user.user_id,
             shift_id=shift_id,
-            hire_date=hire_date,
+            hire_date=parsed_hire_date,
             position=position,
             is_active=True
         )
@@ -101,44 +138,32 @@ def create_worker():
         db.session.add(worker)
         db.session.commit()
 
-        return jsonify({
-            "message": "Worker creado correctamente",
-            "user": user.serialize(),
-            "worker_id": worker.worker_id
-        }), 201
+        return jsonify(worker.serialize()), 201
 
-    except Exception as error:
+    except Exception:
         db.session.rollback()
 
         return jsonify({
-            "message": "Error al crear el worker",
-            "error": str(error)
+            "message": "No se ha podido crear el trabajador"
         }), 500
 
 
 @api.route("/workers", methods=["GET"])
 @role_required("manager")
 def get_workers():
-
     workers = Worker.query.all()
 
-    return jsonify([
-        {
-            "worker_id": worker.worker_id,
-            "user_id": worker.user_id,
-            "shift_id": worker.shift_id,
-            "hire_date": worker.hire_date.isoformat()
-            if worker.hire_date else None,
-            "position": worker.position,
-            "is_active": worker.is_active
-        }
-        for worker in workers
-    ]), 200
+    return jsonify({
+        "workers": [
+            worker.serialize()
+            for worker in workers
+        ]
+    }), 200
 
 
 @api.route("/workers/<int:worker_id>", methods=["GET"])
+@role_required("manager")
 def get_worker(worker_id):
-
     worker = db.session.get(Worker, worker_id)
 
     if not worker:
@@ -149,9 +174,18 @@ def get_worker(worker_id):
     return jsonify({
         "worker_id": worker.worker_id,
         "user_id": worker.user_id,
+        "name": worker.user.name if worker.user else None,
+        "last_name": worker.user.last_name if worker.user else None,
+        "phone": worker.user.phone if worker.user else None,
+        "email": worker.user.email if worker.user else None,
+        "role": worker.user.role if worker.user else None,
         "shift_id": worker.shift_id,
-        "hire_date": worker.hire_date.isoformat()
-        if worker.hire_date else None,
+        "shift_name": worker.shift.name if worker.shift else None,
+        "hire_date": (
+            worker.hire_date.isoformat()
+            if worker.hire_date
+            else None
+        ),
         "position": worker.position,
         "is_active": worker.is_active
     }), 200
@@ -160,7 +194,6 @@ def get_worker(worker_id):
 @api.route("/workers/<int:worker_id>", methods=["PUT"])
 @role_required("manager")
 def update_worker(worker_id):
-
     worker = db.session.get(Worker, worker_id)
 
     if not worker:
@@ -175,24 +208,108 @@ def update_worker(worker_id):
             "message": "No se han enviado datos"
         }), 400
 
+    # --------------------------------------------------------------
+    # DATOS DEL USUARIO
+    # --------------------------------------------------------------
+
+    if "name" in data:
+        worker.user.name = data["name"]
+
+    if "last_name" in data:
+        worker.user.last_name = data["last_name"]
+
+    if "phone" in data:
+        worker.user.phone = data["phone"]
+
+    if "email" in data:
+        email = data["email"]
+
+        email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+        if not re.match(email_pattern, email):
+            return jsonify({
+                "message": "El correo electrónico no es válido"
+            }), 400
+
+        existing_user = User.query.filter_by(
+            email=email
+        ).first()
+
+        # Evitamos que un trabajador cambie su email
+        # por el de otro usuario.
+        if (
+            existing_user
+            and existing_user.user_id != worker.user_id
+        ):
+            return jsonify({
+                "message": "El email ya está registrado"
+            }), 409
+
+        worker.user.email = email
+
+    # --------------------------------------------------------------
+    # DATOS DEL WORKER
+    # --------------------------------------------------------------
+
     if "shift_id" in data:
         worker.shift_id = data["shift_id"]
 
     if "hire_date" in data:
-        try:
-            worker.hire_date = datetime.strptime(
-                data["hire_date"], "%Y-%m-%d"
-            ).date()
-        except ValueError:
-            return jsonify({
-                "message": "hire_date debe tener el formato YYYY-MM-DD"
-            }), 400
+        if data["hire_date"] in [None, ""]:
+            worker.hire_date = None
+
+        else:
+            try:
+                worker.hire_date = datetime.strptime(
+                    data["hire_date"],
+                    "%Y-%m-%d"
+                ).date()
+
+            except (ValueError, TypeError):
+                return jsonify({
+                    "message": "hire_date debe tener el formato YYYY-MM-DD"
+                }), 400
 
     if "position" in data:
         worker.position = data["position"]
 
+    # --------------------------------------------------------------
+    # ESTADO
+    # --------------------------------------------------------------
+
     if "is_active" in data:
         worker.is_active = data["is_active"]
+
+        # También actualizamos el estado del User
+        worker.user.is_active = data["is_active"]
+
+    # --------------------------------------------------------------
+    # ROL
+    # --------------------------------------------------------------
+
+    if "role" in data:
+        if data["role"] not in ["worker", "manager"]:
+            return jsonify({
+                "message": "El rol debe ser worker o manager"
+            }), 400
+
+        current_user_id = get_jwt_identity()
+
+        # Un manager no puede quitarse a sí mismo
+        # el rol de manager.
+        if (
+            str(worker.user_id) == str(current_user_id)
+            and data["role"] != "manager"
+        ):
+            return jsonify({
+                "message": "No puedes quitarte el rol de manager"
+            }), 403
+
+        worker.user.role = data["role"]
+
+    # --------------------------------------------------------------
+    # GUARDAR CAMBIOS
+    # --------------------------------------------------------------
 
     try:
         db.session.commit()
@@ -201,48 +318,30 @@ def update_worker(worker_id):
             "message": "Worker actualizado correctamente",
             "worker_id": worker.worker_id,
             "user_id": worker.user_id,
+            "name": worker.user.name,
+            "last_name": worker.user.last_name,
+            "phone": worker.user.phone,
+            "email": worker.user.email,
             "shift_id": worker.shift_id,
-            "hire_date": worker.hire_date.isoformat()
-            if worker.hire_date else None,
+            "shift_name": worker.shift.name if worker.shift else None,
+            "hire_date": (
+                worker.hire_date.isoformat()
+                if worker.hire_date
+                else None
+            ),
             "position": worker.position,
+            "role": worker.user.role,
             "is_active": worker.is_active
         }), 200
 
-    except Exception as error:
+    except Exception:
         db.session.rollback()
 
         return jsonify({
-            "message": "Error al actualizar el worker",
-            "error": str(error)
+            "message": "Error al actualizar el worker"
         }), 500
 
 
-@api.route("/workers/<int:worker_id>", methods=["DELETE"])
-@role_required("manager")
-def delete_worker(worker_id):
-
-    worker = db.session.get(Worker, worker_id)
-
-    if not worker:
-        return jsonify({
-            "message": "Worker no encontrado"
-        }), 404
-
-    try:
-        db.session.delete(worker)
-        db.session.commit()
-
-        return jsonify({
-            "message": "Worker eliminado correctamente"
-        }), 200
-
-    except Exception as error:
-        db.session.rollback()
-
-        return jsonify({
-            "message": "Error al eliminar el worker",
-            "error": str(error)
-        }), 500
 # ----------------------------------------------------------------------
 # RUTAS PÚBLICAS
 # ----------------------------------------------------------------------
@@ -255,10 +354,13 @@ def register():
     cada fallo devuelve su propio código HTTP para que el frontend pueda
     distinguirlos.
     """
+
     data = request.get_json()
 
     if not data:
-        return jsonify({"message": "No se recibieron datos"}), 400
+        return jsonify({
+            "message": "No se recibieron datos"
+        }), 400
 
     name = data.get("name")
     last_name = data.get("last_name")
@@ -269,27 +371,33 @@ def register():
     # .get() devuelve None si la clave no viene, así que esto cubre tanto
     # los campos ausentes como los enviados vacíos.
     if not name or not last_name or not phone or not email or not password:
-        return jsonify({"message": "Todos los campos son obligatorios"}), 400
+        return jsonify({
+            "message": "Todos los campos son obligatorios"
+        }), 400
 
-    # "algo@algo.algo", sin espacios ni arrobas de más. No valida que el
-    # correo exista de verdad; para eso haría falta un email de
-    # confirmación.
+    # "algo@algo.algo", sin espacios ni arrobas de más.
     email_pattern = r'^[^@\s]+@[^@\s]+\.[^@\s]+$'
 
     if not re.match(email_pattern, email):
-        return jsonify({"message": "El correo electrónico no es válido"}), 400
+        return jsonify({
+            "message": "El correo electrónico no es válido"
+        }), 400
 
     existing_user = db.session.execute(
         db.select(User).where(User.email == email)
     ).scalar_one_or_none()
 
-    # 409 (conflicto), no 400: los datos son correctos, el problema es que
-    # chocan con algo que ya existe.
+    # 409 (conflicto), no 400: los datos son correctos, el problema es
+    # que chocan con algo que ya existe.
     if existing_user:
-        return jsonify({"message": "El correo electrónico ya está registrado"}), 409
+        return jsonify({
+            "message": "El correo electrónico ya está registrado"
+        }), 409
 
     if len(password) < 6:
-        return jsonify({"message": "La contraseña debe tener mínimo 6 caracteres"}), 400
+        return jsonify({
+            "message": "La contraseña debe tener mínimo 6 caracteres"
+        }), 400
 
     # El rol se fuerza a "client": nadie puede darse de alta como worker o
     # manager desde fuera. Esos los crea el manager desde el dashboard.
@@ -301,6 +409,7 @@ def register():
         role="client",
         is_active=True
     )
+
     # set_password hashea; nunca se asigna password_hash a mano.
     new_user.set_password(password)
 
@@ -322,36 +431,50 @@ def login():
     desde el primer instante y pueda decidir qué pintar sin esperar a
     una segunda petición.
     """
+
     data = request.get_json()
+
     email = data.get("email")
     password = data.get("password")
 
     if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
+        return jsonify({
+            "error": "Email and password are required"
+        }), 400
 
-    existing_user = db.session.execute(db.select(User).where(
-        User.email == email)).scalar_one_or_none()
+    existing_user = db.session.execute(
+        db.select(User).where(User.email == email)
+    ).scalar_one_or_none()
 
-    # Por motivos de seguridad, devolvemos el mismo mensaje de error independientemente 
-    # de si falla el correo o la contraseña. Esto previene ataques de enumeración,
-    # impidiendo que un tercero sepa si un correo específico está registrado.
+    # Por motivos de seguridad, devolvemos el mismo mensaje de error
+    # independientemente de si falla el correo o la contraseña.
     if existing_user is None:
-        return jsonify({"error": "Invalid email or password"}), 401
+        return jsonify({
+            "error": "Invalid email or password"
+        }), 401
 
     if existing_user.check_password(password):
+
         if not existing_user.is_active:
-            return jsonify({"error": "Your account is deactivated. Contact the administrator."}), 403
-        # El token guarda el user_id (como texto, que es lo que espera la
-        # librería). Con ese id se recupera el usuario en cada petición
-        # protegida. Caduca solo, sin que haya que guardarlo en ningún sitio.
-        access_token = create_access_token(identity=str(existing_user.user_id))
+            return jsonify({
+                "error": "Your account is deactivated. Contact the administrator."
+            }), 403
+
+        # El token guarda el user_id.
+        access_token = create_access_token(
+            identity=str(existing_user.user_id)
+        )
+
         return jsonify({
             "msg": "Logged succefully",
             "token": access_token,
             "user": existing_user.serialize_session()
         }), 200
+
     else:
-        return jsonify({"error": "Invalid email or password"}), 401
+        return jsonify({
+            "error": "Invalid email or password"
+        }), 401
 
 
 # ----------------------------------------------------------------------
@@ -361,25 +484,25 @@ def login():
 @api.route("/profile", methods=["GET"])
 @jwt_required()
 def get_profile():
-    """Devuelve el usuario del token. Cualquier rol puede pedirlo: solo
-    consulta sus propios datos.
-
-    El frontend lo usa para revalidar la sesión al cargar: si responde
-    401, el token ya no vale y se cierra la sesión.
+    """Devuelve el usuario del token. Cualquier rol puede pedirlo:
+    solo consulta sus propios datos.
     """
-    # No se recibe el id por parámetro, se saca del token: así nadie puede
-    # pedir el perfil de otro cambiando la URL.
+
+    # No se recibe el id por parámetro, se saca del token.
     user_id = get_jwt_identity()
+
     user = db.session.get(User, user_id)
 
-    # El token era válido pero el usuario ya no está (lo borraron mientras
-    # tenía la sesión abierta).
+    # El token era válido pero el usuario ya no está.
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({
+            "error": "User not found"
+        }), 404
 
-    # Misma forma que /login ({"user": ...}) para que el frontend lea
-    # siempre data.user, venga de donde venga.
-    return jsonify({"user": user.serialize_session()}), 200
+    # Misma forma que /login ({"user": ...})
+    return jsonify({
+        "user": user.serialize_session()
+    }), 200
 
 
 # ----------------------------------------------------------------------

@@ -1,6 +1,6 @@
-from datetime import time, datetime
+from datetime import time, datetime, date
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import String, Boolean, Text, Float, Integer, Time, DateTime, ForeignKey, func
+from sqlalchemy import String, Boolean, Text, Float, Integer, Time, Date, DateTime, ForeignKey, func
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from enum import Enum
@@ -173,7 +173,76 @@ class Shift(db.Model):
             "end_time": self.end_time.strftime("%H:%M"),
         }
 
+# ============================================================
+# WORKER
+# ============================================================
 
+class Worker(db.Model):
+    __tablename__ = "workers"
+
+    worker_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.user_id"),
+        unique=True,
+        nullable=False
+    )
+
+    shift_id: Mapped[int | None] = mapped_column(
+        ForeignKey("shifts.shift_id"),
+        nullable=True
+    )
+
+    hire_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True
+    )
+
+    position: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean(),
+        default=True,
+        nullable=False
+    )
+
+    user = db.relationship(
+    "User",
+    foreign_keys=[user_id],
+    backref="worker",
+    lazy=True
+)
+
+    shift = db.relationship(
+        "Shift",
+        backref="workers",
+        lazy=True
+    )
+
+    def serialize(self):
+        return {
+            "worker_id": self.worker_id,
+            "user_id": self.user_id,
+            "name": self.user.name if self.user else None,
+            "last_name": self.user.last_name if self.user else None,
+            "phone": self.user.phone if self.user else None,
+            "email": self.user.email if self.user else None,
+            "role": self.user.role if self.user else None,
+            "shift_id": self.shift_id,
+            "shift_name": self.shift.name if self.shift else None,
+            "hire_date": (
+                self.hire_date.isoformat()
+                if self.hire_date
+                else None
+            ),
+            "position": self.position,
+            "is_active": self.is_active,
+        }
 # ============================================================
 # ADDRESS
 # ============================================================
