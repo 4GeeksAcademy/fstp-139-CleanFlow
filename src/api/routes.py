@@ -618,6 +618,9 @@ def update_task_status(task_id):
 #   GET    /api/manage/services       todos, activos y desactivados
 #   POST   /api/services              crear
 #   PUT    /api/services/<id>         editar
+#   PATCH  /api/services/<id>/status  activar o desactivar
+#
+# No hay DELETE: un servicio borrado dejaría reservas apuntando a la nada.
 # ----------------------------------------------------------------------
 
 @api.route("/manage/services", methods=["GET"])
@@ -864,5 +867,30 @@ def update_service(service_id):
     except IntegrityError:
         db.session.rollback()
         return jsonify({"message": "Ya existe un servicio con ese nombre"}), 409
+
+    return jsonify({"service": service.serialize()}), 200
+
+
+@api.route("/services/<int:service_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_service_status(service_id):
+    """Activa o desactiva un servicio. Es lo que sustituye al borrado.
+
+    Un servicio desactivado desaparece de la web y del catálogo del cliente,
+    pero sigue en la base de datos: las reservas que ya se hicieron con él
+    lo necesitan. Para el encargado no desaparece nunca.
+    """
+    service = db.session.get(Service, service_id)
+
+    if not service:
+        return jsonify({"message": "Servicio no encontrado"}), 404
+
+    data = get_json_body()
+
+    if data is None or not isinstance(data.get("is_active"), bool):
+        return jsonify({"message": "Envía is_active con true o false"}), 400
+
+    service.is_active = data["is_active"]
+    db.session.commit()
 
     return jsonify({"service": service.serialize()}), 200
