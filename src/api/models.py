@@ -729,12 +729,8 @@ class Incident(db.Model):
         ForeignKey("bookings.booking_id"),
         nullable=False
     )
-    # PROVISIONAL: apunta a users porque la tabla workers todavía no
-    # existe (la crea el PR #58). Cuando ese PR entre en develop, esta
-    # línea vuelve a ForeignKey("workers.worker_id"): en el conflicto,
-    # quedaos con la versión del PR #58.
     worker_id: Mapped[int | None] = mapped_column(
-        ForeignKey("users.user_id"),
+        ForeignKey("workers.worker_id"),
         nullable=True
     )
     booking_task_id: Mapped[int | None] = mapped_column(
