@@ -5,14 +5,12 @@ Se ejecutan fuera de la API, pero con acceso a la base de datos igual que
 cualquier endpoint:
 
     pipenv run insert-test-data        catálogo de tareas y servicios
-    flask insert-test-users 5          clientes de prueba
 
-Los dos se pueden repetir las veces que haga falta: lo que ya existe no
-se duplica ni se modifica.
+Se puede repetir las veces que haga falta: lo que ya existe no se duplica
+ni se modifica.
 """
 
-import click
-from api.models import db, User, Service, Task
+from api.models import db, Service, Task
 from api.utils import slugify
 
 
@@ -22,8 +20,9 @@ from api.utils import slugify
 # Lo mínimo para poder trabajar: las once tareas y los cuatro servicios
 # del negocio (ver issue #11, apartado 2).
 #
-# Hay además UNA tarea y UN servicio desactivados a propósito. Son los que
-# permiten comprobar que las rutas públicas no enseñan lo inactivo.
+# Hay además UNA tarea y UN servicio desactivados a propósito. Sirven para
+# probar las pestañas "Desactivadas" del panel del encargado y, en la #36,
+# que las rutas públicas no enseñan lo inactivo.
 #
 # Los precios de la web salen de aquí mientras no los cambie el encargado.
 # ----------------------------------------------------------------------
@@ -43,12 +42,12 @@ TASKS = [
     {"task_name": "Limpiar armario",        "description": "Interior y exterior de un armario.",              "is_active": True},
     {"task_name": "Hacer plancha",          "description": "Planchado de ropa.",                              "is_active": True},
 
-    # DESACTIVADA A PROPÓSITO: no debe salir en GET /api/tasks.
+    # DESACTIVADA A PROPÓSITO: no debe salir en las rutas públicas (#36).
     {"task_name": "Limpiar piscina",        "description": "Vaso, bordes y zona de baño de una piscina.",    "is_active": False},
 ]
 
 # El slug no se escribe: se genera del nombre con slugify(), igual que
-# hará el endpoint de crear servicio.
+# hace el endpoint de crear servicio.
 SERVICES = [
     {
         "name": "Limpieza esencial",
@@ -87,7 +86,17 @@ SERVICES = [
         "is_active": True,
     },
 
-
+    # DESACTIVADO A PROPÓSITO: un servicio que ya no se ofrece. No debe
+    # salir en la web (#36), pero el encargado sigue viéndolo.
+    {
+        "name": "Limpieza de oficinas",
+        "description": "Mantenimiento de oficinas y locales pequeños.",
+        "base_hourly_rate": 35,
+        "minutes_per_task": 30,     # 2 tareas por hora
+        "min_hours": 2,
+        "hour_step": 1,
+        "is_active": False,
+    },
 ]
 
 
