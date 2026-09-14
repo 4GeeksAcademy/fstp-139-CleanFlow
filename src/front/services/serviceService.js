@@ -1,11 +1,11 @@
 /**
- * LLAMADAS AL BACKEND PARA EL CATÁLOGO DE SERVICIOS.
+ * LLAMADAS A LA API PARA EL CATÁLOGO DE SERVICIOS.
  *
- * Igual que authService.js: solo habla con la API. No toca el store, ni
- * localStorage, ni navega. De eso se encarga quien lo llama.
+ * Solo habla con la API (no toca store, localStorage ni navegación).
+ * Dos partes: getServices para la web pública y la gestión del encargado.
  *
- * Contrato: devuelve siempre { ok, data } y NUNCA lanza. Toda la
- * aplicación cuenta con eso, así que mantenlo al añadir funciones.
+ * Todas devuelven { ok, data } (las del encargado, también status) y NUNCA
+ * lanzan. La app cuenta con eso: respétalo al añadir funciones.
  */
 
 import { apiRequest } from "./apiClient";
@@ -13,17 +13,11 @@ import { apiRequest } from "./apiClient";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 // ----------------------------------------------------------------------
-// PROVISIONAL — BORRAR CUANDO LA ISSUE WEB-02 ESTÉ HECHA
-//
-// GET /api/services no existe todavía, y sin él no se puede probar el
-// desplegable del navbar. Mientras tanto se usa esta lista.
-//
-// Para quitarlo: borrar TEST_LIST, borrar TESTING_SERVICES y borrar el
-// bloque marcado dentro del catch. Nada más.
-//
-// Los campos son los del modelo Service: los de la issue #11 más los tres
-// que añade WEB-02 (slug, image_url y long_description).
+// PROVISIONAL: SERVICIOS DE PRUEBA (BORRAR AL CERRAR LA #36 / WEB-02)
 // ----------------------------------------------------------------------
+// Mientras no exista la ruta pública GET /api/services, ServicesLoader
+// recibe esta lista. Para quitarlo: borrar TEST_LIST, TESTING_SERVICES y
+// el bloque marcado en el catch de getServices. Campos: modelo Service.
 
 const TEST_LIST = true;
 
@@ -74,8 +68,7 @@ const TESTING_SERVICES = [
     is_active: true,
   },
   {
-    // Desactivado a propósito: comprueba que NO sale en el navbar ni en el
-    // pie. Con el backend real, ese filtro lo hará él.
+    // Desactivado a propósito: comprueba que NO sale en el navbar ni en el pie.
     service_id: 5,
     name: "Limpieza de cristales",
     slug: "limpieza-de-cristales",
@@ -88,17 +81,22 @@ const TESTING_SERVICES = [
   },
 ];
 
-// Cinturón de seguridad: el backend ya filtra por is_active, pero si algún
-// día devolviera de más, la web no lo pinta. El Array.isArray protege de
-// que la respuesta no sea una lista y se rompa al recorrerla.
+// ----------------------------------------------------------------------
+// WEB PÚBLICA
+// ----------------------------------------------------------------------
+// getServices usa fetch directo, no apiRequest: no devuelve status y, si
+// falla la red, el mensaje va en data.error (no en data.message).
+
+// El backend ya filtra por is_active; esto es un cinturón de seguridad.
+// Array.isArray evita romper la pantalla si la respuesta no es una lista.
 const activeServices = (services) =>
   Array.isArray(services)
     ? services.filter((service) => service.is_active !== false)
     : [];
 
+/** Servicios activos para la web pública (sin token). data: array de servicios. */
 export const getServices = async () => {
   try {
-    // Sin cabeceras ni token: es un endpoint público.
     const response = await fetch(`${BACKEND_URL}/api/services`);
 
     const data = await response.json();
@@ -107,13 +105,11 @@ export const getServices = async () => {
       return { ok: false, data };
     }
 
-    // data.services y no data: acordado con WEB-02, la respuesta viene
-    // envuelta en un objeto como el resto de la API.
+    // La API envuelve la lista en { services: [...] }, como el resto de rutas.
     return { ok: true, data: activeServices(data.services) };
   } catch (error) {
-    // Aquí se cae cuando NO hay respuesta que interpretar: backend caído,
-    // sin conexión, CORS... o, ahora mismo, porque el endpoint no existe y
-    // Flask devuelve el index.html, que no es JSON.
+    // Sin JSON que leer: red caída, CORS o, mientras no exista la ruta,
+    // el index.html que devuelve la ruta comodín de Flask.
 
     // ---- PROVISIONAL: se va con TESTING_SERVICES ----
     if (TEST_LIST) {
@@ -136,13 +132,9 @@ export const getServices = async () => {
 
 // ----------------------------------------------------------------------
 // GESTIÓN DEL CATÁLOGO (ENCARGADO)
-//
-// Las cuatro rutas exigen el token de un encargado. Usan apiRequest, así
-// que no repiten el fetch ni la gestión de errores.
-//
-// Si va bien, data es el servicio o la lista, ya desenvuelta.
-// Si va mal, el mensaje para el usuario está en data.message.
 // ----------------------------------------------------------------------
+// Rutas con token de encargado, vía apiRequest: { ok, status, data }. Si va
+// bien, data es el servicio o la lista; si va mal, el texto en data.message.
 
 /** Todos los servicios, activos y desactivados. data: array de servicios. */
 export const getAllServices = async (token) => {
@@ -160,7 +152,7 @@ export const createService = async (serviceData, token) => {
   return result.ok ? { ...result, data: result.data.service } : result;
 };
 
-/** Edita solo lo que se envíe. No cambia ni el slug ni el estado. data: el servicio actualizado. */
+/** Edita solo lo enviado; ni slug ni estado (eso va por toggleServiceStatus). data: el servicio actualizado. */
 export const updateService = async (serviceId, serviceData, token) => {
   const result = await apiRequest(`/api/services/${serviceId}`, { method: "PUT", token, body: serviceData });
 

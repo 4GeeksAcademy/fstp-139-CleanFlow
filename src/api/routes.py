@@ -1,13 +1,11 @@
 """
-Endpoints de la API de CleanFlow.
+ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py).
 
-Todas las rutas de este archivo cuelgan de /api (el prefijo se aplica al
-registrar el blueprint en app.py).
+  Públicas:     /register, /login
+  Con sesión:   @jwt_required()         -> token válido, cualquier rol
+  Con permiso:  @role_required("...")   -> token + rol correcto (403 si no)
 
-Tres niveles de acceso, de menos a más restrictivo:
-  - Públicas:      /register, /login
-  - Con sesión:    @jwt_required()          -> hace falta un token válido
-  - Con permiso:   @role_required("...")    -> además, el rol correcto
+@role_required ya comprueba el token: no se le añade @jwt_required() encima.
 """
 
 import re
@@ -25,8 +23,8 @@ from sqlalchemy.exc import IntegrityError
 
 api = Blueprint("api", __name__)
 
-# Permite que el frontend (puerto 3000) llame a esta API (puerto 3001).
-# Sin esto el navegador bloquearía las respuestas por ser otro origen.
+# El frontend (puerto 3000) y la API (3001) son orígenes distintos: sin
+# CORS el navegador bloquearía las respuestas.
 CORS(api)
 
 
@@ -43,6 +41,10 @@ def handle_hello():
 # ----------------------------------------------------------------------
 # WORKERS
 # ----------------------------------------------------------------------
+#   POST   /api/workers        crear usuario + worker
+#   GET    /api/workers        listar
+#   GET    /api/workers/<id>   ver uno
+#   PUT    /api/workers/<id>   editar
 
 @api.route("/workers", methods=["POST"])
 @role_required("manager")
@@ -345,22 +347,19 @@ def update_worker(worker_id):
 # ----------------------------------------------------------------------
 # RUTAS PÚBLICAS
 # ----------------------------------------------------------------------
+#   POST   /api/register   alta de cliente
+#   POST   /api/login      devuelve token + usuario
 
 @api.route('/register', methods=['POST'])
 def register():
-    """Da de alta un usuario nuevo.
+    """Da de alta un usuario nuevo (siempre como client).
 
-    Todas las validaciones se hacen ANTES de tocar la base de datos, y
-    cada fallo devuelve su propio código HTTP para que el frontend pueda
-    distinguirlos.
+    Todo se valida ANTES de tocar la BD, y cada fallo tiene su código HTTP.
     """
-
     data = request.get_json()
 
     if not data:
-        return jsonify({
-            "message": "No se recibieron datos"
-        }), 400
+        return jsonify({"message": "No se recibieron datos"}), 400
 
     name = data.get("name")
     last_name = data.get("last_name")
@@ -368,39 +367,29 @@ def register():
     email = data.get("email")
     password = data.get("password")
 
-    # .get() devuelve None si la clave no viene, así que esto cubre tanto
-    # los campos ausentes como los enviados vacíos.
+    # .get() da None si la clave no viene: cubre ausentes y vacíos a la vez.
     if not name or not last_name or not phone or not email or not password:
-        return jsonify({
-            "message": "Todos los campos son obligatorios"
-        }), 400
+        return jsonify({"message": "Todos los campos son obligatorios"}), 400
 
-    # "algo@algo.algo", sin espacios ni arrobas de más.
+    # Solo la forma "algo@algo.algo"; no comprueba que el correo exista.
     email_pattern = r'^[^@\s]+@[^@\s]+\.[^@\s]+$'
 
     if not re.match(email_pattern, email):
-        return jsonify({
-            "message": "El correo electrónico no es válido"
-        }), 400
+        return jsonify({"message": "El correo electrónico no es válido"}), 400
 
     existing_user = db.session.execute(
         db.select(User).where(User.email == email)
     ).scalar_one_or_none()
 
-    # 409 (conflicto), no 400: los datos son correctos, el problema es
-    # que chocan con algo que ya existe.
+    # 409 y no 400: los datos son correctos, pero chocan con algo que ya existe.
     if existing_user:
-        return jsonify({
-            "message": "El correo electrónico ya está registrado"
-        }), 409
+        return jsonify({"message": "El correo electrónico ya está registrado"}), 409
 
     if len(password) < 6:
-        return jsonify({
-            "message": "La contraseña debe tener mínimo 6 caracteres"
-        }), 400
+        return jsonify({"message": "La contraseña debe tener mínimo 6 caracteres"}), 400
 
-    # El rol se fuerza a "client": nadie puede darse de alta como worker o
-    # manager desde fuera. Esos los crea el manager desde el dashboard.
+    # Rol forzado a "client": workers y managers solo los crea el manager
+    # desde el dashboard, nunca un alta desde fuera.
     new_user = User(
         name=name,
         last_name=last_name,
@@ -409,11 +398,9 @@ def register():
         role="client",
         is_active=True
     )
-
     # set_password hashea; nunca se asigna password_hash a mano.
     new_user.set_password(password)
 
-    # add() lo deja preparado, commit() lo escribe de verdad en la BD.
     db.session.add(new_user)
     db.session.commit()
 
@@ -425,134 +412,93 @@ def register():
 
 @api.route('/login', methods=['POST'])
 def login():
-    """Comprueba las credenciales y devuelve el token de sesión.
+    """Comprueba credenciales y devuelve token + usuario.
 
-    Devuelve también el usuario, para que el frontend conozca el rol
-    desde el primer instante y pueda decidir qué pintar sin esperar a
-    una segunda petición.
+    El usuario va incluido para que el frontend sepa el rol sin otra petición.
     """
-
     data = request.get_json()
-
     email = data.get("email")
     password = data.get("password")
 
     if not email or not password:
-        return jsonify({
-            "error": "Email and password are required"
-        }), 400
+        return jsonify({"error": "Email and password are required"}), 400
 
-    existing_user = db.session.execute(
-        db.select(User).where(User.email == email)
-    ).scalar_one_or_none()
+    existing_user = db.session.execute(db.select(User).where(
+        User.email == email)).scalar_one_or_none()
 
-    # Por motivos de seguridad, devolvemos el mismo mensaje de error
-    # independientemente de si falla el correo o la contraseña.
+    # Mismo mensaje si falla el email o la contraseña: así nadie puede
+    # averiguar qué correos están registrados.
     if existing_user is None:
-        return jsonify({
-            "error": "Invalid email or password"
-        }), 401
+        return jsonify({"error": "Invalid email or password"}), 401
 
     if existing_user.check_password(password):
-
         if not existing_user.is_active:
-            return jsonify({
-                "error": "Your account is deactivated. Contact the administrator."
-            }), 403
-
-        # El token guarda el user_id.
-        access_token = create_access_token(
-            identity=str(existing_user.user_id)
-        )
-
+            return jsonify({"error": "Your account is deactivated. Contact the administrator."}), 403
+        # El token guarda el user_id como texto (lo que espera la librería).
+        # Caduca solo: no hay que guardarlo en ningún sitio.
+        access_token = create_access_token(identity=str(existing_user.user_id))
         return jsonify({
             "msg": "Logged succefully",
             "token": access_token,
             "user": existing_user.serialize_session()
         }), 200
-
     else:
-        return jsonify({
-            "error": "Invalid email or password"
-        }), 401
+        return jsonify({"error": "Invalid email or password"}), 401
 
 
 # ----------------------------------------------------------------------
 # RUTAS CON SESIÓN
 # ----------------------------------------------------------------------
+#   GET    /api/profile    usuario del token (cualquier rol)
 
 @api.route("/profile", methods=["GET"])
 @jwt_required()
 def get_profile():
-    """Devuelve el usuario del token. Cualquier rol puede pedirlo:
-    solo consulta sus propios datos.
+    """Devuelve el usuario del token. El frontend lo usa al cargar para
+    revalidar la sesión: si responde 401, el token ya no vale.
     """
-
-    # No se recibe el id por parámetro, se saca del token.
+    # El id sale del token, no de la URL: nadie puede pedir el perfil de otro.
     user_id = get_jwt_identity()
-
     user = db.session.get(User, user_id)
 
-    # El token era válido pero el usuario ya no está.
+    # Token válido, pero el usuario se borró con la sesión abierta.
     if not user:
-        return jsonify({
-            "error": "User not found"
-        }), 404
+        return jsonify({"error": "User not found"}), 404
 
-    # Misma forma que /login ({"user": ...})
-    return jsonify({
-        "user": user.serialize_session()
-    }), 200
+    # Misma forma que /login ({"user": ...}): el frontend lee siempre data.user.
+    return jsonify({"user": user.serialize_session()}), 200
 
 
 # ----------------------------------------------------------------------
-# NOTA PARA EL EQUIPO: "RUTAS CON PERMISO POR ROL"
-#
-# Este es el patrón a seguir en TODAS las rutas protegidas del dashboard.
-#
-# @role_required(...) recibe los roles que pueden entrar, y se cambia
-# según a quién pertenezca la sección:
-#
-#     @role_required("manager")             -> solo encargados
-#     @role_required("worker")              -> solo trabajadores
-#     @role_required("client")              -> solo clientes
-#     @role_required("manager", "worker")   -> varios roles a la vez
-#
-# Ya comprueba el token por dentro, así que NO hay que añadirle
-# @jwt_required() encima. Si el rol no encaja, responde 403.
-#
-# Importante: los guardianes del frontend (RoleRoute, el sidebar filtrado)
-# solo evitan que alguien acabe donde no debe. Cualquiera puede editar su
-# rol en el navegador; lo único que de verdad protege los datos es este
-# decorador. Toda ruta del dashboard necesita el suyo.
+# RUTAS CON PERMISO POR ROL: EL PATRÓN
 # ----------------------------------------------------------------------
+#   @role_required("manager")             -> solo encargados
+#   @role_required("manager", "worker")   -> varios roles
+#
+# Los guardianes del frontend (RoleRoute, sidebar) solo orientan: el rol se
+# puede editar en el navegador. Lo que protege los datos es este decorador,
+# así que toda ruta del dashboard necesita el suyo.
 
 
 # ----------------------------------------------------------------------
 # CATÁLOGO DE TAREAS (ENCARGADO)
-#
-# El catálogo compartido: limpiar cristales, hacer plancha... Solo lo
-# gestiona el encargado. La lista pública, sin las desactivadas, es de la
-# issue #36.
-#
+# ----------------------------------------------------------------------
 #   GET    /api/manage/tasks          todas, activas y desactivadas
 #   POST   /api/tasks                 crear
 #   PUT    /api/tasks/<id>            editar nombre y descripción
 #   PATCH  /api/tasks/<id>/status     activar o desactivar
 #
-# No hay DELETE: una tarea borrada dejaría reservas apuntando a la nada.
-# ----------------------------------------------------------------------
+# No hay DELETE: se desactiva, para no dejar reservas apuntando a la nada.
 
 # Mismo tope que la columna task_name en models.py.
 TASK_NAME_MAX_LENGTH = 100
 
 
 def get_json_body():
-    """Devuelve el cuerpo JSON si es un objeto, o None.
+    """Devuelve el cuerpo si es un objeto JSON, o None.
 
-    silent=True: con un cuerpo vacío o que no es JSON no lanza, devuelve
-    None. Y un JSON que no es objeto ([] o "texto") tampoco sirve, porque
-    luego se le piden claves con .get().
+    silent=True evita la excepción con cuerpo vacío o no JSON; [] o "texto"
+    tampoco valen porque luego se usa .get().
     """
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else None
@@ -572,14 +518,10 @@ def clean_task_name(raw_name):
 
 
 def task_name_taken(name, exclude_task_id=None):
-    """Indica si ya hay otra tarea con ese nombre, sin mirar mayúsculas.
+    """True si otra tarea ya usa ese nombre, sin distinguir mayúsculas.
 
-    La restricción unique de la base de datos SÍ distingue mayúsculas: por
-    ella sola entrarían "Limpiar cristales" y "limpiar cristales". Por eso
-    se comprueba aquí, comparando los dos en minúsculas.
-
-    exclude_task_id: al editar, la propia tarea no cuenta. Sin esto,
-    guardarla sin cambiarle el nombre daría "ya existe".
+    El unique de la BD sí distingue ("Plancha" y "plancha" entrarían).
+    exclude_task_id: al editar, la propia tarea no cuenta.
     """
     query = db.select(Task).where(func.lower(Task.task_name) == name.lower())
 
@@ -590,10 +532,9 @@ def task_name_taken(name, exclude_task_id=None):
 
 
 def clean_description(raw_description):
-    """Devuelve (descripción, None) si vale, o (None, mensaje) si no.
+    """Devuelve (descripción, None) o (None, mensaje).
 
-    Vacía o ausente se guarda como NULL y no como texto vacío: así "sin
-    descripción" solo se representa de una forma.
+    Vacía se guarda como NULL, así "sin descripción" tiene una sola forma.
     """
     if raw_description is None:
         return None, None
@@ -624,8 +565,7 @@ def create_task():
     if data is None:
         return jsonify({"message": "No se recibieron datos"}), 400
 
-    # Primero se valida TODO y después se escribe: si algo falla, la base
-    # de datos no llega a enterarse.
+    # Se valida todo antes de escribir: si algo falla, la BD no se entera.
     name, error = clean_task_name(data.get("task_name"))
     if error:
         return jsonify({"message": error}), 400
@@ -636,13 +576,11 @@ def create_task():
 
     is_active = data.get("is_active", True)
 
-    # isinstance y no un simple `if`: el texto "false" es verdadero en
-    # Python, y colaría una tarea activa sin que nadie lo pidiera.
+    # isinstance y no un simple if: el texto "false" es verdadero en Python.
     if not isinstance(is_active, bool):
         return jsonify({"message": "is_active debe ser true o false"}), 400
 
-    # 409 y no 400, igual que el email repetido en /register: los datos
-    # están bien, el problema es que chocan con algo que ya existe.
+    # 409 como el email repetido en /register: datos bien, pero ya existe.
     if task_name_taken(name):
         return jsonify({"message": "Ya existe una tarea con ese nombre"}), 409
 
@@ -652,8 +590,8 @@ def create_task():
     try:
         db.session.commit()
     except IntegrityError:
-        # Dos altas casi a la vez con el mismo nombre: la comprobación de
-        # arriba no llega a verlo, pero la base de datos sí.
+        # Dos altas simultáneas con el mismo nombre: la comprobación de
+        # arriba no lo ve, pero el unique de la BD sí.
         db.session.rollback()
         return jsonify({"message": "Ya existe una tarea con ese nombre"}), 409
 
@@ -663,11 +601,9 @@ def create_task():
 @api.route("/tasks/<int:task_id>", methods=["PUT"])
 @role_required("manager")
 def update_task(task_id):
-    """Edita el nombre y la descripción.
+    """Edita nombre y/o descripción (solo lo que venga en el cuerpo).
 
-    Solo cambia lo que venga en el cuerpo. El estado NO se toca aquí: va
-    por su propia ruta, para que editar un texto nunca desactive una
-    tarea por error.
+    is_active no se toca aquí: va por PATCH, para no desactivar por error.
     """
     task = db.session.get(Task, task_id)
 
@@ -714,7 +650,7 @@ def update_task(task_id):
 @api.route("/tasks/<int:task_id>/status", methods=["PATCH"])
 @role_required("manager")
 def update_task_status(task_id):
-    """Activa o desactiva una tarea. Es lo que sustituye al borrado."""
+    """Activa o desactiva una tarea. Sustituye al borrado."""
     task = db.session.get(Task, task_id)
 
     if not task:
@@ -733,26 +669,20 @@ def update_task_status(task_id):
 
 # ----------------------------------------------------------------------
 # CATÁLOGO DE SERVICIOS (ENCARGADO)
-#
-# Los tipos de limpieza: esencial, integral, profunda, fin de obra...
-# Solo los gestiona el encargado. La lista pública, sin los desactivados,
-# es de la issue #36.
-#
+# ----------------------------------------------------------------------
 #   GET    /api/manage/services       todos, activos y desactivados
 #   POST   /api/services              crear
-#   PUT    /api/services/<id>         editar
+#   PUT    /api/services/<id>         editar (sin estado ni slug)
 #   PATCH  /api/services/<id>/status  activar o desactivar
 #
-# No hay DELETE: un servicio borrado dejaría reservas apuntando a la nada.
-# ----------------------------------------------------------------------
+# No hay DELETE: se desactiva, para no dejar reservas apuntando a la nada.
 
 @api.route("/manage/services", methods=["GET"])
 @role_required("manager")
 def get_all_services():
-    """Todos los servicios, activos y desactivados, con todos sus campos.
+    """Todos los servicios, activos y desactivados.
 
-    serialize() y no serialize_public(): el encargado necesita ver también
-    el id y el estado, que la vista pública esconde.
+    serialize() y no serialize_public(): el encargado necesita id y estado.
     """
     services = db.session.execute(
         db.select(Service).order_by(Service.service_id)
@@ -765,23 +695,20 @@ def get_all_services():
 SERVICE_NAME_MAX_LENGTH = 100
 IMAGE_URL_MAX_LENGTH = 255
 
-# Los minutos por tarea tienen que dividir la hora en partes enteras. Si
-# no, el cliente acabaría con media tarea, y el aviso de "te falta una
-# tarea para aprovechar la hora" nunca saldría a cuenta redonda.
+# Solo divisores de 60: la hora se reparte en tareas enteras, nunca media.
 ALLOWED_MINUTES_PER_TASK = (10, 12, 15, 20, 30, 60)
 
 
 def is_whole_number(value):
-    """True si es un número entero de verdad.
+    """True si es un entero de verdad.
 
-    bool se descarta a propósito: en Python True cuenta como el entero 1,
-    y "min_hours": true colaría como una hora.
+    bool se descarta: en Python True vale 1 y "min_hours": true colaría.
     """
     return isinstance(value, int) and not isinstance(value, bool)
 
 
 def clean_optional_text(value, field_label, max_length=None):
-    """Para textos opcionales: devuelve (texto o None, None) o (None, mensaje)."""
+    """Texto opcional: devuelve (texto o None, None) o (None, mensaje)."""
     if value is None:
         return None, None
 
@@ -797,14 +724,10 @@ def clean_optional_text(value, field_label, max_length=None):
 
 
 def validate_service(data, current=None):
-    """Valida un servicio. Devuelve (campos, None) si vale, o (None, mensaje).
+    """Valida un servicio. Devuelve (campos, None) o (None, mensaje).
 
-    Al CREAR (current=None) tienen que venir los obligatorios.
-
-    Al EDITAR se pasa el servicio actual, y lo que no venga en el cuerpo se
-    toma de él. Hace falta para las reglas que cruzan dos campos: si solo
-    se envía un min_hours nuevo, hay que compararlo con el max_hours que
-    ya tenía el servicio.
+    Al editar se pasa current: lo que no venga se toma de él, y así se
+    pueden comprobar reglas entre dos campos (min_hours nuevo vs max_hours).
     """
 
     def pick(field, default=None):
@@ -823,7 +746,7 @@ def validate_service(data, current=None):
     name = name.strip()
     if len(name) > SERVICE_NAME_MAX_LENGTH:
         return None, f"El nombre no puede superar los {SERVICE_NAME_MAX_LENGTH} caracteres"
-    # Sin letras ni números no hay de dónde sacar la URL del servicio.
+    # Sin letras ni números no se puede generar el slug.
     if not slugify(name):
         return None, "El nombre tiene que contener al menos una letra o un número"
     fields["name"] = name
@@ -849,7 +772,7 @@ def validate_service(data, current=None):
         return None, "El precio por hora tiene que ser un número mayor que cero"
     fields["base_hourly_rate"] = rate
 
-    # ---- minutos por tarea ----
+    # ---- minutos por tarea (NULL = el servicio no lleva tareas) ----
     minutes = pick("minutes_per_task")
     if minutes is not None and (not is_whole_number(minutes) or minutes not in ALLOWED_MINUTES_PER_TASK):
         allowed = ", ".join(str(m) for m in ALLOWED_MINUTES_PER_TASK)
@@ -867,6 +790,7 @@ def validate_service(data, current=None):
         return None, "El salto de horas tiene que ser un número entero, 1 o más"
     fields["hour_step"] = hour_step
 
+    # NULL = sin máximo.
     max_hours = pick("max_hours")
     if max_hours is not None and (not is_whole_number(max_hours) or max_hours < min_hours):
         return None, "El máximo de horas tiene que ser un número entero, igual o mayor que el mínimo"
@@ -882,10 +806,9 @@ def validate_service(data, current=None):
 
 
 def service_name_taken(name, exclude_service_id=None):
-    """Indica si ya hay otro servicio con ese nombre, sin mirar mayúsculas.
+    """True si otro servicio ya usa ese nombre, sin distinguir mayúsculas.
 
-    Igual que con las tareas: dos "Limpieza integral" confundirían al
-    cliente al elegir en el desplegable.
+    Mismo motivo que en task_name_taken.
     """
     query = db.select(Service).where(func.lower(Service.name) == name.lower())
 
@@ -896,11 +819,10 @@ def service_name_taken(name, exclude_service_id=None):
 
 
 def generate_unique_slug(name):
-    """Genera el slug a partir del nombre y, si ya está cogido, le añade
-    un número: limpieza-integral, limpieza-integral-2, -3...
+    """Slug a partir del nombre; si ya existe, añade -2, -3...
 
-    Puede pasar aunque los nombres no se repitan: "Limpieza integral" y
-    "Limpieza-Integral" son nombres distintos, pero dan el mismo slug.
+    Pasa aunque los nombres no se repitan: "Limpieza integral" y
+    "Limpieza-Integral" dan el mismo slug.
     """
     base = slugify(name)
     slug = base
@@ -918,8 +840,8 @@ def generate_unique_slug(name):
 @api.route("/services", methods=["POST"])
 @role_required("manager")
 def create_service():
-    """Crea un servicio. El slug se genera solo, y nace activo salvo que
-    se envíe lo contrario."""
+    """Crea un servicio con slug automático. Nace activo salvo que se
+    envíe lo contrario."""
     data = get_json_body()
 
     if data is None:
@@ -938,7 +860,7 @@ def create_service():
     try:
         db.session.commit()
     except IntegrityError:
-        # Dos altas casi a la vez con el mismo nombre o el mismo slug.
+        # Dos altas simultáneas con el mismo nombre o slug.
         db.session.rollback()
         return jsonify({"message": "Ya existe un servicio con ese nombre"}), 409
 
@@ -948,15 +870,10 @@ def create_service():
 @api.route("/services/<int:service_id>", methods=["PUT"])
 @role_required("manager")
 def update_service(service_id):
-    """Edita un servicio. Solo cambia lo que venga en el cuerpo.
+    """Edita un servicio (solo lo que venga en el cuerpo).
 
-    Dos cosas NO se tocan aquí, aunque vengan en el cuerpo:
-
-    - El estado (is_active): va por su propia ruta, igual que en las
-      tareas, para que editar un precio nunca desactive un servicio.
-    - El slug: NO se regenera al renombrar. Cambiarlo rompería los enlaces
-      a la ficha del servicio que ya circulen. A cambio, tras un renombrado
-      el slug puede no coincidir con el nombre, y es aceptable.
+    Ignora is_active (va por PATCH). El slug no se regenera al renombrar:
+    rompería los enlaces que ya circulan, aunque deje de coincidir con el nombre.
     """
     service = db.session.get(Service, service_id)
 
@@ -968,12 +885,9 @@ def update_service(service_id):
     if data is None:
         return jsonify({"message": "No se recibieron datos"}), 400
 
-    # Se quita el estado antes de validar: así validate_service lo toma del
-    # servicio actual y se queda como estaba.
+    # Sin is_active en el cuerpo, validate_service conserva el estado actual.
     data = {field: value for field, value in data.items() if field != "is_active"}
 
-    # Las mismas reglas que al crear. Lo que no venga se toma del servicio
-    # actual, y por eso se comprueban bien las reglas entre dos campos.
     fields, error = validate_service(data, current=service)
     if error:
         return jsonify({"message": error}), 400
@@ -997,11 +911,10 @@ def update_service(service_id):
 @api.route("/services/<int:service_id>/status", methods=["PATCH"])
 @role_required("manager")
 def update_service_status(service_id):
-    """Activa o desactiva un servicio. Es lo que sustituye al borrado.
+    """Activa o desactiva un servicio. Sustituye al borrado.
 
-    Un servicio desactivado desaparece de la web y del catálogo del cliente,
-    pero sigue en la base de datos: las reservas que ya se hicieron con él
-    lo necesitan. Para el encargado no desaparece nunca.
+    Desactivado desaparece de la web y del cliente, pero sigue en la BD
+    para las reservas que ya lo usan. El encargado lo sigue viendo.
     """
     service = db.session.get(Service, service_id)
 

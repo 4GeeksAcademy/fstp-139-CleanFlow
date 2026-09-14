@@ -1,18 +1,12 @@
 /**
  * CATÁLOGO DE SERVICIOS (ENCARGADO).
  *
- * El encargado ve todos los servicios —también los desactivados—, crea
- * nuevos, los edita, y los activa o desactiva.
+ * Lista todos los servicios, también los desactivados, con pestañas y buscador.
+ * El formulario (ServiceForm.jsx) se abre en lugar de la lista.
+ * Nada se borra: se desactiva, porque hay reservas que apuntan a cada servicio.
+ * Desactivar pide confirmación; activar no.
  *
- * Nunca se borra nada: desactivar es lo que sustituye al borrado, porque
- * hay reservas que apuntan a cada servicio. Desactivar pide confirmación;
- * activar no.
- *
- * El formulario vive en ServiceForm.jsx y ocupa el sitio de la lista
- * mientras está abierto.
- *
- * Solo habla con la API a través de services/serviceService.js.
- * Estilos en dashboard.css: clases cf-dash-* (compartidas) y cf-services__*.
+ * API: services/serviceService.js · Estilos: dashboard.css (cf-dash-*, cf-services__*).
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -60,36 +54,41 @@ const PageHeader = ({ onCreate }) => (
 export const ManageServices = () => {
     const { store, dispatch } = useGlobalReducer()
 
-    // ---- La lista ----
+    // ------------------------------------------------------------------
+    // ESTADO
+    // ------------------------------------------------------------------
+
+    // Lista y pestaña elegida
     const [services, setServices] = useState([])
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState("")
     const [filter, setFilter] = useState("all")
 
-    // ---- La búsqueda ----
+    // Texto del buscador
     const [query, setQuery] = useState("")
 
-    // ---- El formulario ----
-    // null: cerrado · { service: null }: creando · { service }: editando ese servicio
+    // Formulario. editing: null = cerrado · { service: null } = creando · { service } = editando
     const [editing, setEditing] = useState(null)
     const [saving, setSaving] = useState(false)
     const [formError, setFormError] = useState("")
 
-    // ---- El interruptor de cada fila ----
+    // Interruptor: togglingId bloquea solo el de la fila que se está guardando.
     const [togglingId, setTogglingId] = useState(null)
     const [toggleError, setToggleError] = useState("")
 
-    // ---- La confirmación al desactivar ----
-    // El servicio que se va a desactivar, o null si no hay nada que confirmar.
+    // Confirmación: el servicio que se va a desactivar, o null.
     const [confirming, setConfirming] = useState(null)
     const dialogRef = useRef(null)
 
-    // ---- La fila que se ilumina tras guardar ----
+    // Fila resaltada tras guardar o elegir una sugerencia
     const [flashId, setFlashId] = useState(null)
 
-    // Un 401 significa que el token ha caducado. Se cierra la sesión y
-    // ProtectedRoutes, al ver que ya no hay token, manda al login.
-    // Devuelve true si ha pasado, para que quien llama deje de hacer cosas.
+    // ------------------------------------------------------------------
+    // CARGA Y EFECTOS
+    // ------------------------------------------------------------------
+
+    // 401 = token caducado: se cierra la sesión y ProtectedRoutes manda al
+    // login. Devuelve true para que quien llama no siga.
     const sessionExpired = (result) => {
         if (result.status === 401) {
             dispatch({ type: "LOGOUT" })
@@ -129,7 +128,7 @@ export const ManageServices = () => {
     }, [flashId])
 
     // showModal() y no un div encima: el navegador bloquea el resto de la
-    // página, cierra con Escape y devuelve el foco al interruptor al cerrar.
+    // página, cierra con Escape y, al cerrar, devuelve el foco al interruptor.
     useEffect(() => {
         if (confirming) dialogRef.current?.showModal()
     }, [confirming])
@@ -161,7 +160,8 @@ export const ManageServices = () => {
 
         setSaving(false)
 
-        // Errores de la API: el 409 del nombre repetido, por ejemplo.
+        // Errores de la API (el 409 del nombre repetido, por ejemplo).
+        // apiClient ya deja el texto en data.message.
         if (!result.ok) {
             setFormError(result.data.message)
             return
@@ -379,9 +379,8 @@ export const ManageServices = () => {
                 </div>
             ) : (
                 <>
-                    {/* Pestañas a la izquierda y buscador a la derecha, sobre la
-                        misma línea. aria-pressed: son botones de filtro sobre
-                        la misma lista. */}
+                    {/* Pestañas a la izquierda y buscador a la derecha. aria-pressed
+                        y no role="tab": son filtros de una misma lista. */}
                     <div className="cf-dash-toolbar">
                         <div className="cf-services__tabs">
                             {FILTERS.map((option) => (
@@ -529,6 +528,8 @@ export const ManageServices = () => {
                                         </div>
 
                                         <div className="cf-services__actions">
+                                            {/* aria-label: con muchos botones "Editar" iguales,
+                                                el lector de pantalla necesita saber cuál es cuál. */}
                                             <button
                                                 type="button"
                                                 className="cf-dash-btn cf-dash-btn--ghost cf-dash-btn--sm"

@@ -1,4 +1,9 @@
-// Import necessary components and functions from react-router-dom.
+/**
+ * RUTAS DE LA APP.
+ *
+ * Web pública, login y registro, y zona privada (/dashboard).
+ * La zona privada pide sesión (ProtectedRoutes) y cada sección, su rol (RoleRoute).
+ */
 
 import {
   createBrowserRouter,
@@ -25,7 +30,7 @@ export const router = createBrowserRouter(
         <Route index element={<Home />} />
       </Route>
 
-      {/* ---------- LOGIN & REGISTER: layout propio, sin navbar/footer ---------- */}
+      {/* ---------- LOGIN Y REGISTRO: layout propio, sin navbar ni footer ---------- */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="register" element={<Register />} />
@@ -36,9 +41,8 @@ export const router = createBrowserRouter(
       <Route element={<ProtectedRoutes />}>
         <Route path="/dashboard" element={<DashboardLayout />}>
 
-          {/* COMUNES A TODOS LOS ROLES. Sin RoleRoute a propósito:
-              son el punto de entrada de todo el mundo, así que
-              tienen que ser accesibles siempre, pase lo que pase. */}
+          {/* ---- COMUNES A TODOS LOS ROLES ----
+              Sin RoleRoute a propósito: son la entrada de todo el mundo. */}
           <Route index element={<h1>Inicio</h1>} />
           <Route path="profile" element={<h1>Mi cuenta</h1>} /> 
 
@@ -53,8 +57,8 @@ export const router = createBrowserRouter(
           </Route>
 
           {/* ---- SECCIONES DE MANAGER ----
-              Un mismo RoleRoute puede envolver varias rutas:
-              no hace falta repetir el guardián en cada una. */}
+              Un mismo RoleRoute envuelve varias rutas.
+              tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
             <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="services-catalog" element={<ManageServices />} />
@@ -64,21 +68,20 @@ export const router = createBrowserRouter(
 
           {/* ---- CÓMO AÑADIR UNA SECCIÓN NUEVA ----
 
-              1) Crea tu página en src/front/pages/dashboard/
-              2) Impórtala arriba
-              3) Sustituye el <h1> provisional por tu componente:
-                    <Route path="tasks" element={<Tasks />} />
+              1) Crea tu página en src/front/pages/dashboard/ e impórtala arriba.
+              2) Cambia el <h1> provisional por tu componente, o añade la ruta
+                 dentro del RoleRoute de su rol:
+                    <Route path="shifts" element={<Shifts />} />
+              3) Añade su enlace a LINKS en components/dashboard/Sidebar.jsx.
 
-              Si la sección es para VARIOS roles, no dupliques la ruta:
-              añade el rol al array del guardián.
-
+              ¿Para VARIOS roles? No dupliques la ruta: añade el rol al array.
                     <Route element={<RoleRoute allowed={["client", "manager"]} />}>
                       <Route path="invoices" element={<Invoices />} />
                     </Route>
 
-              Los path van SIN barra inicial: son relativos a /dashboard.
-              Si la sección la ve todo el mundo, va suelta como profile,
-              sin ningún RoleRoute. */}
+              Los path van SIN barra inicial (son relativos a /dashboard) y no
+              pueden repetirse entre roles. Si la ve todo el mundo, va suelta
+              como profile, sin RoleRoute. */}
 
         </Route>
       </Route>

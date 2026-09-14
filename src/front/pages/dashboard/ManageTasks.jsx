@@ -1,14 +1,11 @@
 /**
  * CATÁLOGO DE TAREAS (ENCARGADO).
  *
- * El encargado ve todas las tareas —también las desactivadas—, crea
- * nuevas, edita su nombre o su descripción, y las activa o desactiva.
+ * Lista todas las tareas, también las desactivadas, con pestañas y buscador.
+ * El formulario de crear o editar se abre encima de la lista.
+ * Nada se borra: se desactiva, porque hay reservas que apuntan a cada tarea.
  *
- * Nunca se borra nada: desactivar es lo que sustituye al borrado, porque
- * hay reservas que apuntan a cada tarea.
- *
- * Solo habla con la API a través de services/taskService.js.
- * Estilos en dashboard.css: clases cf-dash-* (compartidas) y cf-tasks__*.
+ * API: services/taskService.js · Estilos: dashboard.css (cf-dash-*, cf-tasks__*).
  */
 
 import { useEffect, useState } from "react"
@@ -61,33 +58,38 @@ const PageHeader = ({ onCreate }) => (
 export const ManageTasks = () => {
     const { store, dispatch } = useGlobalReducer()
 
-    // ---- La lista ----
+    // ------------------------------------------------------------------
+    // ESTADO
+    // ------------------------------------------------------------------
+
+    // Lista y pestaña elegida
     const [tasks, setTasks] = useState([])
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState("")
     const [filter, setFilter] = useState("all")
 
-    // ---- La búsqueda ----
+    // Texto del buscador
     const [query, setQuery] = useState("")
 
-    // ---- El formulario ----
-    // null: cerrado · { task: null }: creando · { task }: editando esa tarea
+    // Formulario. editing: null = cerrado · { task: null } = creando · { task } = editando
     const [editing, setEditing] = useState(null)
     const [form, setForm] = useState(EMPTY_FORM)
     const [formError, setFormError] = useState("")
     const [saving, setSaving] = useState(false)
 
-    // ---- El interruptor de cada fila ----
-    // Guarda qué tarea se está cambiando, para bloquear solo su interruptor.
+    // Interruptor: togglingId bloquea solo el de la fila que se está guardando.
     const [togglingId, setTogglingId] = useState(null)
     const [toggleError, setToggleError] = useState("")
 
-    // ---- La fila que se ilumina tras guardar ----
+    // Fila resaltada tras guardar o elegir una sugerencia
     const [flashId, setFlashId] = useState(null)
 
-    // Un 401 significa que el token ha caducado. Se cierra la sesión y
-    // ProtectedRoutes, al ver que ya no hay token, manda al login.
-    // Devuelve true si ha pasado, para que quien llama deje de hacer cosas.
+    // ------------------------------------------------------------------
+    // CARGA Y EFECTOS
+    // ------------------------------------------------------------------
+
+    // 401 = token caducado: se cierra la sesión y ProtectedRoutes manda al
+    // login. Devuelve true para que quien llama no siga.
     const sessionExpired = (result) => {
         if (result.status === 401) {
             dispatch({ type: "LOGOUT" })
@@ -157,8 +159,8 @@ export const ManageTasks = () => {
 
         if (saving) return
 
-        // La misma regla que la API, antes de enviar: el aviso sale al
-        // momento y se ahorra un viaje. La API lo vuelve a comprobar igual.
+        // Misma regla que la API, para avisar al momento sin esperar la
+        // respuesta. La API lo vuelve a comprobar igual.
         const name = form.task_name.trim()
 
         if (!name) {
@@ -175,7 +177,7 @@ export const ManageTasks = () => {
         setFormError("")
 
         // Descripción vacía → null: así "sin descripción" se guarda siempre
-        // igual, y al editar se puede borrar la que había.
+        // igual y, al editar, se puede borrar la que había.
         const payload = { task_name: name, description: form.description.trim() || null }
 
         const result = editing.task
@@ -186,8 +188,8 @@ export const ManageTasks = () => {
 
         setSaving(false)
 
-        // Aquí llegan los errores de la API: el 409 del nombre repetido, por
-        // ejemplo. apiClient ya deja el texto en data.message.
+        // Errores de la API (el 409 del nombre repetido, por ejemplo).
+        // apiClient ya deja el texto en data.message.
         if (!result.ok) {
             setFormError(result.data.message)
             return
@@ -423,9 +425,8 @@ export const ManageTasks = () => {
                 </div>
             ) : (
                 <>
-                    {/* Pestañas a la izquierda y buscador a la derecha, sobre la
-                        misma línea. aria-pressed y no role="tab": son botones de
-                        filtro sobre la misma lista, no paneles distintos. */}
+                    {/* Pestañas a la izquierda y buscador a la derecha. aria-pressed
+                        y no role="tab": son filtros de una misma lista. */}
                     <div className="cf-dash-toolbar">
                         <div className="cf-tasks__tabs">
                             {FILTERS.map((option) => (
@@ -542,7 +543,7 @@ export const ManageTasks = () => {
                                         </div>
 
                                         <div className="cf-tasks__actions">
-                                            {/* aria-label: con veinte botones "Editar" iguales,
+                                            {/* aria-label: con muchos botones "Editar" iguales,
                                                 el lector de pantalla necesita saber cuál es cuál. */}
                                             <button
                                                 type="button"

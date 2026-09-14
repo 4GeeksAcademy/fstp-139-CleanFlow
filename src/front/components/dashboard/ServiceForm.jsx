@@ -1,15 +1,10 @@
 /**
  * FORMULARIO DE SERVICIO (ENCARGADO).
  *
- * El mismo para crear y para editar: con `service` edita ese servicio;
- * sin él, crea uno nuevo. Lo usa ManageServices.jsx.
- *
- * Guarda lo que se escribe y lo valida con las mismas reglas y textos que
- * validate_service() en routes.py. No llama a la API: entrega los datos ya
- * limpios a `onSubmit`, y ManageServices los envía.
- *
- * Al lado, el panel "Así lo verá el cliente" resume el servicio mientras
- * se escribe.
+ * Crea un servicio o, si recibe `service`, lo edita. Lo usa ManageServices.jsx.
+ * Valida con las mismas reglas y textos que validate_service() en routes.py.
+ * No llama a la API: entrega los datos limpios a `onSubmit`.
+ * Al lado, el panel "Así lo verá el cliente" resume el servicio al escribir.
  */
 
 import { useState } from "react"
@@ -21,8 +16,7 @@ const IMAGE_URL_MAX_LENGTH = 255
 // Los únicos minutos que acepta la API: dividen la hora en partes enteras.
 const MINUTES_OPTIONS = [10, 12, 15, 20, 30, 60]
 
-// Orden de los campos en pantalla: al validar, el cursor va al primero
-// que tenga error.
+// Orden de los campos en pantalla: al validar, el foco va al primero con error.
 const FIELD_ORDER = [
     "name",
     "description",
@@ -34,7 +28,7 @@ const FIELD_ORDER = [
     "max_hours",
 ]
 
-// Todo en texto, que es lo que dan los campos. Se convierte al enviar.
+// Todo en texto, que es lo que dan los inputs. Se convierte al enviar.
 const EMPTY_FORM = {
     name: "",
     description: "",
@@ -49,7 +43,7 @@ const EMPTY_FORM = {
 }
 
 // ----------------------------------------------------------------------
-// FORMATO — también los usa la lista de ManageServices.jsx
+// FORMATO (TAMBIÉN LO USA LA LISTA DE MANAGESERVICES.JSX)
 // ----------------------------------------------------------------------
 
 const priceFormat = new Intl.NumberFormat("es-ES", {
@@ -64,10 +58,7 @@ export const formatPrice = (value) => priceFormat.format(value)
 
 export const taskWord = (count) => (count === 1 ? "tarea" : "tareas")
 
-/**
- * Las horas que podrá elegir el cliente, en texto:
- *   "1, 2, 3, 4… horas" · "6, 9, 12, 15… horas" · "1, 2, 3… hasta 8 horas" · "2, 4, 6 horas"
- */
+/** Horas que podrá elegir el cliente: "1, 2, 3, 4… horas" · "1, 2, 3… hasta 8 horas" · "2, 4, 6 horas" */
 export const hoursText = (min, step, max) => {
     const values = []
     let hours = min
@@ -134,8 +125,8 @@ const validate = (form) => {
         errors.base_hourly_rate = "El precio por hora tiene que ser un número mayor que cero"
     }
 
-    // Esta regla solo existe aquí: a la API le vale un null, pero significa
-    // "no lleva tareas". Así no se guarda sin tareas por olvido.
+    // Regla solo del front: a la API le vale null, pero null significa "sin
+    // tareas". Así nadie guarda un servicio sin tareas por olvido.
     if (!form.no_tasks && !form.minutes_per_task) {
         errors.minutes_per_task = "Elige cuántos minutos dura una tarea, o marca que el servicio no lleva tareas"
     }

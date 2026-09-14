@@ -1,34 +1,24 @@
 """
-Comandos de terminal del backend.
+Comandos de terminal del backend: corren fuera de la API, con acceso a la BD.
 
-Se ejecutan fuera de la API, pero con acceso a la base de datos igual que
-cualquier endpoint:
+    pipenv run insert-test-data    crea el catálogo de tareas y servicios
 
-    pipenv run insert-test-data        catálogo de tareas y servicios
-
-Se puede repetir las veces que haga falta: lo que ya existe no se duplica
-ni se modifica.
+Se puede repetir sin miedo: lo que ya existe no se duplica ni se modifica.
 """
 
 from api.models import db, Service, Task
 from api.utils import slugify
 
 
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------
 # CATÁLOGO DE PRUEBA
-#
-# Lo mínimo para poder trabajar: las once tareas y los cuatro servicios
-# del negocio (ver issue #11, apartado 2).
-#
-# Hay además UNA tarea y UN servicio desactivados a propósito. Sirven para
-# probar las pestañas "Desactivadas" del panel del encargado y, en la #36,
-# que las rutas públicas no enseñan lo inactivo.
-#
-# Los precios de la web salen de aquí mientras no los cambie el encargado.
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------
+# Las tareas y servicios del negocio (#11), más una tarea y un servicio
+# desactivados a propósito: sirven para probar las pestañas "Desactivadas"
+# del panel y que las rutas públicas (#36) no enseñan lo inactivo.
+# Los precios de la web salen de aquí hasta que el encargado los cambie.
 
-# En singular: una tarea es una unidad. Tres habitaciones son tres veces
-# "Limpiar habitación", no una sola "Limpiar habitaciones".
+# En singular: tres habitaciones son tres veces "Limpiar habitación".
 TASKS = [
     {"task_name": "Limpiar habitación",     "description": "Polvo, superficies y suelo de un dormitorio.",   "is_active": True},
     {"task_name": "Limpiar baño",           "description": "Sanitarios, azulejos, espejo y suelo.",           "is_active": True},
@@ -46,8 +36,7 @@ TASKS = [
     {"task_name": "Limpiar piscina",        "description": "Vaso, bordes y zona de baño de una piscina.",    "is_active": False},
 ]
 
-# El slug no se escribe: se genera del nombre con slugify(), igual que
-# hace el endpoint de crear servicio.
+# Sin slug: se genera con slugify(), igual que en el endpoint de crear servicio.
 SERVICES = [
     {
         "name": "Limpieza esencial",
@@ -86,8 +75,7 @@ SERVICES = [
         "is_active": True,
     },
 
-    # DESACTIVADO A PROPÓSITO: un servicio que ya no se ofrece. No debe
-    # salir en la web (#36), pero el encargado sigue viéndolo.
+    # DESACTIVADO A PROPÓSITO: fuera de la web (#36), visible para el encargado.
     {
         "name": "Limpieza de oficinas",
         "description": "Mantenimiento de oficinas y locales pequeños.",
@@ -103,7 +91,7 @@ SERVICES = [
 def setup_commands(app):
 
     # ------------------------------------------------------------------
-    # flask insert-test-data
+    # INSERT-TEST-DATA
     # ------------------------------------------------------------------
 
     @app.cli.command("insert-test-data")
@@ -113,9 +101,8 @@ def setup_commands(app):
         created_tasks = 0
 
         for data in TASKS:
-            # Se busca por el campo único. Si ya existe NO se toca: así un
-            # cambio hecho a mano desde el panel no se pierde al repetir
-            # el comando.
+            # Si ya existe no se toca: así no se pierden los cambios hechos
+            # a mano desde el panel al repetir el comando.
             exists = db.session.execute(
                 db.select(Task).where(Task.task_name == data["task_name"])
             ).scalar_one_or_none()
@@ -129,6 +116,7 @@ def setup_commands(app):
         created_services = 0
 
         for data in SERVICES:
+            # Mismo criterio que con las tareas, buscando por slug.
             slug = slugify(data["name"])
 
             exists = db.session.execute(

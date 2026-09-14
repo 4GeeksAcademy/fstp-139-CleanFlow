@@ -1,12 +1,11 @@
 /**
- * LLAMADAS AL BACKEND PARA EL CATÁLOGO DE TAREAS (ENCARGADO).
+ * LLAMADAS A LA API PARA EL CATÁLOGO DE TAREAS (ENCARGADO).
  *
- * Solo habla con la API: no toca el store, ni localStorage, ni navega.
- * Las cuatro rutas exigen el token de un encargado.
+ * Solo habla con la API (no toca store, localStorage ni navegación).
+ * Todas las rutas exigen el token de un encargado.
  *
- * Contrato: devuelven { ok, status, data } y NUNCA lanzan.
- *   - Si va bien, data es la tarea o la lista de tareas, ya desenvuelta.
- *   - Si va mal, el mensaje para el usuario está en data.message.
+ * Devuelven { ok, status, data } y NUNCA lanzan. Si va bien, data es la
+ * tarea o la lista ya desenvuelta; si va mal, el mensaje está en data.message.
  */
 
 import { apiRequest } from "./apiClient";
@@ -17,8 +16,7 @@ export const getAllTasks = async (token) => {
 
   if (!result.ok) return result;
 
-  // Array.isArray: si la respuesta no trae una lista, la pantalla recibe
-  // una vacía en vez de romperse al recorrerla.
+  // Si la respuesta no trae una lista, se devuelve [] para no romper la pantalla.
   return { ...result, data: Array.isArray(result.data.tasks) ? result.data.tasks : [] };
 };
 
@@ -29,7 +27,7 @@ export const createTask = async (taskData, token) => {
   return result.ok ? { ...result, data: result.data.task } : result;
 };
 
-/** Edita el nombre y/o la descripción. El estado no se toca aquí. data: la tarea actualizada. */
+/** Edita nombre y/o descripción (el estado va por toggleTaskStatus). data: la tarea actualizada. */
 export const updateTask = async (taskId, taskData, token) => {
   const result = await apiRequest(`/api/tasks/${taskId}`, { method: "PUT", token, body: taskData });
 
