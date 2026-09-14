@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { register } from "../../services/authService";
 
 
 export const Register = () => {
@@ -33,20 +34,14 @@ export const Register = () => {
         setLoading(true);
 
         try {
-            const response = await fetch(
-                import.meta.env.VITE_BACKEND_URL + "/api/register",
-                {
-                    method: "POST",
-                    headers: {
-                        "content-Type": "application/json",
-                    },
-                    body: JSON.stringify(formData),
-                }
-            );
-            const data = await response.json();
+            const { ok, data, networkError } = await register(formData);
 
-            if (!response.ok) {
-                setError(data.message || "No se pudo completar el registro");
+            if (!ok) {
+                setError(
+                    networkError
+                        ? data.error
+                        : data.message || data.error || "No se pudo completar el registro"
+                );
                 return;
             }
 
