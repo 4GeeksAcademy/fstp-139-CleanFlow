@@ -617,6 +617,7 @@ def update_task_status(task_id):
 #
 #   GET    /api/manage/services       todos, activos y desactivados
 #   POST   /api/services              crear
+#   PUT    /api/services/<id>         editar
 # ----------------------------------------------------------------------
 
 @api.route("/manage/services", methods=["GET"])
@@ -816,3 +817,52 @@ def create_service():
         return jsonify({"message": "Ya existe un servicio con ese nombre"}), 409
 
     return jsonify({"service": service.serialize()}), 201
+
+
+@api.route("/services/<int:service_id>", methods=["PUT"])
+@role_required("manager")
+def update_service(service_id):
+    """Edita un servicio. Solo cambia lo que venga en el cuerpo.
+
+    Dos cosas NO se tocan aquí, aunque vengan en el cuerpo:
+
+    - El estado (is_active): va por su propia ruta, igual que en las
+      tareas, para que editar un precio nunca desactive un servicio.
+    - El slug: NO se regenera al renombrar. Cambiarlo rompería los enlaces
+      a la ficha del servicio que ya circulen. A cambio, tras un renombrado
+      el slug puede no coincidir con el nombre, y es aceptable.
+    """
+    service = db.session.get(Service, service_id)
+
+    if not service:
+        return jsonify({"message": "Servicio no encontrado"}), 404
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    # Se quita el estado antes de validar: así validate_service lo toma del
+    # servicio actual y se queda como estaba.
+    data = {field: value for field, value in data.items() if field != "is_active"}
+
+    # Las mismas reglas que al crear. Lo que no venga se toma del servicio
+    # actual, y por eso se comprueban bien las reglas entre dos campos.
+    fields, error = validate_service(data, current=service)
+    if error:
+        return jsonify({"message": error}), 400
+
+    if service_name_taken(fields["name"], exclude_service_id=service_id):
+        return jsonify({"message": "Ya existe un servicio con ese nombre"}), 409
+
+    # Validado todo, ahora sí se aplica.
+    for field, value in fields.items():
+        setattr(service, field, value)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"message": "Ya existe un servicio con ese nombre"}), 409
+
+    return jsonify({"service": service.serialize()}), 200
