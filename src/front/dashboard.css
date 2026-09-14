@@ -1,0 +1,608 @@
+/* ======================================================================
+   ESTILOS DE LAS PÁGINAS DEL DASHBOARD
+
+   Lo importa cada página que lo usa (ManageTasks.jsx, y en el paso 11
+   la de servicios). Importarlo en varias no lo duplica: Vite lo carga
+   una sola vez.
+
+   Dos bloques:
+     1. COMPONENTES COMPARTIDOS (cf-dash-*): botones, campos, interruptor,
+        avisos... Para reutilizar en cualquier página del dashboard.
+     2. PÁGINAS (cf-tasks__*...): la colocación propia de cada una.
+
+   Todos los valores salen de los tokens de index.css. El sidebar y el
+   marco del dashboard NO se estilan aquí.
+
+   Prefijo cf-dash- y no cf-: al navegar de la web al dashboard, web.css
+   sigue cargado, y un .cf-btn de aquí pisaría el de la web pública.
+   ====================================================================== */
+
+/* ======================================================================
+   1. COMPONENTES COMPARTIDOS
+   ====================================================================== */
+
+/* ---------- BOTONES ----------
+   La pastilla de la web pública (.cf-btn), en tamaño de dashboard.
+
+       <button className="cf-dash-btn">                       principal
+       <button className="cf-dash-btn cf-dash-btn--ghost">    secundario
+       añadir cf-dash-btn--sm                                 dentro de una fila */
+
+.cf-dash-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-3) var(--cf-space-6);
+
+  border: 1px solid var(--cf-primary);
+  border-radius: 999px;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  line-height: 1;
+
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--cf-transition),
+    border-color var(--cf-transition),
+    color var(--cf-transition);
+}
+
+.cf-dash-btn:hover {
+  background-color: var(--cf-primary-dark);
+  border-color: var(--cf-primary-dark);
+  color: var(--cf-on-primary);
+}
+
+.cf-dash-btn:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+}
+
+.cf-dash-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cf-dash-btn--ghost {
+  background-color: transparent;
+  color: var(--cf-primary);
+}
+
+.cf-dash-btn--ghost:hover {
+  background-color: var(--cf-primary-soft);
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-dash-btn--sm {
+  padding: var(--cf-space-2) var(--cf-space-4);
+  font-size: 0.8125rem;
+}
+
+/* Iconos de Font Awesome dentro del botón. */
+.cf-dash-btn i {
+  font-size: 0.8125rem;
+}
+
+/* ---------- CAMPOS DE FORMULARIO ---------- */
+
+.cf-dash-field {
+  display: grid;
+  gap: 6px;
+}
+
+.cf-dash-field__label {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+.cf-dash-field__optional {
+  color: var(--cf-muted);
+  font-weight: 400;
+}
+
+/* Contador de caracteres, a la derecha. */
+.cf-dash-field__hint {
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-dash-input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  transition:
+    border-color var(--cf-transition),
+    box-shadow var(--cf-transition);
+}
+
+/* ⚠️ A mano, como en auth.css: no hay token para el placeholder. */
+.cf-dash-input::placeholder {
+  color: #a39f92;
+}
+
+.cf-dash-input:focus {
+  outline: none;
+  border-color: var(--cf-primary);
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+textarea.cf-dash-input {
+  min-height: 76px;
+  resize: vertical;
+}
+
+/* ---------- AVISO DE ERROR ----------
+   ⚠️ Colores a mano, los mismos que .auth-alert: la paleta todavía no
+   tiene tokens de estado. Cuando existan, sustituir aquí. */
+
+.cf-dash-alert {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid #efc4bc;
+  border-radius: var(--cf-radius-sm);
+  background-color: #fbe9e6;
+  color: #7a2e22;
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- INTERRUPTOR ----------
+   Un checkbox de verdad (role="switch") dibujado como interruptor: se
+   sigue pudiendo usar con teclado y lector de pantalla.
+
+       <label className="cf-dash-switch">
+           <input type="checkbox" role="switch" />
+           <span className="cf-dash-switch__text">Activa</span>
+       </label> */
+
+.cf-dash-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  margin: 0;
+  font-size: var(--cf-text-sm);
+  cursor: pointer;
+}
+
+.cf-dash-switch input {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background-color: var(--cf-border);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: background-color var(--cf-transition);
+}
+
+/* La bolita. */
+.cf-dash-switch input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--cf-surface);
+  box-shadow: 0 1px 2px rgba(38, 38, 31, 0.25);
+  transition: transform var(--cf-transition);
+}
+
+.cf-dash-switch input:checked {
+  background-color: var(--cf-primary);
+}
+
+.cf-dash-switch input:checked::after {
+  transform: translateX(16px);
+}
+
+.cf-dash-switch input:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+}
+
+/* Mientras se guarda el cambio. */
+.cf-dash-switch input:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.cf-dash-switch__text {
+  color: var(--cf-muted);
+}
+
+.cf-dash-switch input:checked + .cf-dash-switch__text {
+  color: var(--cf-primary);
+  font-weight: 600;
+}
+
+/* ---------- BLOQUE DE ESTADO ----------
+   Lista vacía o error de carga: icono, título, texto y un botón. */
+
+.cf-dash-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-12) var(--cf-space-6);
+  border: 1px dashed var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  text-align: center;
+}
+
+.cf-dash-state__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 1.375rem;
+}
+
+/* ⚠️ Colores a mano: ver .cf-dash-alert. */
+.cf-dash-state--error .cf-dash-state__icon {
+  background-color: #fbe9e6;
+  color: #7a2e22;
+}
+
+.cf-dash-state__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+  color: var(--cf-primary);
+}
+
+.cf-dash-state__text {
+  margin: 0 0 var(--cf-space-2);
+  max-width: 44ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- CARGANDO ----------
+   Barras grises con un brillo que pasa: dejan ver la forma de lo que
+   va a llegar, en vez de un texto suelto. */
+
+.cf-dash-skel {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--cf-bg) 0%, var(--cf-border) 50%, var(--cf-bg) 100%);
+  background-size: 200% 100%;
+  animation: cf-dash-skel 1.2s ease-in-out infinite;
+}
+
+@keyframes cf-dash-skel {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* ======================================================================
+   2. PÁGINA: CATÁLOGO DE TAREAS (ManageTasks.jsx)
+   ====================================================================== */
+
+/* container-type: el diseño de móvil lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final). */
+.cf-tasks {
+  container-type: inline-size;
+  max-width: 1080px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-tasks__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-tasks__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--cf-primary);
+}
+
+.cf-tasks__lede {
+  margin: var(--cf-space-1) 0 0;
+  max-width: 60ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- FORMULARIO ---------- */
+
+.cf-tasks__form {
+  display: grid;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-tasks__form-title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  color: var(--cf-primary);
+}
+
+.cf-tasks__form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-3);
+}
+
+/* El aviso del interruptor, entre el formulario y la lista. */
+.cf-tasks__alert {
+  margin-bottom: var(--cf-space-4);
+}
+
+/* ---------- PESTAÑAS ---------- */
+
+.cf-tasks__tabs {
+  display: flex;
+  gap: var(--cf-space-6);
+  margin-bottom: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-border);
+  overflow-x: auto;
+}
+
+/* margin-bottom -1px: la raya de la pestaña activa se monta sobre la
+   línea gris, en vez de quedar debajo. */
+.cf-tasks__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: -1px;
+  padding: 0 0 var(--cf-space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cf-tasks__tab:hover {
+  color: var(--cf-primary);
+}
+
+.cf-tasks__tab[aria-pressed="true"] {
+  border-bottom-color: var(--cf-primary);
+  color: var(--cf-primary);
+  font-weight: 600;
+}
+
+.cf-tasks__count {
+  min-width: 22px;
+  padding: 1px 7px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-tasks__tab[aria-pressed="true"] .cf-tasks__count {
+  border-color: var(--cf-primary-soft);
+  background-color: var(--cf-primary-soft);
+}
+
+/* ---------- LISTA ---------- */
+
+.cf-tasks__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+/* Tres columnas: tarea (nombre + descripción), estado y acciones. La
+   cabecera usa las mismas para que todo quede alineado. */
+.cf-tasks__head,
+.cf-tasks__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px 96px;
+  align-items: center;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-4) var(--cf-space-6);
+}
+
+.cf-tasks__head {
+  padding-block: var(--cf-space-3);
+  background-color: rgba(var(--cf-bg-rgb), 0.6);
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cf-tasks__row {
+  border-top: 1px solid var(--cf-border);
+  transition: background-color var(--cf-transition);
+}
+
+.cf-tasks__row:hover {
+  background-color: rgba(var(--cf-bg-rgb), 0.45);
+}
+
+.cf-tasks__name {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cf-tasks__desc {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  line-height: 1.45;
+}
+
+.cf-tasks__desc--empty {
+  font-style: italic;
+}
+
+/* Desactivada: el nombre se apaga para distinguirla de un vistazo. */
+.cf-tasks__row--inactive .cf-tasks__name {
+  color: var(--cf-muted);
+}
+
+.cf-tasks__actions {
+  text-align: right;
+}
+
+/* La fila recién creada o editada se ilumina un momento. La duración
+   tiene que coincidir con FLASH_MS de ManageTasks.jsx. */
+.cf-tasks__row--flash {
+  animation: cf-tasks-flash 1.6s ease-out;
+}
+
+@keyframes cf-tasks-flash {
+  from {
+    background-color: var(--cf-primary-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* Anchos de las barras de carga, variados para que no parezcan una
+   rejilla. */
+.cf-tasks__skel-name {
+  width: 40%;
+}
+
+.cf-tasks__row:nth-child(even) .cf-tasks__skel-name {
+  width: 30%;
+}
+
+.cf-tasks__skel-desc {
+  width: 62%;
+  height: 10px;
+  margin-top: 10px;
+}
+
+.cf-tasks__row:nth-child(3n) .cf-tasks__skel-desc {
+  width: 48%;
+}
+
+.cf-tasks__skel-status {
+  width: 90px;
+}
+
+.cf-tasks__skel-action {
+  width: 70px;
+  height: 28px;
+  margin-left: auto;
+  border-radius: 999px;
+}
+
+/* ---------- PANTALLAS ESTRECHAS ----------
+   Cada fila pasa a dos pisos: arriba la tarea, abajo el interruptor y
+   el botón. La cabecera de columnas sobra. */
+
+@container (max-width: 620px) {
+  .cf-tasks__title {
+    font-size: var(--cf-text-xl);
+  }
+
+  /* Menos hueco entre pestañas: con el de escritorio, «Desactivadas»
+     se corta en el borde de un móvil. */
+  .cf-tasks__tabs {
+    gap: var(--cf-space-4);
+  }
+
+  .cf-tasks__head {
+    display: none;
+  }
+
+  .cf-tasks__row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "info info"
+      "status actions";
+    row-gap: var(--cf-space-3);
+    padding: var(--cf-space-4);
+  }
+
+  .cf-tasks__info {
+    grid-area: info;
+  }
+
+  .cf-tasks__status {
+    grid-area: status;
+  }
+
+  .cf-tasks__actions {
+    grid-area: actions;
+  }
+
+  .cf-tasks__form {
+    padding: var(--cf-space-4);
+  }
+}
+
+/* ======================================================================
+   MOVIMIENTO REDUCIDO
+   Quien lo pide en su sistema no ve brillos ni destellos.
+   ====================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-dash-skel,
+  .cf-tasks__row--flash {
+    animation: none;
+  }
+}
