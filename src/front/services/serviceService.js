@@ -8,6 +8,8 @@
  * aplicación cuenta con eso, así que mantenlo al añadir funciones.
  */
 
+import { apiRequest } from "./apiClient";
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 // ----------------------------------------------------------------------
@@ -129,4 +131,49 @@ export const getServices = async () => {
       },
     };
   }
+};
+
+
+// ----------------------------------------------------------------------
+// GESTIÓN DEL CATÁLOGO (ENCARGADO)
+//
+// Las cuatro rutas exigen el token de un encargado. Usan apiRequest, así
+// que no repiten el fetch ni la gestión de errores.
+//
+// Si va bien, data es el servicio o la lista, ya desenvuelta.
+// Si va mal, el mensaje para el usuario está en data.message.
+// ----------------------------------------------------------------------
+
+/** Todos los servicios, activos y desactivados. data: array de servicios. */
+export const getAllServices = async (token) => {
+  const result = await apiRequest("/api/manage/services", { token });
+
+  if (!result.ok) return result;
+
+  return { ...result, data: Array.isArray(result.data.services) ? result.data.services : [] };
+};
+
+/** Crea un servicio. El slug lo genera el backend. data: el servicio creado. */
+export const createService = async (serviceData, token) => {
+  const result = await apiRequest("/api/services", { method: "POST", token, body: serviceData });
+
+  return result.ok ? { ...result, data: result.data.service } : result;
+};
+
+/** Edita solo lo que se envíe. No cambia ni el slug ni el estado. data: el servicio actualizado. */
+export const updateService = async (serviceId, serviceData, token) => {
+  const result = await apiRequest(`/api/services/${serviceId}`, { method: "PUT", token, body: serviceData });
+
+  return result.ok ? { ...result, data: result.data.service } : result;
+};
+
+/** Activa (true) o desactiva (false) un servicio. data: el servicio actualizado. */
+export const toggleServiceStatus = async (serviceId, isActive, token) => {
+  const result = await apiRequest(`/api/services/${serviceId}/status`, {
+    method: "PATCH",
+    token,
+    body: { is_active: isActive },
+  });
+
+  return result.ok ? { ...result, data: result.data.service } : result;
 };
