@@ -13,6 +13,7 @@ import { Login } from "./pages/web/Login";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
 import { DashboardLayout } from "./pages/dashboard/DashboardLayout";
 import { RoleRoute } from "./pages/dashboard/RoleRoute";
+import { ManageTasks } from "./pages/dashboard/ManageTasks";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
@@ -55,6 +56,7 @@ export const router = createBrowserRouter(
           <Route element={<RoleRoute allowed={["manager"]} />}>
             <Route path="workers" element={<h1>Trabajadores</h1>} />
             <Route path="services" element={<h1>Servicios</h1>} />
+            <Route path="task-catalog" element={<ManageTasks />} />
             <Route path="shifts" element={<h1>Turnos</h1>} />
           </Route>
 
