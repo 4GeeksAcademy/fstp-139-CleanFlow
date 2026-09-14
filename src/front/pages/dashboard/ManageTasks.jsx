@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { getAllTasks, createTask, updateTask, toggleTaskStatus } from "../../services/taskService"
+import { SearchBox, Highlight, matchesSearch } from "../../components/dashboard/SearchBox"
 import "../../dashboard.css"
 
 // Mismo tope que la columna task_name en models.py y que la API.
@@ -39,6 +40,8 @@ const SKELETON_ROWS = 6
 const PageHeader = ({ onCreate }) => (
     <div className="cf-tasks__header">
         <div>
+            {/* El grupo del sidebar al que pertenece la página. */}
+            <p className="cf-dash-eyebrow">Administrar catálogo</p>
             <h1 className="cf-tasks__title">Catálogo de tareas</h1>
             <p className="cf-tasks__lede">
                 Las tareas que se pueden incluir en los servicios. Desactivar una la
@@ -63,6 +66,9 @@ export const ManageTasks = () => {
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState("")
     const [filter, setFilter] = useState("all")
+
+    // ---- La búsqueda ----
+    const [query, setQuery] = useState("")
 
     // ---- El formulario ----
     // null: cerrado · { task: null }: creando · { task }: editando esa tarea
@@ -194,9 +200,12 @@ export const ManageTasks = () => {
                 : [...current, result.data]
         )
 
-        // Una tarea nueva nace activa: en la pestaña "Desactivadas" no se
-        // vería. Se vuelve a "Todas" para que aparezca.
-        if (!editing.task) setFilter("all")
+        // Una tarea nueva nace activa, y puede no coincidir con lo buscado:
+        // se vuelve a "Todas" y se borra la búsqueda para que aparezca.
+        if (!editing.task) {
+            setFilter("all")
+            setQuery("")
+        }
 
         setFlashId(result.data.task_id)
         closeForm()
@@ -224,6 +233,24 @@ export const ManageTasks = () => {
         setTasks((current) =>
             current.map((item) => (item.task_id === result.data.task_id ? result.data : item))
         )
+    }
+
+    // ------------------------------------------------------------------
+    // BÚSQUEDA
+    // ------------------------------------------------------------------
+
+    // Al elegir una sugerencia se busca su nombre exacto y se ilumina. Si la
+    // pestaña actual la esconde, se vuelve a "Todas" para que se vea.
+    const selectSuggestion = (option) => {
+        const task = tasks.find((item) => item.task_id === option.id)
+
+        setQuery(task.task_name)
+
+        if ((filter === "active" && !task.is_active) || (filter === "inactive" && task.is_active)) {
+            setFilter("all")
+        }
+
+        setFlashId(task.task_id)
     }
 
     // ------------------------------------------------------------------
@@ -278,12 +305,25 @@ export const ManageTasks = () => {
         )
     }
 
-    const activeCount = tasks.filter((task) => task.is_active).length
-    const counts = { all: tasks.length, active: activeCount, inactive: tasks.length - activeCount }
+    // Primero la búsqueda y después la pestaña. Los contadores de las
+    // pestañas cuentan solo lo encontrado.
+    const foundTasks = tasks.filter((task) => matchesSearch(query, task.task_name, task.description))
+    const activeCount = foundTasks.filter((task) => task.is_active).length
+    const counts = { all: foundTasks.length, active: activeCount, inactive: foundTasks.length - activeCount }
 
-    const visibleTasks = tasks.filter((task) =>
+    const visibleTasks = foundTasks.filter((task) =>
         filter === "all" ? true : filter === "active" ? task.is_active : !task.is_active
     )
+
+    const searchOptions = tasks.map((task) => ({
+        id: task.task_id,
+        name: task.task_name,
+        description: task.description,
+        meta: task.description,
+        active: task.is_active,
+    }))
+
+    const searching = query.trim() !== ""
 
     return (
         <section className="cf-tasks">
@@ -383,27 +423,72 @@ export const ManageTasks = () => {
                 </div>
             ) : (
                 <>
-                    {/* aria-pressed y no role="tab": son botones de filtro
-                        sobre la misma lista, no paneles distintos. */}
-                    <div className="cf-tasks__tabs">
-                        {FILTERS.map((option) => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                className="cf-tasks__tab"
-                                aria-pressed={filter === option.value}
-                                onClick={() => setFilter(option.value)}
-                            >
-                                {option.label}
-                                <span className="cf-tasks__count">{counts[option.value]}</span>
-                            </button>
-                        ))}
+                    {/* Pestañas a la izquierda y buscador a la derecha, sobre la
+                        misma línea. aria-pressed y no role="tab": son botones de
+                        filtro sobre la misma lista, no paneles distintos. */}
+                    <div className="cf-dash-toolbar">
+                        <div className="cf-tasks__tabs">
+                            {FILTERS.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className="cf-tasks__tab"
+                                    aria-pressed={filter === option.value}
+                                    onClick={() => setFilter(option.value)}
+                                >
+                                    {option.label}
+                                    {/* Las desactivadas, en terracota: son lo que hay que mirar. */}
+                                    <span
+                                        className={`cf-tasks__count${
+                                            option.value === "inactive" && counts.inactive > 0 ? " cf-dash-count--attention" : ""
+                                        }`}
+                                    >
+                                        {counts[option.value]}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <SearchBox
+                            id="task-search"
+                            label="Buscar tarea"
+                            value={query}
+                            onChange={setQuery}
+                            options={searchOptions}
+                            inactiveLabel="Desactivada"
+                            onSelect={selectSuggestion}
+                        />
                     </div>
 
-                    {visibleTasks.length === 0 ? (
+                    {searching && (
+                        <p className="cf-dash-results" role="status">
+                            <span>
+                                {foundTasks.length} {foundTasks.length === 1 ? "resultado" : "resultados"} para «{query.trim()}»
+                            </span>
+                            <button type="button" onClick={() => setQuery("")}>
+                                Borrar búsqueda
+                            </button>
+                        </p>
+                    )}
+
+                    {foundTasks.length === 0 ? (
+                        <div className="cf-dash-state">
+                            <span className="cf-dash-state__icon">
+                                <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+                            </span>
+                            <p className="cf-dash-state__title">Ninguna tarea coincide con «{query.trim()}»</p>
+                            <p className="cf-dash-state__text">
+                                Prueba con otra palabra: se busca en el nombre y en la descripción.
+                            </p>
+                            <button type="button" className="cf-dash-btn cf-dash-btn--ghost" onClick={() => setQuery("")}>
+                                Borrar búsqueda
+                            </button>
+                        </div>
+                    ) : visibleTasks.length === 0 ? (
                         <div className="cf-dash-state">
                             <p className="cf-dash-state__text">
-                                {filter === "active" ? "No hay tareas activas." : "No hay tareas desactivadas."}
+                                {filter === "active" ? "No hay tareas activas" : "No hay tareas desactivadas"}
+                                {searching ? " con esa búsqueda." : "."}
                             </p>
                         </div>
                     ) : (
@@ -428,9 +513,13 @@ export const ManageTasks = () => {
                                 return (
                                     <li key={task.task_id} className={rowClass}>
                                         <div className="cf-tasks__info">
-                                            <p className="cf-tasks__name">{task.task_name}</p>
+                                            <p className="cf-tasks__name">
+                                                <Highlight text={task.task_name} query={query} />
+                                            </p>
                                             {task.description ? (
-                                                <p className="cf-tasks__desc">{task.description}</p>
+                                                <p className="cf-tasks__desc">
+                                                    <Highlight text={task.description} query={query} />
+                                                </p>
                                             ) : (
                                                 <p className="cf-tasks__desc cf-tasks__desc--empty">Sin descripción</p>
                                             )}
