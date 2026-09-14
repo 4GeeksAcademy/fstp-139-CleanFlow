@@ -38,6 +38,8 @@
   --cf-primary-dark: #222d1c; /* el mismo, al pasar el ratón */
   --cf-primary-soft: #e7eddf; /* fondo suave del color de marca */
   --cf-accent: #c97b4a; /* terracota: destacados puntuales */
+  --cf-accent-dark: #9a5227; /* el terracota para TEXTO: #c97b4a no se lee en pequeño sobre blanco */
+  --cf-accent-soft: #f6e6da; /* fondo suave del terracota */
   --cf-text: #26261f; /* texto normal */
   --cf-muted: #6e6b5e; /* texto secundario, pies de foto */
   --cf-border: #e1dac5; /* líneas y bordes */
