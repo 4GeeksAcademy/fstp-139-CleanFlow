@@ -47,6 +47,11 @@ def handle_hello():
 def create_worker():
     data = request.get_json()
 
+    if not data:
+        return jsonify({
+            "message": "No se han enviado datos"
+        }), 400
+
     name = data.get("name")
     last_name = data.get("last_name")
     phone = data.get("phone")
@@ -62,17 +67,48 @@ def create_worker():
             "message": "Nombre, apellidos, teléfono, email y contraseña son obligatorios"
         }), 400
 
+    # Validar email
+    email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+    if not re.match(email_pattern, email):
+        return jsonify({
+            "message": "El correo electrónico no es válido"
+        }), 400
+
+    # Validar contraseña
+    if len(password) < 6:
+        return jsonify({
+            "message": "La contraseña debe tener mínimo 6 caracteres"
+        }), 400
+
+    # Solo se pueden crear trabajadores o managers
     if role not in ["worker", "manager"]:
         return jsonify({
             "message": "El rol debe ser worker o manager"
         }), 400
 
+    # Comprobar email duplicado
     existing_user = User.query.filter_by(email=email).first()
 
     if existing_user:
         return jsonify({
-            "message": "Ya existe un usuario con ese email"
-        }), 400
+            "message": "El correo electrónico ya está registrado"
+        }), 409
+
+    # Validar fecha solo si se ha enviado
+    parsed_hire_date = None
+
+    if hire_date:
+        try:
+            parsed_hire_date = datetime.strptime(
+                hire_date,
+                "%Y-%m-%d"
+            ).date()
+
+        except (ValueError, TypeError):
+            return jsonify({
+                "message": "hire_date debe tener el formato YYYY-MM-DD"
+            }), 400
 
     try:
         user = User(
@@ -92,11 +128,7 @@ def create_worker():
         worker = Worker(
             user_id=user.user_id,
             shift_id=shift_id,
-            hire_date=(
-                datetime.strptime(hire_date, "%Y-%m-%d").date()
-                if hire_date
-                else None
-            ),
+            hire_date=parsed_hire_date,
             position=position,
             is_active=True
         )
@@ -106,30 +138,30 @@ def create_worker():
 
         return jsonify(worker.serialize()), 201
 
-    except Exception as error:
+    except Exception:
         db.session.rollback()
 
         return jsonify({
-            "message": "No se ha podido crear el trabajador",
-            "error": str(error)
+            "message": "No se ha podido crear el trabajador"
         }), 500
 
 
 @api.route("/workers", methods=["GET"])
 @role_required("manager")
 def get_workers():
-
     workers = Worker.query.all()
 
-    return jsonify([
-        worker.serialize()
-        for worker in workers
-    ]), 200
+    return jsonify({
+        "workers": [
+            worker.serialize()
+            for worker in workers
+        ]
+    }), 200
 
 
 @api.route("/workers/<int:worker_id>", methods=["GET"])
+@role_required("manager")
 def get_worker(worker_id):
-
     worker = db.session.get(Worker, worker_id)
 
     if not worker:
@@ -140,7 +172,13 @@ def get_worker(worker_id):
     return jsonify({
         "worker_id": worker.worker_id,
         "user_id": worker.user_id,
+        "name": worker.user.name if worker.user else None,
+        "last_name": worker.user.last_name if worker.user else None,
+        "phone": worker.user.phone if worker.user else None,
+        "email": worker.user.email if worker.user else None,
+        "role": worker.user.role if worker.user else None,
         "shift_id": worker.shift_id,
+        "shift_name": worker.shift.name if worker.shift else None,
         "hire_date": (
             worker.hire_date.isoformat()
             if worker.hire_date
@@ -154,7 +192,6 @@ def get_worker(worker_id):
 @api.route("/workers/<int:worker_id>", methods=["PUT"])
 @role_required("manager")
 def update_worker(worker_id):
-
     worker = db.session.get(Worker, worker_id)
 
     if not worker:
@@ -183,18 +220,30 @@ def update_worker(worker_id):
         worker.user.phone = data["phone"]
 
     if "email" in data:
+        email = data["email"]
 
-        existing_user = User.query.filter_by(
-            email=data["email"]
-        ).first()
+        email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
-        # Evitamos que un trabajador cambie su email por el de otro usuario
-        if existing_user and existing_user.user_id != worker.user_id:
+        if not re.match(email_pattern, email):
             return jsonify({
-                "message": "El email ya está registrado"
+                "message": "El correo electrónico no es válido"
             }), 400
 
-        worker.user.email = data["email"]
+        existing_user = User.query.filter_by(
+            email=email
+        ).first()
+
+        # Evitamos que un trabajador cambie su email
+        # por el de otro usuario.
+        if (
+            existing_user
+            and existing_user.user_id != worker.user_id
+        ):
+            return jsonify({
+                "message": "El email ya está registrado"
+            }), 409
+
+        worker.user.email = email
 
     # --------------------------------------------------------------
     # DATOS DEL WORKER
@@ -204,16 +253,20 @@ def update_worker(worker_id):
         worker.shift_id = data["shift_id"]
 
     if "hire_date" in data:
-        try:
-            worker.hire_date = datetime.strptime(
-                data["hire_date"],
-                "%Y-%m-%d"
-            ).date()
+        if data["hire_date"] in [None, ""]:
+            worker.hire_date = None
 
-        except ValueError:
-            return jsonify({
-                "message": "hire_date debe tener el formato YYYY-MM-DD"
-            }), 400
+        else:
+            try:
+                worker.hire_date = datetime.strptime(
+                    data["hire_date"],
+                    "%Y-%m-%d"
+                ).date()
+
+            except (ValueError, TypeError):
+                return jsonify({
+                    "message": "hire_date debe tener el formato YYYY-MM-DD"
+                }), 400
 
     if "position" in data:
         worker.position = data["position"]
@@ -223,7 +276,6 @@ def update_worker(worker_id):
     # --------------------------------------------------------------
 
     if "is_active" in data:
-
         worker.is_active = data["is_active"]
 
         # También actualizamos el estado del User
@@ -234,11 +286,22 @@ def update_worker(worker_id):
     # --------------------------------------------------------------
 
     if "role" in data:
-
         if data["role"] not in ["worker", "manager"]:
             return jsonify({
                 "message": "El rol debe ser worker o manager"
             }), 400
+
+        current_user_id = get_jwt_identity()
+
+        # Un manager no puede quitarse a sí mismo
+        # el rol de manager.
+        if (
+            str(worker.user_id) == str(current_user_id)
+            and data["role"] != "manager"
+        ):
+            return jsonify({
+                "message": "No puedes quitarte el rol de manager"
+            }), 403
 
         worker.user.role = data["role"]
 
@@ -247,7 +310,6 @@ def update_worker(worker_id):
     # --------------------------------------------------------------
 
     try:
-
         db.session.commit()
 
         return jsonify({
@@ -259,6 +321,7 @@ def update_worker(worker_id):
             "phone": worker.user.phone,
             "email": worker.user.email,
             "shift_id": worker.shift_id,
+            "shift_name": worker.shift.name if worker.shift else None,
             "hire_date": (
                 worker.hire_date.isoformat()
                 if worker.hire_date
@@ -269,43 +332,11 @@ def update_worker(worker_id):
             "is_active": worker.is_active
         }), 200
 
-    except Exception as error:
-
+    except Exception:
         db.session.rollback()
 
         return jsonify({
-            "message": "Error al actualizar el worker",
-            "error": str(error)
-        }), 500
-
-
-@api.route("/workers/<int:worker_id>", methods=["DELETE"])
-@role_required("manager")
-def delete_worker(worker_id):
-
-    worker = db.session.get(Worker, worker_id)
-
-    if not worker:
-        return jsonify({
-            "message": "Worker no encontrado"
-        }), 404
-
-    try:
-
-        db.session.delete(worker)
-        db.session.commit()
-
-        return jsonify({
-            "message": "Worker eliminado correctamente"
-        }), 200
-
-    except Exception as error:
-
-        db.session.rollback()
-
-        return jsonify({
-            "message": "Error al eliminar el worker",
-            "error": str(error)
+            "message": "Error al actualizar el worker"
         }), 500
 
 
