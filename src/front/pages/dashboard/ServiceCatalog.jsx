@@ -8,14 +8,21 @@
  * La URL /dashboard/service-catalog es un CONTRATO: el botón "Reservar ahora"
  * de la web (WEB-15) apunta aquí. Si cambia, hay que avisar.
  *
+ * "Contratar" lleva a la página de la #14, que calcula horas y precio.
+ *
  * API: getServices y getTasks, las mismas que usa la web pública.
  * Sin estilos todavía: se visten en el paso 8 de la #36.
  */
 
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { getServices } from "../../services/serviceService"
 import { getTasks } from "../../services/taskService"
 import { formatPrice, taskWord } from "../../components/dashboard/ServiceForm"
+
+// Página de contratación de la #14. Es un CONTRATO con ella: lee el servicio
+// de ?servicio=<slug>. Mientras la #14 no exista, el enlace acaba en "Not found!".
+const BOOKING_PATH = "/dashboard/book"
 
 // ----------------------------------------------------------------------
 // TEXTOS DEL TIEMPO
@@ -116,6 +123,12 @@ export const ServiceCatalog = () => {
                             <p>{formatPrice(service.base_hourly_rate)} por hora</p>
                             <p>{contractHours(service)}</p>
                             <p>{taskTime(service)}</p>
+
+                            {/* <Link> y no <button>: navega a otra página.
+                                aria-label: todos dicen "Contratar", así se sabe cuál es cuál. */}
+                            <Link to={`${BOOKING_PATH}?servicio=${service.slug}`} aria-label={`Contratar ${service.name}`}>
+                                Contratar
+                            </Link>
                         </li>
                     ))}
                 </ul>
