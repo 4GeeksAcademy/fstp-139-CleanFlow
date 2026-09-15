@@ -1658,10 +1658,56 @@ main > section:nth-of-type(even) {
     width: 100%;
   }
 }
-
 @media (max-width: 360px) {
   .cf-work__information,
   .cf-work__form {
     padding: var(--cf-space-6);
   }
+}
+
+/* ======================================================================
+   ¿POR QUÉ CLEANFLOW? — WEB-14
+   ====================================================================== */
+
+.cf-reason-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--cf-space-6);
+  background-color: var(--cf-surface);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  box-shadow: var(--cf-shadow-sm);
+  transition: box-shadow var(--cf-transition);
+}
+
+.cf-reason-card:hover {
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-reason-card__icon {
+  width: var(--cf-space-12);
+  height: var(--cf-space-12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--cf-space-4);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-xl);
+}
+
+.cf-reason-card h3 {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+}
+
+.cf-reason-card p {
+  flex-grow: 1;
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-base);
 }

@@ -14,6 +14,7 @@ import { WorkWithUs } from "./pages/web/WorkWithUs";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
 import { DashboardLayout } from "./pages/dashboard/DashboardLayout";
 import { RoleRoute } from "./pages/dashboard/RoleRoute";
+import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
 
 
 export const router = createBrowserRouter(
@@ -56,7 +57,7 @@ export const router = createBrowserRouter(
               Un mismo RoleRoute puede envolver varias rutas:
               no hace falta repetir el guardián en cada una. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
-            <Route path="workers" element={<h1>Trabajadores</h1>} />
+            <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="services" element={<h1>Servicios</h1>} />
             <Route path="shifts" element={<h1>Turnos</h1>} />
           </Route>
