@@ -15,6 +15,7 @@ import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
 import { Login } from "./pages/web/Login";
+import { WorkWithUs } from "./pages/web/WorkWithUs";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
 import { DashboardLayout } from "./pages/dashboard/DashboardLayout";
 import { RoleRoute } from "./pages/dashboard/RoleRoute";
@@ -22,12 +23,14 @@ import { ManageTasks } from "./pages/dashboard/ManageTasks";
 import { ManageServices } from "./pages/dashboard/ManageServices";
 import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
 
+
 export const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       {/* ---------- ZONA PÚBLICA ---------- */}
       <Route path="/" element={<PublicLayout />} errorElement={<h1>Not found!</h1>}>
         <Route index element={<Home />} />
+        <Route path="work-with-us" element={<WorkWithUs />} />
       </Route>
 
       {/* ---------- LOGIN Y REGISTRO: layout propio, sin navbar ni footer ---------- */}
@@ -44,7 +47,7 @@ export const router = createBrowserRouter(
           {/* ---- COMUNES A TODOS LOS ROLES ----
               Sin RoleRoute a propósito: son la entrada de todo el mundo. */}
           <Route index element={<h1>Inicio</h1>} />
-          <Route path="profile" element={<h1>Mi cuenta</h1>} /> 
+          <Route path="profile" element={<h1>Mi cuenta</h1>} />
 
           {/* ---- SECCIONES DE CLIENT ---- */}
           <Route element={<RoleRoute allowed={["client"]} />}>
