@@ -53,3 +53,32 @@ export const login = async (email, password) => {
         };
     }
 };
+
+export const register = async (formData) => {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/register`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+        });
+
+        const data = await response.json();
+
+        return {
+            ok: response.ok,
+            data,
+        };
+    } catch (error) {
+        console.error("Fallo de red al registrar usuario:", error);
+
+        return {
+            ok: false,
+            networkError: true,
+            data: {
+                error: "No se ha podido conectar con el servidor. Inténtalo de nuevo en unos segundos.",
+            },
+        };
+    }
+};
