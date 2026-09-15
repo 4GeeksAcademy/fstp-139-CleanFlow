@@ -480,12 +480,28 @@ class Task(db.Model):
         default=True
     )
 
+    # ------------------------------------------------------------------
+    # SERIALIZADORES
+    # ------------------------------------------------------------------
+    # Como en Service: la de gestión lo enseña todo; la pública, sin estado.
+
     def serialize(self):
+        """Vista completa, para el panel del encargado."""
         return {
             "task_id": self.task_id,
             "task_name": self.task_name,
             "description": self.description,
             "is_active": self.is_active,
+        }
+
+    def serialize_public(self):
+        """Vista para la web y el cliente. Sin `is_active`: solo llegan tareas
+        activas. Con `task_id`, a diferencia de Service: las tareas no tienen
+        slug, y la reserva (#14) guardará las elegidas por su id."""
+        return {
+            "task_id": self.task_id,
+            "task_name": self.task_name,
+            "description": self.description,
         }
 
 
