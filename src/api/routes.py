@@ -1,7 +1,7 @@
 """
 ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py).
 
-  Públicas:     /register, /login, GET /services
+  Públicas:     /register, /login, GET /services y /services/<slug>
   Con sesión:   @jwt_required()         -> token válido, cualquier rol
   Con permiso:  @role_required("...")   -> token + rol correcto (403 si no)
 
@@ -449,7 +449,8 @@ def login():
 # ----------------------------------------------------------------------
 # CATÁLOGO PÚBLICO (WEB Y CLIENTE)
 # ----------------------------------------------------------------------
-#   GET    /api/services   servicios activos
+#   GET    /api/services          servicios activos
+#   GET    /api/services/<slug>   un servicio activo, con su ficha
 #
 # Sin decorador: lo ve cualquiera, con sesión o sin ella. Por eso solo
 # devuelve lo activo y con serialize_public(), nunca id ni estado.
@@ -466,6 +467,23 @@ def get_services():
     ).scalars().all()
 
     return jsonify({"services": [service.serialize_public() for service in services]}), 200
+
+
+@api.route("/services/<slug>", methods=["GET"])
+def get_service(slug):
+    """Un servicio activo por su slug, con descripción larga e imagen.
+
+    Desactivado da el mismo 404 que si no existiera: un servicio retirado
+    no sigue accesible escribiendo su URL.
+    """
+    service = db.session.execute(
+        db.select(Service).filter_by(slug=slug, is_active=True)
+    ).scalar_one_or_none()
+
+    if not service:
+        return jsonify({"message": "Servicio no encontrado"}), 404
+
+    return jsonify({"service": service.serialize_public()}), 200
 
 
 # ----------------------------------------------------------------------
