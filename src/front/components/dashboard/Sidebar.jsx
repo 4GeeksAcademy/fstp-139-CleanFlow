@@ -38,6 +38,7 @@ const LINKS = [
     { to: "/dashboard/profile",            label: "Mi cuenta",     roles: ["client", "worker", "manager"] },
 
     // --- Solo CLIENT ---
+    { to: "/dashboard/service-catalog",    label: "Catálogo de servicios", roles: ["client"] },
     { to: "/dashboard/contracted-services", label: "Mis servicios", roles: ["client"] },
 
     // --- Solo WORKER ---
