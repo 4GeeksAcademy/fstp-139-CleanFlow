@@ -1,7 +1,7 @@
 """
 ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py).
 
-  Públicas:     /register, /login, GET /services y /services/<slug>
+  Públicas:     /register, /login y el catálogo (GET /services, /services/<slug>, /tasks)
   Con sesión:   @jwt_required()         -> token válido, cualquier rol
   Con permiso:  @role_required("...")   -> token + rol correcto (403 si no)
 
@@ -451,9 +451,10 @@ def login():
 # ----------------------------------------------------------------------
 #   GET    /api/services          servicios activos
 #   GET    /api/services/<slug>   un servicio activo, con su ficha
+#   GET    /api/tasks             tareas activas
 #
 # Sin decorador: lo ve cualquiera, con sesión o sin ella. Por eso solo
-# devuelve lo activo y con serialize_public(), nunca id ni estado.
+# devuelve lo activo y con serialize_public(), nunca el estado.
 
 @api.route("/services", methods=["GET"])
 def get_services():
@@ -484,6 +485,19 @@ def get_service(slug):
         return jsonify({"message": "Servicio no encontrado"}), 404
 
     return jsonify({"service": service.serialize_public()}), 200
+
+
+@api.route("/tasks", methods=["GET"])
+def get_tasks():
+    """Tareas activas: el catálogo compartido que ve el cliente.
+
+    Sin minutos: dependen del servicio (Service.minutes_per_task).
+    """
+    tasks = db.session.execute(
+        db.select(Task).filter_by(is_active=True).order_by(Task.task_id)
+    ).scalars().all()
+
+    return jsonify({"tasks": [task.serialize_public() for task in tasks]}), 200
 
 
 # ----------------------------------------------------------------------
