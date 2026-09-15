@@ -1439,6 +1439,231 @@ main > section:nth-of-type(even) {
     grid-template-columns: 1fr;
   }
 }
+/* ======================================================================
+   TRABAJA CON NOSOTROS
+   ====================================================================== */
+
+.cf-work {
+  background-color: var(--cf-bg);
+}
+
+.cf-work__intro {
+  padding: var(--cf-space-16) 0;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  text-align: center;
+}
+
+.cf-work__intro .cf-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cf-work__eyebrow {
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-accent);
+  font-size: var(--cf-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-work__title {
+  margin: 0 0 var(--cf-space-4);
+  color: var(--cf-on-primary);
+  font-size: var(--cf-text-3xl);
+}
+
+.cf-work__description {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--cf-on-primary-muted);
+  font-size: var(--cf-text-lg);
+}
+
+.cf-work__content {
+  padding: var(--cf-space-16) 0 0;
+}
+
+.cf-work__card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-work__information {
+  padding: var(--cf-space-12);
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-work__information h2 {
+  margin: 0 0 var(--cf-space-6);
+  font-size: var(--cf-text-2xl);
+}
+
+.cf-work__information p {
+  margin: 0 0 var(--cf-space-4);
+  color: var(--cf-muted);
+}
+
+.cf-work__information p:last-child {
+  margin-bottom: 0;
+  padding-top: var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-work__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-space-6);
+  padding: var(--cf-space-12);
+}
+
+.cf-work__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cf-space-6);
+}
+
+.cf-work__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-space-2);
+}
+
+.cf-work__field label {
+  color: var(--cf-text);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+.cf-work__field input,
+.cf-work__field textarea {
+  width: 100%;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  transition:
+    border-color var(--cf-transition),
+    box-shadow var(--cf-transition);
+}
+
+.cf-work__field input {
+  padding: var(--cf-space-3) var(--cf-space-4);
+}
+
+.cf-work__field textarea {
+  min-height: calc(var(--cf-space-16) * 2);
+  padding: var(--cf-space-3) var(--cf-space-4);
+  resize: vertical;
+}
+
+.cf-work__field input::placeholder,
+.cf-work__field textarea::placeholder {
+  color: var(--cf-muted);
+}
+
+.cf-work__field input:focus,
+.cf-work__field textarea:focus {
+  border-color: var(--cf-primary);
+  outline: none;
+  box-shadow: 0 0 0 var(--cf-space-1) var(--cf-ring);
+}
+
+.cf-work__alert {
+  margin: 0;
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-work__alert--error {
+  border-color: var(--cf-accent);
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+}
+
+.cf-work__alert--success {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary-dark);
+}
+
+.cf-work__submit {
+  align-self: flex-start;
+  min-width: calc(var(--cf-space-16) * 3);
+  padding: var(--cf-space-3) var(--cf-space-6);
+  border: 1px solid var(--cf-primary);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color var(--cf-transition),
+    border-color var(--cf-transition);
+}
+
+.cf-work__submit:hover:not(:disabled) {
+  border-color: var(--cf-primary-dark);
+  background-color: var(--cf-primary-dark);
+}
+
+.cf-work__submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .cf-work__intro {
+    padding: var(--cf-space-12) 0;
+  }
+
+  .cf-work__title {
+    font-size: var(--cf-text-2xl);
+  }
+
+  .cf-work__description {
+    font-size: var(--cf-text-base);
+  }
+
+  .cf-work__content {
+    padding-top: var(--cf-space-8);
+  }
+
+  .cf-work__card {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-work__information,
+  .cf-work__form {
+    padding: var(--cf-space-8);
+  }
+
+  .cf-work__row {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-work__submit {
+    width: 100%;
+  }
+}
+@media (max-width: 360px) {
+  .cf-work__information,
+  .cf-work__form {
+    padding: var(--cf-space-6);
+  }
+}
 
 /* ======================================================================
    ¿POR QUÉ CLEANFLOW? — WEB-14

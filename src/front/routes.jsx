@@ -10,10 +10,12 @@ import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
 import { Login } from "./pages/web/Login";
+import { WorkWithUs } from "./pages/web/WorkWithUs";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
 import { DashboardLayout } from "./pages/dashboard/DashboardLayout";
 import { RoleRoute } from "./pages/dashboard/RoleRoute";
 import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
+
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
@@ -21,6 +23,7 @@ export const router = createBrowserRouter(
       {/* ---------- ZONA PÚBLICA ---------- */}
       <Route path="/" element={<PublicLayout />} errorElement={<h1>Not found!</h1>}>
         <Route index element={<Home />} />
+        <Route path="work-with-us" element={<WorkWithUs />} />
       </Route>
 
       {/* ---------- LOGIN & REGISTER: layout propio, sin navbar/footer ---------- */}
@@ -38,7 +41,7 @@ export const router = createBrowserRouter(
               son el punto de entrada de todo el mundo, así que
               tienen que ser accesibles siempre, pase lo que pase. */}
           <Route index element={<h1>Inicio</h1>} />
-          <Route path="profile" element={<h1>Mi cuenta</h1>} /> 
+          <Route path="profile" element={<h1>Mi cuenta</h1>} />
 
           {/* ---- SECCIONES DE CLIENT ---- */}
           <Route element={<RoleRoute allowed={["client"]} />}>
