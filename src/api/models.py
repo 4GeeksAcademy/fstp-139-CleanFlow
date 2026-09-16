@@ -1,3 +1,14 @@
+"""
+Modelos de la base de datos de CleanFlow.
+
+  - User: una sola tabla para cliente, trabajador y encargado (campo `role`).
+  - Service y Task: los dos catálogos que gestiona el encargado (#11).
+  - Booking y BookingTask: reservas, con precio, minutos y nombres congelados.
+  - Shift, Worker, Address, Review, Incident, Media: resto del dominio.
+
+Lo que tiene `is_active` no se borra: se desactiva.
+"""
+
 from datetime import time, datetime, date
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, Boolean, Text, Float, Integer, Time, Date, DateTime, ForeignKey, func
@@ -8,9 +19,10 @@ from flask_bcrypt import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
-# ============================================================
+
+# ==================================================================
 # ENUMS
-# ============================================================
+# ==================================================================
 
 class BookingStatus(Enum):
     PENDING = "pending"
@@ -29,18 +41,19 @@ class MediaType(Enum):
     IMAGE = "image"
     VIDEO = "video"
 
-# ============================================================
-# USERS
-# ============================================================
 
+# ==================================================================
+# USER
+# ==================================================================
 
 class User(db.Model):
     """Usuario de la aplicación.
 
-    Un único modelo para los tres tipos de usuario: lo que distingue a un
-    cliente de un trabajador o un encargado es solo el campo `role`.
+    Cliente, trabajador y encargado comparten modelo: solo los distingue `role`.
     """
 
+    # Sin esto la tabla se llamaría "user" y las claves foráneas a "users"
+    # no la encontrarían.
     __tablename__ = "users"
 
     # ------------------------------------------------------------------
@@ -53,23 +66,21 @@ class User(db.Model):
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
 
-    # Guarda el HASH de la contraseña, nunca la contraseña. Ver más abajo.
+    # El hash, nunca la contraseña en claro (ver set_password).
     password_hash: Mapped[str] = mapped_column(nullable=False)
 
-    # Enum: la BD solo acepta estos tres valores. Un rol inventado no entra
-    # ni por el admin ni por código. El `name` es la etiqueta que PostgreSQL
-    # le pone internamente al tipo, y es obligatorio.
+    # La BD solo acepta estos tres roles. `name` es el nombre del tipo en
+    # PostgreSQL, y es obligatorio.
     role: Mapped[str] = mapped_column(
         SQLEnum("client", "worker", "manager", name="user_role"),
         nullable=False
     )
 
-    # Permite desactivar una cuenta sin borrarla (se conserva su historial).
+    # Desactivar en vez de borrar conserva el historial de la cuenta.
     is_active: Mapped[bool] = mapped_column(Boolean(), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # server_default: la fecha la pone la BASE DE DATOS al insertar, no
-    # Python. Así todos los registros usan el mismo reloj.
+    # server_default: la fecha la pone la BD al insertar, no Python.
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(),
         nullable=False,
@@ -78,40 +89,31 @@ class User(db.Model):
 
     # ------------------------------------------------------------------
     # CONTRASEÑA
-    #
-    # La contraseña en claro no se guarda en ningún sitio. Se guarda su
-    # hash: un resultado del que no se puede volver atrás. Por eso al
-    # iniciar sesión no se compara "la contraseña", se vuelve a calcular
-    # el hash y se comparan los dos hashes.
     # ------------------------------------------------------------------
+    # Solo se guarda el hash, que no tiene vuelta atrás: al hacer login se
+    # hashea lo recibido y se comparan los dos hashes.
 
     def set_password(self, password):
-        """Hashea la contraseña y la guarda. Único sitio donde se escribe
-        `password_hash`: todo alta de usuario debe pasar por aquí."""
+        """Hashea y guarda la contraseña. Todo alta de usuario pasa por aquí."""
         # bcrypt devuelve bytes; .decode() lo pasa a texto para la columna.
         self.password_hash = generate_password_hash(password).decode('utf-8')
 
     def check_password(self, password):
-        """Devuelve True si la contraseña recibida coincide con el hash."""
+        """True si la contraseña recibida coincide con el hash guardado."""
         try:
             return check_password_hash(self.password_hash, password)
         except ValueError:
-            # El hash guardado no es un hash válido de bcrypt (pasa con los
-            # usuarios creados desde el panel de admin, que escribe el campo
-            # tal cual). Sin este except, bcrypt lanzaría y el login
-            # respondería 500 en vez de un 401 normal.
+            # Hash no válido de bcrypt (p. ej. usuario creado desde el panel
+            # de admin). Sin esto el login daría 500 en vez de 401.
             return False
 
     # ------------------------------------------------------------------
     # SERIALIZADORES
-    #
-    # Un modelo no tiene una única representación en JSON, sino una por
-    # cada uso. Por eso hay dos métodos y no uno con condicionales.
     # ------------------------------------------------------------------
+    # Un método por uso, en vez de uno lleno de condicionales.
 
     def serialize(self):
-        """Vista completa. Para pantallas de gestión (listados de admin,
-        ficha de un trabajador...)."""
+        """Vista completa, para pantallas de gestión."""
         return {
             "user_id": self.user_id,
             "name": self.name,
@@ -121,18 +123,13 @@ class User(db.Model):
             "role": self.role,
             "is_active": self.is_active,
             "avatar_url": self.avatar_url,
-            # isoformat() convierte la fecha a texto, porque JSON no
-            # entiende de fechas. El `if` evita reventar si aún no existe.
+            # JSON no entiende de fechas: se envía como texto ISO.
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
     def serialize_session(self):
-        """Vista mínima para la sesión del frontend: solo lo justo para
-        decidir rutas y pintar el sidebar.
-
-        Es lo que devuelven /api/login y /api/profile, y lo que acaba
-        guardado en localStorage — de ahí que vaya lo imprescindible.
-        """
+        """Vista mínima para la sesión. La devuelven /api/login y /api/profile
+        y acaba en localStorage, así que solo lleva lo imprescindible."""
         return {
             "user_id": self.user_id,
             "name": self.name,
@@ -142,13 +139,10 @@ class User(db.Model):
         }
 
 
-
-
-
-
-# ============================================================
+# ==================================================================
 # SHIFT
-# ============================================================
+# ==================================================================
+# Turno de trabajo (mañana, tarde...) con su hora de inicio y fin.
 
 class Shift(db.Model):
     __tablename__ = "shifts"
@@ -175,9 +169,11 @@ class Shift(db.Model):
             "end_time": self.end_time.strftime("%H:%M"),
         }
 
-# ============================================================
+
+# ==================================================================
 # WORKER
-# ============================================================
+# ==================================================================
+# Ficha laboral de un usuario trabajador: turno, fecha de alta y puesto.
 
 class Worker(db.Model):
     __tablename__ = "workers"
@@ -245,9 +241,12 @@ class Worker(db.Model):
             "position": self.position,
             "is_active": self.is_active,
         }
-# ============================================================
+
+
+# ==================================================================
 # ADDRESS
-# ============================================================
+# ==================================================================
+# Dirección de un cliente donde se hace el servicio.
 
 class Address(db.Model):
     __tablename__ = "addresses"
@@ -302,12 +301,22 @@ class Address(db.Model):
         }
 
 
-# ============================================================
+# ==================================================================
 # SERVICE
-# ============================================================
+# ==================================================================
 
 class Service(db.Model):
+    """Tipo de limpieza (esencial, integral, profunda, fin de obra...), por horas.
+
+    `minutes_per_task` vive aquí y no en Task porque la misma tarea dura
+    distinto según el servicio.
+    """
+
     __tablename__ = "services"
+
+    # ------------------------------------------------------------------
+    # IDENTIDAD Y TEXTOS
+    # ------------------------------------------------------------------
 
     service_id: Mapped[int] = mapped_column(
         primary_key=True
@@ -316,79 +325,174 @@ class Service(db.Model):
         String(100),
         nullable=False
     )
+
+    # URL pública ("limpieza-integral"). Se genera con slugify() al crear y
+    # NO cambia al renombrar, para no romper enlaces ya compartidos.
+    slug: Mapped[str] = mapped_column(
+        String(120),
+        unique=True,
+        nullable=False
+    )
+
+    # Texto corto, para tarjetas y listados.
     description: Mapped[str] = mapped_column(
         Text,
         nullable=False
     )
+
+    # Texto de la ficha. Opcional: sin él, la web usa `description`.
+    long_description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True
+    )
+    image_url: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True
+    )
+
+    # ------------------------------------------------------------------
+    # PRECIO Y TIEMPO
+    # ------------------------------------------------------------------
+
     base_hourly_rate: Mapped[float] = mapped_column(
         Float,
         nullable=False
     )
+
+    # Minutos por tarea: 10, 12, 15, 20, 30 o 60 (divisores de 60, lo valida
+    # la API). ⚠️ NULL significa que el servicio NO lleva tareas (fin de obra).
+    minutes_per_task: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True
+    )
+
+    # Horas contratables: mínimo, salto y tope opcional.
+    #   esencial / integral / profunda:  mínimo 1, salto 1
+    #   fin de obra:                     mínimo 6, salto 3  (6, 9, 12...)
+    min_hours: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1
+    )
+    hour_step: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1
+    )
+    max_hours: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True
+    )
+
+    # Se desactiva, nunca se borra: hay reservas que apuntan a él.
     is_active: Mapped[bool] = mapped_column(
         Boolean(),
         nullable=False
     )
 
-    def serialize(self):
-        tasks = ServiceTask.query.filter_by(
-            service_id=self.service_id
-        ).all()
+    # ------------------------------------------------------------------
+    # DATOS CALCULADOS
+    # ------------------------------------------------------------------
 
+    @property
+    def tasks_per_hour(self):
+        """Tareas que caben en una hora (30 min -> 2), o None si no lleva tareas.
+        Viaja en el JSON para que el frontend no repita la cuenta."""
+        if self.minutes_per_task is None:
+            return None
+        return 60 // self.minutes_per_task
+
+    # ------------------------------------------------------------------
+    # SERIALIZADORES
+    # ------------------------------------------------------------------
+    # Como en User: la de gestión lo enseña todo; la pública, solo lo que
+    # puede ver cualquiera.
+
+    def serialize(self):
+        """Vista completa, para el panel del encargado."""
         return {
             "service_id": self.service_id,
             "name": self.name,
+            "slug": self.slug,
             "description": self.description,
+            "long_description": self.long_description,
+            "image_url": self.image_url,
             "base_hourly_rate": self.base_hourly_rate,
+            "minutes_per_task": self.minutes_per_task,
+            "tasks_per_hour": self.tasks_per_hour,
+            "min_hours": self.min_hours,
+            "hour_step": self.hour_step,
+            "max_hours": self.max_hours,
             "is_active": self.is_active,
-            "tasks": [task.serialize() for task in tasks],
+        }
+
+    def serialize_public(self):
+        """Vista para la web y el cliente. Sin id ni `is_active`: solo llegan
+        servicios activos y se identifican por slug."""
+        return {
+            "name": self.name,
+            "slug": self.slug,
+            "description": self.description,
+            "long_description": self.long_description,
+            "image_url": self.image_url,
+            "base_hourly_rate": self.base_hourly_rate,
+            "minutes_per_task": self.minutes_per_task,
+            "tasks_per_hour": self.tasks_per_hour,
+            "min_hours": self.min_hours,
+            "hour_step": self.hour_step,
+            "max_hours": self.max_hours,
         }
 
 
-# ============================================================
-# SERVICE TASK
-# ============================================================
+# ==================================================================
+# TASK
+# ==================================================================
 
-class ServiceTask(db.Model):
-    __tablename__ = "service_tasks"
+class Task(db.Model):
+    """Tarea del catálogo compartido (limpiar cristales, baño...).
 
-    service_task_id: Mapped[int] = mapped_column(
+    Vale para cualquier servicio con tareas. No guarda minutos: eso depende
+    del servicio (Service.minutes_per_task).
+    """
+
+    __tablename__ = "tasks"
+
+    task_id: Mapped[int] = mapped_column(
         primary_key=True
     )
-    service_id: Mapped[int] = mapped_column(
-        ForeignKey("services.service_id"),
-        nullable=False
-    )
-    name: Mapped[str] = mapped_column(
+
+    # Único en la BD. Que no se repita cambiando solo mayúsculas lo
+    # comprueba la API.
+    task_name: Mapped[str] = mapped_column(
         String(100),
+        unique=True,
         nullable=False
     )
     description: Mapped[str | None] = mapped_column(
         Text,
         nullable=True
     )
-    estimated_minutes: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False
-    )
-    is_required: Mapped[bool] = mapped_column(
+
+    # Se desactiva, nunca se borra: hay reservas que apuntan a ella.
+    is_active: Mapped[bool] = mapped_column(
         Boolean(),
-        nullable=False
+        nullable=False,
+        default=True
     )
 
     def serialize(self):
         return {
-            "service_task_id": self.service_task_id,
-            "service_id": self.service_id,
-            "name": self.name,
+            "task_id": self.task_id,
+            "task_name": self.task_name,
             "description": self.description,
-            "estimated_minutes": self.estimated_minutes,
-            "is_required": self.is_required,
+            "is_active": self.is_active,
         }
 
 
-# ============================================================
+# ==================================================================
 # BOOKING
-# ============================================================
+# ==================================================================
+# Reserva de un cliente: servicio, dirección, horario y precio.
 
 class Booking(db.Model):
     __tablename__ = "bookings"
@@ -416,14 +520,22 @@ class Booking(db.Model):
         DateTime,
         nullable=False
     )
+
+    # Congelados al reservar (tarifa, minutos y total): si el servicio cambia
+    # después, esta reserva conserva los suyos. El histórico no se reescribe.
     hourly_rate: Mapped[float] = mapped_column(
         Float,
         nullable=False
+    )
+    minutes_per_task: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True
     )
     total_price: Mapped[float] = mapped_column(
         Float,
         nullable=False
     )
+
     status: Mapped[BookingStatus] = mapped_column(
         SQLEnum(BookingStatus),
         nullable=False
@@ -458,6 +570,7 @@ class Booking(db.Model):
                 else None
             ),
             "hourly_rate": self.hourly_rate,
+            "minutes_per_task": self.minutes_per_task,
             "total_price": self.total_price,
             "status": (
                 self.status.value
@@ -478,11 +591,14 @@ class Booking(db.Model):
         }
 
 
-# ============================================================
+# ==================================================================
 # BOOKING TASK
-# ============================================================
+# ==================================================================
 
 class BookingTask(db.Model):
+    """Tarea dentro de una reserva. Cada repetición es una fila (tres
+    habitaciones = tres filas con el mismo task_id), con su propio estado."""
+
     __tablename__ = "booking_tasks"
 
     booking_task_id: Mapped[int] = mapped_column(
@@ -492,10 +608,18 @@ class BookingTask(db.Model):
         ForeignKey("bookings.booking_id"),
         nullable=False
     )
-    service_task_id: Mapped[int] = mapped_column(
-        ForeignKey("service_tasks.service_task_id"),
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("tasks.task_id"),
         nullable=False
     )
+
+    # Congelado al reservar: si se renombra la tarea, la reserva conserva
+    # el nombre con el que se contrató.
+    task_name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
     status: Mapped[BookingTaskStatus] = mapped_column(
         SQLEnum(BookingTaskStatus),
         nullable=False
@@ -513,7 +637,8 @@ class BookingTask(db.Model):
         return {
             "booking_task_id": self.booking_task_id,
             "booking_id": self.booking_id,
-            "service_task_id": self.service_task_id,
+            "task_id": self.task_id,
+            "task_name": self.task_name,
             "status": (
                 self.status.value
                 if self.status
@@ -528,9 +653,10 @@ class BookingTask(db.Model):
         }
 
 
-# ============================================================
+# ==================================================================
 # REVIEW
-# ============================================================
+# ==================================================================
+# Valoración del cliente: como mucho una por reserva (booking_id único).
 
 class Review(db.Model):
     __tablename__ = "reviews"
@@ -575,9 +701,10 @@ class Review(db.Model):
         }
 
 
-# ============================================================
+# ==================================================================
 # INCIDENT
-# ============================================================
+# ==================================================================
+# Incidencia en una reserva; puede señalar al trabajador y a la tarea.
 
 class Incident(db.Model):
     __tablename__ = "incidents"
@@ -645,9 +772,10 @@ class Incident(db.Model):
         }
 
 
-# ============================================================
+# ==================================================================
 # MEDIA
-# ============================================================
+# ==================================================================
+# Foto o vídeo adjunto a una incidencia.
 
 class Media(db.Model):
     __tablename__ = "media"

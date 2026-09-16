@@ -1,14 +1,11 @@
 /**
- * Marco de la zona privada.
+ * MARCO DE LA ZONA PRIVADA.
  *
- * Es el layout que envuelve a todas las páginas del dashboard: pinta el
- * sidebar fijo a la izquierda y deja a la derecha el hueco donde React
- * Router inyecta la página que toque según la URL.
- *
- * Se monta en routes.jsx como padre de las rutas de /dashboard, por
- * debajo de ProtectedRoutes. Cada capa responde a una sola pregunta:
+ * Envuelve todas las páginas de /dashboard: sidebar a un lado y, en el
+ * <main>, la página que toca según la URL. Cada capa de routes.jsx responde
+ * a una sola pregunta:
  *   ProtectedRoutes -> ¿hay sesión?
- *   DashboardLayout -> ¿qué marco pinto?      (este archivo)
+ *   DashboardLayout -> ¿qué marco pinto?   (este archivo)
  *   RoleRoute       -> ¿tiene permiso?
  */
 
@@ -17,22 +14,17 @@ import { Sidebar } from "../../components/dashboard/Sidebar"
 
 export const DashboardLayout = () => {
     return (
-        // d-flex coloca sidebar y contenido en fila (uno al lado del otro).
-        // Sin esto se apilarían en vertical, que es el comportamiento por
-        // defecto de dos <div>.
-        // minHeight 100vh: que la barra oscura llegue hasta abajo aunque la
-        // página tenga poco contenido.
-        <div className="d-flex" style={{ minHeight: "100vh" }} >
+        // d-flex: sidebar y contenido en fila. minHeight: la barra oscura
+        // llega hasta abajo aunque la página sea corta.
+        // En móvil, cf-dash-layout y cf-dash-main (dashboard.css) lo pasan a
+        // columna, con la barra de la hamburguesa encima.
+        <div className="cf-dash-layout d-flex" style={{ minHeight: "100vh" }} >
 
-            {/* Fijo en todas las páginas del dashboard. Su ancho (280px)
-                lo define el propio componente. */}
             <Sidebar />
 
-            {/* flex-grow-1: ocupa todo el espacio que sobra a la derecha
-                del sidebar. p-4 separa el contenido del borde. */}
-
-            <main className="flex-grow-1 p-4">
-                {/* Aquí React Router inyecta la página hija según la URL. */}
+            {/* flex-grow-1: ocupa todo el ancho que deja el sidebar. */}
+            <main className="cf-dash-main flex-grow-1 p-4">
+                {/* Aquí React Router pinta la página hija según la URL. */}
                 <Outlet />
             </main>
 
