@@ -6,9 +6,7 @@
  *
  * La sesión NO se corta al cambiarla: el token sigue siendo válido.
  *
- * API: services/accountService.js
- *
- * Sin estilos todavía: se visten en el paso 13 de la #13.
+ * API: services/accountService.js · Estilos: dashboard.css (cf-dash-*, cf-account__*).
  */
 
 import { useState } from "react"
@@ -47,6 +45,12 @@ export const AccountSecurity = () => {
     const [saving, setSaving] = useState(false)
     const [saveError, setSaveError] = useState("")
     const [saved, setSaved] = useState(false)
+
+    // Qué campos se están viendo en claro. Empieza vacío y se olvida al
+    // salir de la pantalla: nadie quiere volver y ver su contraseña.
+    const [shown, setShown] = useState({})
+
+    const toggleShown = (field) => setShown((current) => ({ ...current, [field]: !current[field] }))
 
     // Token caducado (401) o corrupto (422): se cierra la sesión y
     // ProtectedRoutes manda al login. OJO: la contraseña actual incorrecta
@@ -100,72 +104,102 @@ export const AccountSecurity = () => {
         // Los campos se vacían: dejar una contraseña escrita en pantalla no
         // aporta nada y se queda a la vista de quien pase.
         setForm(EMPTY_FORM)
+        setShown({})
         setSaved(true)
     }
 
+    // Los tres campos son iguales: mismo marcado con el ojo dentro. Es una
+    // función que devuelve JSX, no un componente: así no se vuelve a montar
+    // en cada tecla y el campo no pierde el cursor.
+    const passwordField = (name, label, autoComplete, hint) => {
+        const visible = Boolean(shown[name])
+        const error = errors[name]
+
+        return (
+            <div className="cf-dash-field">
+                <label className="cf-dash-field__label" htmlFor={name}>
+                    {label}
+                </label>
+
+                <div className="cf-account__password">
+                    <input
+                        className="cf-dash-input"
+                        id={name}
+                        name={name}
+                        // Cambiar el type es lo único que hace el ojo: lo
+                        // escrito no se toca.
+                        type={visible ? "text" : "password"}
+                        autoComplete={autoComplete}
+                        value={form[name]}
+                        onChange={handleChange}
+                        aria-invalid={Boolean(error)}
+                        aria-describedby={error ? `${name}-error` : hint ? `${name}-hint` : undefined}
+                    />
+
+                    {/* aria-pressed dice si está activado; el aria-label
+                        cambia, para que se entienda qué hace al pulsarlo. */}
+                    <button
+                        type="button"
+                        className="cf-account__eye"
+                        onClick={() => toggleShown(name)}
+                        aria-pressed={visible}
+                        aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                        <i className={visible ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"} aria-hidden="true" />
+                    </button>
+                </div>
+
+                {error ? (
+                    <p className="cf-dash-field__error" id={`${name}-error`}>
+                        {error}
+                    </p>
+                ) : (
+                    hint && (
+                        <p className="cf-dash-field__note" id={`${name}-hint`}>
+                            {hint}
+                        </p>
+                    )
+                )}
+            </div>
+        )
+    }
+
     return (
-        <div>
-            <h2>Seguridad</h2>
-            <p>Cambia tu contraseña. Tendrás que usar la nueva la próxima vez que entres.</p>
+        <div className="cf-account__card">
+            <h2 className="cf-account__subtitle">Seguridad</h2>
+            <p className="cf-account__lede">
+                Cambia tu contraseña. Tendrás que usar la nueva la próxima vez que entres.
+            </p>
 
             {/* noValidate: los avisos los damos nosotros, en español.
                 autoComplete: así el gestor de contraseñas sabe cuál es cuál. */}
-            <form onSubmit={handleSubmit} noValidate>
-                <div>
-                    <label htmlFor="current_password">Contraseña actual</label>
-                    <input
-                        id="current_password"
-                        name="current_password"
-                        type="password"
-                        autoComplete="current-password"
-                        value={form.current_password}
-                        onChange={handleChange}
-                        aria-invalid={Boolean(errors.current_password)}
-                        aria-describedby={errors.current_password ? "current_password-error" : undefined}
-                    />
-                    {errors.current_password && <p id="current_password-error">{errors.current_password}</p>}
-                </div>
+            <form className="cf-account__grid cf-account__grid--one" onSubmit={handleSubmit} noValidate>
+                {passwordField("current_password", "Contraseña actual", "current-password")}
+                {passwordField(
+                    "new_password",
+                    "Contraseña nueva",
+                    "new-password",
+                    `Mínimo ${PASSWORD_MIN_LENGTH} caracteres.`
+                )}
+                {passwordField("repeat_password", "Repite la contraseña nueva", "new-password")}
 
-                <div>
-                    <label htmlFor="new_password">Contraseña nueva</label>
-                    <input
-                        id="new_password"
-                        name="new_password"
-                        type="password"
-                        autoComplete="new-password"
-                        value={form.new_password}
-                        onChange={handleChange}
-                        aria-invalid={Boolean(errors.new_password)}
-                        aria-describedby={errors.new_password ? "new_password-error" : "new_password-hint"}
-                    />
-                    {errors.new_password ? (
-                        <p id="new_password-error">{errors.new_password}</p>
-                    ) : (
-                        <p id="new_password-hint">Mínimo {PASSWORD_MIN_LENGTH} caracteres.</p>
+                <div className="cf-account__actions">
+                    {saveError && (
+                        <p className="cf-dash-alert" role="alert">
+                            {saveError}
+                        </p>
                     )}
+                    {saved && (
+                        <p className="cf-account__saved" role="status">
+                            <i className="fa-solid fa-check" aria-hidden="true" />
+                            Contraseña actualizada
+                        </p>
+                    )}
+
+                    <button type="submit" className="cf-dash-btn" disabled={saving}>
+                        {saving ? "Guardando..." : "Cambiar contraseña"}
+                    </button>
                 </div>
-
-                <div>
-                    <label htmlFor="repeat_password">Repite la contraseña nueva</label>
-                    <input
-                        id="repeat_password"
-                        name="repeat_password"
-                        type="password"
-                        autoComplete="new-password"
-                        value={form.repeat_password}
-                        onChange={handleChange}
-                        aria-invalid={Boolean(errors.repeat_password)}
-                        aria-describedby={errors.repeat_password ? "repeat_password-error" : undefined}
-                    />
-                    {errors.repeat_password && <p id="repeat_password-error">{errors.repeat_password}</p>}
-                </div>
-
-                {saveError && <p role="alert">{saveError}</p>}
-                {saved && <p role="status">Contraseña actualizada</p>}
-
-                <button type="submit" disabled={saving}>
-                    {saving ? "Guardando..." : "Cambiar contraseña"}
-                </button>
             </form>
         </div>
     )

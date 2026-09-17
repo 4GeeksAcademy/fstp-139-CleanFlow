@@ -8,7 +8,7 @@
  * reutilizar el panel de contratación (#14) para crear una dirección sin
  * salir de la reserva, igual que hace ServiceForm.jsx con los servicios.
  *
- * Sin estilos todavía: se visten en el paso 13 de la #13.
+ * Estilos: dashboard.css (cf-dash-*, cf-account__*).
  */
 
 import { useState } from "react"
@@ -99,11 +99,15 @@ export const AddressForm = ({ address, saving, apiError, onSubmit, onCancel }) =
         })
     }
 
-    // Un campo y su error, que se repiten seis veces.
-    const field = (name, label, extra = {}) => (
-        <div>
-            <label htmlFor={name}>{label}</label>
+    // Un campo y su error, que se repiten cinco veces. `full` lo pone a
+    // todo el ancho del formulario, que va a dos columnas.
+    const field = (name, label, { full = false, ...extra } = {}) => (
+        <div className={"cf-dash-field" + (full ? " cf-account__full" : "")}>
+            <label className="cf-dash-field__label" htmlFor={name}>
+                {label}
+            </label>
             <input
+                className="cf-dash-input"
                 id={name}
                 name={name}
                 type="text"
@@ -113,42 +117,59 @@ export const AddressForm = ({ address, saving, apiError, onSubmit, onCancel }) =
                 aria-describedby={errors[name] ? `${name}-error` : undefined}
                 {...extra}
             />
-            {errors[name] && <p id={`${name}-error`}>{errors[name]}</p>}
+            {errors[name] && (
+                <p className="cf-dash-field__error" id={`${name}-error`}>
+                    {errors[name]}
+                </p>
+            )}
         </div>
     )
 
     return (
-        <form onSubmit={handleSubmit} noValidate>
-            <h3>{address ? "Editar dirección" : "Nueva dirección"}</h3>
+        <>
+            <h2 className="cf-account__subtitle">{address ? "Editar dirección" : "Nueva dirección"}</h2>
 
-            {field("street", "Calle", { maxLength: STREET_MAX_LENGTH, autoFocus: true })}
-            {field("number", "Número", { maxLength: NUMBER_MAX_LENGTH })}
-            {field("floor", "Piso (opcional)", { maxLength: FLOOR_MAX_LENGTH })}
-            {/* inputMode numeric: en el móvil sale el teclado de números. */}
-            {field("postal_code", "Código postal", { maxLength: 5, inputMode: "numeric" })}
-            {field("city", "Ciudad", { maxLength: CITY_MAX_LENGTH })}
+            <form className="cf-account__grid" onSubmit={handleSubmit} noValidate>
+                {field("street", "Calle", { full: true, maxLength: STREET_MAX_LENGTH, autoFocus: true })}
+                {field("number", "Número", { maxLength: NUMBER_MAX_LENGTH })}
+                {field("floor", "Piso (opcional)", { maxLength: FLOOR_MAX_LENGTH })}
+                {/* inputMode numeric: en el móvil sale el teclado de números. */}
+                {field("postal_code", "Código postal", { maxLength: 5, inputMode: "numeric" })}
+                {field("city", "Ciudad", { maxLength: CITY_MAX_LENGTH })}
 
-            <div>
-                <label htmlFor="access_notes">Notas de acceso (opcional)</label>
-                <textarea
-                    id="access_notes"
-                    name="access_notes"
-                    rows="3"
-                    value={form.access_notes}
-                    onChange={handleChange}
-                />
-                <p>Portero, timbre, dónde aparcar, a qué hora hay alguien en casa...</p>
-            </div>
+                <div className="cf-dash-field cf-account__full">
+                    <label className="cf-dash-field__label" htmlFor="access_notes">
+                        Notas de acceso (opcional)
+                    </label>
+                    <textarea
+                        className="cf-dash-input"
+                        id="access_notes"
+                        name="access_notes"
+                        rows="3"
+                        value={form.access_notes}
+                        onChange={handleChange}
+                    />
+                    <p className="cf-dash-field__note">
+                        Portero, timbre, dónde aparcar, a qué hora hay alguien en casa...
+                    </p>
+                </div>
 
-            {/* Errores de la API (por ejemplo, un 400 que aquí no cazamos). */}
-            {apiError && <p role="alert">{apiError}</p>}
+                <div className="cf-account__actions cf-account__full">
+                    {/* Errores de la API (por ejemplo, un 400 que aquí no cazamos). */}
+                    {apiError && (
+                        <p className="cf-dash-alert" role="alert">
+                            {apiError}
+                        </p>
+                    )}
 
-            <button type="submit" disabled={saving}>
-                {saving ? "Guardando..." : address ? "Guardar cambios" : "Añadir dirección"}
-            </button>
-            <button type="button" onClick={onCancel} disabled={saving}>
-                Cancelar
-            </button>
-        </form>
+                    <button type="button" className="cf-dash-btn cf-dash-btn--ghost" onClick={onCancel} disabled={saving}>
+                        Cancelar
+                    </button>
+                    <button type="submit" className="cf-dash-btn" disabled={saving}>
+                        {saving ? "Guardando..." : address ? "Guardar cambios" : "Añadir dirección"}
+                    </button>
+                </div>
+            </form>
+        </>
     )
 }

@@ -9,11 +9,12 @@
  *   /dashboard/profile/security   Seguridad
  *   /dashboard/profile/addresses  Direcciones (solo cliente)
  *
- * Sin estilos todavía: se visten en el paso 13 de la #13.
+ * Estilos: dashboard.css (cf-dash-*, cf-account__*).
  */
 
 import { NavLink, Outlet } from "react-router-dom"
 import useGlobalReducer from "../../../hooks/useGlobalReducer"
+import "../../../dashboard.css"
 
 export const AccountLayout = () => {
     const { store } = useGlobalReducer()
@@ -23,14 +24,14 @@ export const AccountLayout = () => {
     const isClient = store.user?.role === "client"
 
     return (
-        <section>
-            <h1>Ajustes de la cuenta</h1>
+        <section className="cf-account">
+            <h1 className="cf-account__title">Ajustes de la cuenta</h1>
 
-            {/* NavLink marca la pestaña actual con aria-current="page", que
-                el paso 13 usará para resaltarla. `end` en la primera: sin él
-                saldría activa también en las otras dos. */}
+            {/* NavLink marca la pestaña actual con aria-current="page", y de
+                ahí la subraya el CSS. `end` en la primera: sin él saldría
+                activa también en las otras dos. */}
             <nav aria-label="Apartados de la cuenta">
-                <ul>
+                <ul className="cf-account__tabs">
                     <li>
                         <NavLink to="/dashboard/profile" end>
                             Datos personales

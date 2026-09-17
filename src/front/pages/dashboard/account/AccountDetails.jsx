@@ -7,7 +7,7 @@
  *
  * API: services/accountService.js
  *
- * Sin estilos todavía: se visten en el paso 13 de la #13.
+ * Estilos: dashboard.css (cf-dash-*, cf-account__*).
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -140,42 +140,66 @@ const AvatarSection = ({ account, token, onUpdated, onSessionExpired }) => {
     }
 
     return (
-        <div>
-            <h3>Foto de perfil</h3>
+        <div className="cf-account__card">
+            <h2 className="cf-account__subtitle">Foto de perfil</h2>
+            <p className="cf-account__lede">Se ve en el menú lateral y en tus reservas.</p>
 
-            {/* Mientras sube se ve la foto elegida; el resto del tiempo, la
-                guardada o las iniciales. */}
-            {preview ? (
-                <img src={preview} alt="Foto que estás subiendo" width="96" height="96" />
-            ) : (
-                <Avatar user={account} size="lg" alt="Tu foto de perfil" />
-            )}
+            <div className="cf-account__photo">
+                {/* Mientras sube se ve la foto elegida; el resto del tiempo, la
+                    guardada o las iniciales. */}
+                {preview ? (
+                    <img className="cf-dash-avatar cf-dash-avatar--lg" src={preview} alt="Foto que estás subiendo" />
+                ) : (
+                    <Avatar user={account} size="lg" alt="Tu foto de perfil" />
+                )}
 
-            {/* El input va oculto y se abre desde el botón: el de serie no
-                se puede vestir y enseña un texto en inglés. */}
-            <input
-                ref={fileRef}
-                id="avatar"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFile}
-                disabled={working}
-                hidden
-            />
+                <div className="cf-account__photo-actions">
+                    {/* El input va oculto y se abre desde el botón: el de serie
+                        no se puede vestir y enseña un texto en inglés. */}
+                    <input
+                        ref={fileRef}
+                        id="avatar"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleFile}
+                        disabled={working}
+                        hidden
+                    />
 
-            <button type="button" onClick={() => fileRef.current?.click()} disabled={working}>
-                {working ? "Subiendo..." : account.avatar_url ? "Cambiar foto" : "Subir foto"}
-            </button>
+                    <div className="cf-account__photo-buttons">
+                        <button
+                            type="button"
+                            className="cf-dash-btn"
+                            onClick={() => fileRef.current?.click()}
+                            disabled={working}
+                        >
+                            <i className="fa-solid fa-camera" aria-hidden="true" />
+                            {working ? "Subiendo..." : account.avatar_url ? "Cambiar foto" : "Subir foto"}
+                        </button>
 
-            {account.avatar_url && (
-                <button type="button" onClick={handleRemove} disabled={working}>
-                    Quitar foto
-                </button>
-            )}
+                        {account.avatar_url && (
+                            <button
+                                type="button"
+                                className="cf-dash-btn cf-dash-btn--ghost"
+                                onClick={handleRemove}
+                                disabled={working}
+                            >
+                                Quitar foto
+                            </button>
+                        )}
+                    </div>
 
-            <p>JPG, PNG o WEBP. Máximo 2 MB. Sin foto se ven tus iniciales.</p>
+                    <p className="cf-account__photo-hint">
+                        JPG, PNG o WEBP. Máximo 2 MB. Sin foto se ven tus iniciales.
+                    </p>
 
-            {error && <p role="alert">{error}</p>}
+                    {error && (
+                        <p className="cf-dash-alert" role="alert">
+                            {error}
+                        </p>
+                    )}
+                </div>
+            </div>
         </div>
     )
 }
@@ -281,25 +305,34 @@ export const AccountDetails = () => {
 
     if (loading) {
         return (
-            <div aria-busy="true">
-                <h2>Datos personales</h2>
-                <p>Cargando tus datos...</p>
+            <div className="cf-account__card" aria-busy="true">
+                {/* Las barras grises no dicen nada a un lector de pantalla:
+                    este texto sí, y no se ve. */}
+                <p className="sr-only">Cargando tus datos...</p>
+
+                <span className="cf-dash-skel cf-account__skel-title" />
+
+                <div className="cf-account__grid" style={{ marginTop: "16px" }} aria-hidden="true">
+                    <span className="cf-dash-skel cf-account__skel-line" />
+                    <span className="cf-dash-skel cf-account__skel-line" />
+                    <span className="cf-dash-skel cf-account__skel-line" />
+                    <span className="cf-dash-skel cf-account__skel-line" />
+                </div>
             </div>
         )
     }
 
     if (loadError) {
         return (
-            <div>
-                <h2>Datos personales</h2>
-
-                <div role="alert">
-                    <p>No se han podido cargar tus datos</p>
-                    <p>{loadError}</p>
-                    <button type="button" onClick={loadAccount}>
-                        Reintentar
-                    </button>
-                </div>
+            <div className="cf-dash-state cf-dash-state--error" role="alert">
+                <span className="cf-dash-state__icon">
+                    <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                </span>
+                <p className="cf-dash-state__title">No se han podido cargar tus datos</p>
+                <p className="cf-dash-state__text">{loadError}</p>
+                <button type="button" className="cf-dash-btn cf-dash-btn--ghost" onClick={loadAccount}>
+                    Reintentar
+                </button>
             </div>
         )
     }
@@ -317,24 +350,38 @@ export const AccountDetails = () => {
     // cambia. El backend responde 403 si intenta lo demás.
     if (account.role === "worker") {
         return (
-            <div>
-                <h2>Datos personales</h2>
-
+            <>
                 {photo}
 
-                <dl>
-                    <dt>Nombre</dt>
-                    <dd>{account.name}</dd>
-                    <dt>Apellidos</dt>
-                    <dd>{account.last_name}</dd>
-                    <dt>Teléfono</dt>
-                    <dd>{account.phone}</dd>
-                    <dt>Correo electrónico</dt>
-                    <dd>{account.email}</dd>
-                </dl>
+                <div className="cf-account__card">
+                    <h2 className="cf-account__subtitle">Datos personales</h2>
 
-                <p>Si algún dato no es correcto, pídeselo a tu encargado.</p>
-            </div>
+                    {/* <dl>: son pares de concepto y valor, no una lista suelta. */}
+                    <dl className="cf-account__data">
+                        <div>
+                            <dt>Nombre</dt>
+                            <dd>{account.name}</dd>
+                        </div>
+                        <div>
+                            <dt>Apellidos</dt>
+                            <dd>{account.last_name}</dd>
+                        </div>
+                        <div>
+                            <dt>Teléfono</dt>
+                            <dd>{account.phone}</dd>
+                        </div>
+                        <div>
+                            <dt>Correo electrónico</dt>
+                            <dd>{account.email}</dd>
+                        </div>
+                    </dl>
+
+                    <p className="cf-account__note">
+                        <i className="fa-solid fa-circle-info" aria-hidden="true" />
+                        <span>Si algún dato no es correcto, pídeselo a tu encargado.</span>
+                    </p>
+                </div>
+            </>
         )
     }
 
@@ -345,73 +392,123 @@ export const AccountDetails = () => {
         form.phone !== account.phone
 
     return (
-        <div>
-            <h2>Datos personales</h2>
-
+        <>
             {photo}
 
-            {/* noValidate: los avisos los damos nosotros, en español y con
-                los mismos textos que el backend. */}
-            <form onSubmit={handleSubmit} noValidate>
-                <div>
-                    <label htmlFor="name">Nombre</label>
-                    <input
-                        id="name"
-                        name="name"
-                        type="text"
-                        value={form.name}
-                        onChange={handleChange}
-                        maxLength={NAME_MAX_LENGTH}
-                        aria-invalid={Boolean(errors.name)}
-                        aria-describedby={errors.name ? "name-error" : undefined}
-                    />
-                    {errors.name && <p id="name-error">{errors.name}</p>}
-                </div>
+            <div className="cf-account__card">
+                <h2 className="cf-account__subtitle">Datos personales</h2>
+                <p className="cf-account__lede">
+                    Así te identificamos en tus reservas y así te avisa quien va a tu casa.
+                </p>
 
-                <div>
-                    <label htmlFor="last_name">Apellidos</label>
-                    <input
-                        id="last_name"
-                        name="last_name"
-                        type="text"
-                        value={form.last_name}
-                        onChange={handleChange}
-                        maxLength={LAST_NAME_MAX_LENGTH}
-                        aria-invalid={Boolean(errors.last_name)}
-                        aria-describedby={errors.last_name ? "last_name-error" : undefined}
-                    />
-                    {errors.last_name && <p id="last_name-error">{errors.last_name}</p>}
-                </div>
+                {/* noValidate: los avisos los damos nosotros, en español y con
+                    los mismos textos que el backend. */}
+                <form className="cf-account__grid" onSubmit={handleSubmit} noValidate>
+                    <div className="cf-dash-field">
+                        <label className="cf-dash-field__label" htmlFor="name">
+                            Nombre
+                        </label>
+                        <input
+                            className="cf-dash-input"
+                            id="name"
+                            name="name"
+                            type="text"
+                            value={form.name}
+                            onChange={handleChange}
+                            maxLength={NAME_MAX_LENGTH}
+                            aria-invalid={Boolean(errors.name)}
+                            aria-describedby={errors.name ? "name-error" : undefined}
+                        />
+                        {errors.name && (
+                            <p className="cf-dash-field__error" id="name-error">
+                                {errors.name}
+                            </p>
+                        )}
+                    </div>
 
-                <div>
-                    <label htmlFor="phone">Teléfono</label>
-                    <input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        value={form.phone}
-                        onChange={handleChange}
-                        aria-invalid={Boolean(errors.phone)}
-                        aria-describedby={errors.phone ? "phone-error" : undefined}
-                    />
-                    {errors.phone && <p id="phone-error">{errors.phone}</p>}
-                </div>
+                    <div className="cf-dash-field">
+                        <label className="cf-dash-field__label" htmlFor="last_name">
+                            Apellidos
+                        </label>
+                        <input
+                            className="cf-dash-input"
+                            id="last_name"
+                            name="last_name"
+                            type="text"
+                            value={form.last_name}
+                            onChange={handleChange}
+                            maxLength={LAST_NAME_MAX_LENGTH}
+                            aria-invalid={Boolean(errors.last_name)}
+                            aria-describedby={errors.last_name ? "last_name-error" : undefined}
+                        />
+                        {errors.last_name && (
+                            <p className="cf-dash-field__error" id="last_name-error">
+                                {errors.last_name}
+                            </p>
+                        )}
+                    </div>
 
-                {/* readOnly y no disabled: un campo deshabilitado no se puede
-                    ni seleccionar para copiar, y el lector de pantalla lo salta. */}
-                <div>
-                    <label htmlFor="email">Correo electrónico</label>
-                    <input id="email" name="email" type="email" value={account.email} readOnly />
-                    <p>El correo es con lo que entras y no se puede cambiar.</p>
-                </div>
+                    <div className="cf-dash-field">
+                        <label className="cf-dash-field__label" htmlFor="phone">
+                            Teléfono
+                        </label>
+                        <input
+                            className="cf-dash-input"
+                            id="phone"
+                            name="phone"
+                            type="tel"
+                            value={form.phone}
+                            onChange={handleChange}
+                            aria-invalid={Boolean(errors.phone)}
+                            aria-describedby={errors.phone ? "phone-error" : undefined}
+                        />
+                        {errors.phone && (
+                            <p className="cf-dash-field__error" id="phone-error">
+                                {errors.phone}
+                            </p>
+                        )}
+                    </div>
 
-                {saveError && <p role="alert">{saveError}</p>}
-                {saved && <p role="status">Cambios guardados</p>}
+                    {/* readOnly y no disabled: un campo deshabilitado no se puede
+                        ni seleccionar para copiar, y el lector de pantalla lo salta.
+                        El candado y el fondo apagado avisan de que no se toca. */}
+                    <div className="cf-dash-field">
+                        <label className="cf-dash-field__label" htmlFor="email">
+                            Correo electrónico
+                        </label>
+                        <input
+                            className="cf-dash-input cf-account__input--locked"
+                            id="email"
+                            name="email"
+                            type="email"
+                            value={account.email}
+                            readOnly
+                        />
+                        <p className="cf-account__lock">
+                            <i className="fa-solid fa-lock" aria-hidden="true" />
+                            El correo es con lo que entras y no se puede cambiar
+                        </p>
+                    </div>
 
-                <button type="submit" disabled={saving || !hasChanges}>
-                    {saving ? "Guardando..." : "Guardar cambios"}
-                </button>
-            </form>
-        </div>
+                    <div className="cf-account__actions cf-account__full">
+                        {saveError && (
+                            <p className="cf-dash-alert" role="alert">
+                                {saveError}
+                            </p>
+                        )}
+                        {saved && (
+                            <p className="cf-account__saved" role="status">
+                                <i className="fa-solid fa-check" aria-hidden="true" />
+                                Cambios guardados
+                            </p>
+                        )}
+
+                        <button type="submit" className="cf-dash-btn" disabled={saving || !hasChanges}>
+                            {saving ? "Guardando..." : "Guardar cambios"}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </>
     )
 }

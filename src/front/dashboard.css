@@ -1,13 +1,15 @@
 /* ======================================================================
    ESTILOS DEL DASHBOARD
 
-   Lo importan ManageTasks.jsx, ManageServices.jsx y Sidebar.jsx (Vite lo
-   carga una sola vez). Valores de index.css, salvo los marcados con ⚠️.
+   Lo importan ManageTasks.jsx, ManageServices.jsx, Sidebar.jsx y las
+   pantallas de account/ (Vite lo carga una sola vez). Valores de
+   index.css, salvo los marcados con ⚠️.
 
      1. Componentes compartidos (cf-dash-*) y sidebar (cf-side-*)
      2. Página de tareas (cf-tasks__*)
-     3. Página de servicios (cf-services__*)
-     4. Movimiento reducido
+     3. Página de servicios del encargado (cf-services__*)
+     4. Ajustes de la cuenta (cf-account__*) y avatar
+     5. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -1802,7 +1804,443 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   4. MOVIMIENTO REDUCIDO
+   4. PÁGINA: AJUSTES DE LA CUENTA (account/*.jsx y Avatar.jsx)
+   ====================================================================== */
+
+/* ---------- AVATAR (Avatar.jsx) ----------
+   Con foto, recortada en redondo; sin foto, las iniciales sobre verde
+   suave. Tres tallas, las mismas que el componente conoce. */
+
+.cf-dash-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-family: var(--cf-font-body);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  object-fit: cover;
+  overflow: hidden;
+}
+
+.cf-dash-avatar--sm {
+  width: 32px;
+  height: 32px;
+  font-size: 0.75rem;
+}
+
+.cf-dash-avatar--md {
+  width: 48px;
+  height: 48px;
+  font-size: 0.9375rem;
+}
+
+.cf-dash-avatar--lg {
+  width: 96px;
+  height: 96px;
+  font-size: 1.75rem;
+}
+
+/* ---------- MARCO Y PESTAÑAS (AccountLayout.jsx) ---------- */
+
+/* container-type: como en tareas y servicios, manda el ancho del contenido
+   y no el de la ventana (ver @container al final del bloque). */
+.cf-account {
+  container-type: inline-size;
+  max-width: 900px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+.cf-account__title {
+  margin: 0 0 var(--cf-space-4);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--cf-primary);
+}
+
+/* Las mismas pestañas que el encargado, pero con enlaces: aquí cada
+   apartado tiene su URL. NavLink marca la actual con aria-current. */
+.cf-account__tabs {
+  display: flex;
+  gap: var(--cf-space-6);
+  margin: 0 0 var(--cf-space-6);
+  padding: 0;
+  border-bottom: 1px solid var(--cf-border);
+  list-style: none;
+  overflow-x: auto;
+}
+
+.cf-account__tabs a {
+  display: inline-block;
+  margin-bottom: -1px;
+  padding: 0 0 var(--cf-space-3);
+  border-bottom: 2px solid transparent;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cf-account__tabs a:hover {
+  color: var(--cf-primary);
+}
+
+.cf-account__tabs a[aria-current="page"] {
+  border-bottom-color: var(--cf-primary);
+  color: var(--cf-primary);
+  font-weight: 600;
+}
+
+/* ---------- TARJETA DE CADA APARTADO ---------- */
+
+.cf-account__card {
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-account__card + .cf-account__card {
+  margin-top: var(--cf-space-4);
+}
+
+.cf-account__subtitle {
+  margin: 0 0 var(--cf-space-1);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+  color: var(--cf-primary);
+}
+
+.cf-account__lede {
+  margin: 0 0 var(--cf-space-4);
+  max-width: 60ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- FOTO ---------- */
+
+.cf-account__photo {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-6);
+}
+
+.cf-account__photo-actions {
+  display: grid;
+  gap: var(--cf-space-2);
+  justify-items: start;
+}
+
+.cf-account__photo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-account__photo-hint {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---------- FORMULARIO ---------- */
+
+.cf-account__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cf-space-4);
+}
+
+/* Una sola columna, estrecha: la contraseña no gana nada por ser ancha. */
+.cf-account__grid--one {
+  grid-template-columns: minmax(0, 420px);
+}
+
+.cf-account__full {
+  grid-column: 1 / -1;
+}
+
+/* Campo bloqueado (el correo): se lee y se copia, pero no se escribe.
+   readOnly y no disabled, para poder seleccionarlo. */
+.cf-account__input--locked {
+  background-color: var(--cf-bg);
+  color: var(--cf-muted);
+  cursor: not-allowed;
+}
+
+.cf-account__input--locked:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: var(--cf-border);
+}
+
+.cf-account__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-account__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cf-space-3);
+  margin-top: var(--cf-space-6);
+  padding-top: var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+/* Aviso de guardado: verde de la marca, no el rojo de una alerta.
+   margin-right auto lo deja a la izquierda, lejos del botón. */
+.cf-account__saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto 0 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+/* ---------- CONTRASEÑA CON OJO (AccountSecurity.jsx) ----------
+   El botón va dentro del campo, como el "€/h" de los servicios. */
+
+.cf-account__password {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cf-account__password .cf-dash-input {
+  padding-right: 44px;
+}
+
+.cf-account__eye {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  background: none;
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+
+.cf-account__eye:hover {
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-account__eye:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 1px;
+}
+
+/* ---------- DATOS DEL TRABAJADOR (solo lectura) ---------- */
+
+.cf-account__data {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cf-space-4);
+  margin: 0;
+}
+
+.cf-account__data dt {
+  margin-bottom: 2px;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cf-account__data dd {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.9375rem;
+}
+
+.cf-account__note {
+  display: flex;
+  gap: var(--cf-space-3);
+  margin: var(--cf-space-6) 0 0;
+  padding: var(--cf-space-4);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- DIRECCIONES (AccountAddresses.jsx) ---------- */
+
+.cf-account__list {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-account__address {
+  display: grid;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4) var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+}
+
+/* La principal se distingue por el borde, además de por su etiqueta. */
+.cf-account__address--default {
+  border-color: var(--cf-primary);
+}
+
+.cf-account__address-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+}
+
+.cf-account__address-street {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cf-account__address-city {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-account__address-notes {
+  margin: var(--cf-space-2) 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-account__badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-account__address-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  padding-top: var(--cf-space-3);
+  border-top: 1px solid var(--cf-border);
+}
+
+/* Quitar, apartado a la derecha y en rojo: mismos colores que el botón de
+   desactivar servicios. ⚠️ A mano: no hay tokens de estado. */
+.cf-dash-btn--danger-ghost {
+  margin-left: auto;
+  border-color: #c2574a;
+  background: none;
+  color: #a33b2b;
+}
+
+.cf-dash-btn--danger-ghost:hover {
+  background-color: #fbe9e6;
+  border-color: #a33b2b;
+  color: #a33b2b;
+}
+
+/* ---------- CARGANDO ---------- */
+
+.cf-account__skel-title {
+  width: 30%;
+  height: 20px;
+}
+
+.cf-account__skel-line {
+  width: 100%;
+  height: 38px;
+  border-radius: var(--cf-radius-sm);
+}
+
+/* ---------- PANTALLAS ESTRECHAS ----------
+   640px: con el sidebar, tablet y móvil ya entran aquí. */
+
+@container (max-width: 640px) {
+  .cf-account__title {
+    font-size: var(--cf-text-xl);
+  }
+
+  .cf-account__tabs {
+    gap: var(--cf-space-4);
+  }
+
+  .cf-account__card {
+    padding: var(--cf-space-4);
+  }
+
+  .cf-account__grid,
+  .cf-account__grid--one,
+  .cf-account__data {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-account__photo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--cf-space-4);
+  }
+
+  .cf-account__actions {
+    justify-content: stretch;
+  }
+
+  .cf-account__actions .cf-dash-btn {
+    flex: 1 1 100%;
+  }
+
+  .cf-account__saved {
+    width: 100%;
+    margin-right: 0;
+    justify-content: center;
+  }
+
+  .cf-dash-btn--danger-ghost {
+    margin-left: 0;
+  }
+}
+
+/* ======================================================================
+   5. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
