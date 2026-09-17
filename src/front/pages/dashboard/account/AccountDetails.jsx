@@ -1,18 +1,19 @@
 /**
  * AJUSTES · DATOS PERSONALES (#13).
  *
- * Nombre, apellidos y teléfono se editan; el correo solo se ve, porque es
- * con lo que se entra. El trabajador los ve en solo lectura: sus datos los
- * gestiona el encargado desde Trabajadores.
+ * Foto para todos los roles. Nombre, apellidos y teléfono se editan; el
+ * correo solo se ve, porque es con lo que se entra. El trabajador ve sus
+ * datos en solo lectura: los gestiona el encargado desde Trabajadores.
  *
  * API: services/accountService.js
  *
- * Sin estilos todavía (paso 13); la foto llega en el paso 10.
+ * Sin estilos todavía: se visten en el paso 13 de la #13.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import useGlobalReducer from "../../../hooks/useGlobalReducer"
-import { getAccount, updateAccount } from "../../../services/accountService"
+import { getAccount, updateAccount, uploadAvatar, removeAvatar } from "../../../services/accountService"
+import { Avatar } from "../../../components/dashboard/Avatar"
 
 // Mismos topes y reglas que el backend, para avisar sin esperar respuesta.
 const NAME_MAX_LENGTH = 100
@@ -20,6 +21,10 @@ const LAST_NAME_MAX_LENGTH = 150
 const PHONE_MIN_DIGITS = 9
 const PHONE_MAX_DIGITS = 15
 const PHONE_ALLOWED = /^\+?[0-9 ]+$/
+
+// Los mismos que acepta el backend en /account/avatar.
+const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"]
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024
 
 // Los campos que se pueden editar. El correo y el rol no están: no se tocan.
 const EMPTY_FORM = { name: "", last_name: "", phone: "" }
@@ -47,6 +52,137 @@ const validate = (form) => {
 
     return errors
 }
+
+// ----------------------------------------------------------------------
+// LA FOTO
+// ----------------------------------------------------------------------
+// Componente aparte y no una función dentro de AccountDetails: así no se
+// vuelve a crear en cada render y no pierde su estado al escribir arriba.
+// Lo usan los tres roles: la foto la cambia cualquiera.
+
+const AvatarSection = ({ account, token, onUpdated, onSessionExpired }) => {
+    const [preview, setPreview] = useState("")
+    const [working, setWorking] = useState(false)
+    const [error, setError] = useState("")
+
+    // El <input type="file"> no se puede rellenar desde JavaScript, así que
+    // se abre con el botón y se limpia por referencia.
+    const fileRef = useRef(null)
+
+    // La vista previa es una URL de memoria: hay que soltarla o el
+    // navegador se queda con la imagen cargada.
+    useEffect(() => {
+        return () => {
+            if (preview) URL.revokeObjectURL(preview)
+        }
+    }, [preview])
+
+    const clearFileInput = () => {
+        if (fileRef.current) fileRef.current.value = ""
+    }
+
+    const handleFile = async (event) => {
+        const file = event.target.files?.[0]
+
+        if (!file) return
+
+        setError("")
+
+        // Se comprueba aquí para no subir 2 MB y que el backend los rechace.
+        if (!AVATAR_TYPES.includes(file.type)) {
+            setError("La foto tiene que ser JPG, PNG o WEBP")
+            clearFileInput()
+            return
+        }
+
+        if (file.size > AVATAR_MAX_BYTES) {
+            setError("La foto no puede pesar más de 2 MB")
+            clearFileInput()
+            return
+        }
+
+        setPreview(URL.createObjectURL(file))
+        setWorking(true)
+
+        const result = await uploadAvatar(file, token)
+
+        clearFileInput()
+
+        if (onSessionExpired(result)) return
+
+        setWorking(false)
+        setPreview("")
+
+        if (!result.ok) {
+            setError(result.data.message)
+            return
+        }
+
+        onUpdated(result.data)
+    }
+
+    const handleRemove = async () => {
+        setError("")
+        setWorking(true)
+
+        const result = await removeAvatar(token)
+
+        if (onSessionExpired(result)) return
+
+        setWorking(false)
+
+        if (!result.ok) {
+            setError(result.data.message)
+            return
+        }
+
+        onUpdated(result.data)
+    }
+
+    return (
+        <div>
+            <h3>Foto de perfil</h3>
+
+            {/* Mientras sube se ve la foto elegida; el resto del tiempo, la
+                guardada o las iniciales. */}
+            {preview ? (
+                <img src={preview} alt="Foto que estás subiendo" width="96" height="96" />
+            ) : (
+                <Avatar user={account} size="lg" alt="Tu foto de perfil" />
+            )}
+
+            {/* El input va oculto y se abre desde el botón: el de serie no
+                se puede vestir y enseña un texto en inglés. */}
+            <input
+                ref={fileRef}
+                id="avatar"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFile}
+                disabled={working}
+                hidden
+            />
+
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={working}>
+                {working ? "Subiendo..." : account.avatar_url ? "Cambiar foto" : "Subir foto"}
+            </button>
+
+            {account.avatar_url && (
+                <button type="button" onClick={handleRemove} disabled={working}>
+                    Quitar foto
+                </button>
+            )}
+
+            <p>JPG, PNG o WEBP. Máximo 2 MB. Sin foto se ven tus iniciales.</p>
+
+            {error && <p role="alert">{error}</p>}
+        </div>
+    )
+}
+
+// ----------------------------------------------------------------------
+// LA PÁGINA
+// ----------------------------------------------------------------------
 
 export const AccountDetails = () => {
     const { store, dispatch } = useGlobalReducer()
@@ -98,6 +234,13 @@ export const AccountDetails = () => {
         loadAccount()
     }, [store.token])
 
+    // La respuesta de guardar, subir o quitar la foto trae las dos cosas:
+    // los datos de la pantalla y el usuario de la sesión.
+    const applyUpdate = (data) => {
+        setAccount(data.account)
+        dispatch({ type: "SET_USER", payload: data.user })
+    }
+
     const handleChange = (event) => {
         const { name, value } = event.target
 
@@ -132,11 +275,7 @@ export const AccountDetails = () => {
             return
         }
 
-        setAccount(result.data.account)
-
-        // El usuario del store cambia, y con él el bloque del sidebar, sin
-        // recargar la página.
-        dispatch({ type: "SET_USER", payload: result.data.user })
+        applyUpdate(result.data)
         setSaved(true)
     }
 
@@ -165,12 +304,23 @@ export const AccountDetails = () => {
         )
     }
 
-    // El trabajador no edita nada aquí: solo mira. El backend responde 403
-    // si lo intenta por su cuenta.
+    const photo = (
+        <AvatarSection
+            account={account}
+            token={store.token}
+            onUpdated={applyUpdate}
+            onSessionExpired={sessionExpired}
+        />
+    )
+
+    // El trabajador no edita sus datos aquí: solo mira. La foto sí la
+    // cambia. El backend responde 403 si intenta lo demás.
     if (account.role === "worker") {
         return (
             <div>
                 <h2>Datos personales</h2>
+
+                {photo}
 
                 <dl>
                     <dt>Nombre</dt>
@@ -197,6 +347,8 @@ export const AccountDetails = () => {
     return (
         <div>
             <h2>Datos personales</h2>
+
+            {photo}
 
             {/* noValidate: los avisos los damos nosotros, en español y con
                 los mismos textos que el backend. */}
