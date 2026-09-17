@@ -13,7 +13,7 @@ import re
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task, Service, Worker
+from api.models import db, User, Task, Service, Worker, Address
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from flask_cors import CORS
 from datetime import datetime
@@ -42,6 +42,22 @@ def get_json_body():
     """
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else None
+
+
+def clean_optional_text(value, field_label, max_length=None):
+    """Texto opcional: devuelve (texto o None, None) o (None, mensaje)."""
+    if value is None:
+        return None, None
+
+    if not isinstance(value, str):
+        return None, f"{field_label} debe ser un texto"
+
+    value = value.strip()
+
+    if max_length and len(value) > max_length:
+        return None, f"{field_label} no puede superar los {max_length} caracteres"
+
+    return value or None, None
 
 
 @api.route("/hello", methods=["POST", "GET"])
@@ -790,6 +806,218 @@ def delete_account_avatar():
 
 
 # ----------------------------------------------------------------------
+# DIRECCIONES DEL CLIENTE
+# ----------------------------------------------------------------------
+#   GET    /api/addresses                activas, la principal primero
+#   POST   /api/addresses                crear
+#   PUT    /api/addresses/<id>           editar
+#   PATCH  /api/addresses/<id>/default   marcar como principal
+#   DELETE /api/addresses/<id>           desactivar
+#
+# Solo el rol client: el encargado y el trabajador no contratan servicios.
+# Cada cliente ve y toca SOLO las suyas; la de otro responde 404 y no 403,
+# para no confirmar que ese id existe.
+
+# Mismos topes que las columnas de Address en models.py.
+STREET_MAX_LENGTH = 150
+NUMBER_MAX_LENGTH = 20
+FLOOR_MAX_LENGTH = 20
+CITY_MAX_LENGTH = 80
+
+# Código postal español: cinco números.
+POSTAL_CODE_PATTERN = r"^[0-9]{5}$"
+
+
+def owned_address(user, address_id):
+    """La dirección activa del cliente, o None si no es suya o ya no está."""
+    return db.session.execute(
+        db.select(Address).filter_by(address_id=address_id, client_id=user.user_id, is_active=True)
+    ).scalar_one_or_none()
+
+
+def active_addresses(user):
+    """Las direcciones activas del cliente: la principal primero y, después,
+    de la más reciente a la más antigua."""
+    return db.session.execute(
+        db.select(Address)
+        .filter_by(client_id=user.user_id, is_active=True)
+        .order_by(Address.is_default.desc(), Address.created_at.desc())
+    ).scalars().all()
+
+
+def validate_address(data, current=None):
+    """Valida una dirección. Devuelve (campos, None) o (None, mensaje).
+
+    Al editar se pasa current: lo que no venga en el cuerpo se conserva.
+    """
+
+    def pick(field):
+        if field in data:
+            return data[field]
+        return getattr(current, field) if current is not None else None
+
+    fields = {}
+
+    # ---- obligatorios ----
+    # Cada uno con su mensaje escrito: "la calle es obligatoria" y "el
+    # número es obligatorio" no concuerdan igual.
+    for field, label, max_length, required_message in (
+        ("street", "La calle", STREET_MAX_LENGTH, "La calle es obligatoria"),
+        ("number", "El número", NUMBER_MAX_LENGTH, "El número es obligatorio"),
+        ("city", "La ciudad", CITY_MAX_LENGTH, "La ciudad es obligatoria"),
+    ):
+        value = pick(field)
+
+        if not isinstance(value, str) or not value.strip():
+            return None, required_message
+
+        value = value.strip()
+
+        if len(value) > max_length:
+            return None, f"{label} no puede superar los {max_length} caracteres"
+
+        fields[field] = value
+
+    # ---- código postal ----
+    postal_code = pick("postal_code")
+
+    if not isinstance(postal_code, str) or not re.match(POSTAL_CODE_PATTERN, postal_code.strip()):
+        return None, "El código postal tiene que ser cinco números"
+
+    fields["postal_code"] = postal_code.strip()
+
+    # ---- opcionales: vacíos se guardan como NULL ----
+    fields["floor"], error = clean_optional_text(pick("floor"), "El piso", FLOOR_MAX_LENGTH)
+    if error:
+        return None, error
+
+    fields["access_notes"], error = clean_optional_text(pick("access_notes"), "Las notas de acceso")
+    if error:
+        return None, error
+
+    return fields, None
+
+
+@api.route("/addresses", methods=["GET"])
+@role_required("client")
+def get_addresses():
+    """Las direcciones activas del cliente."""
+    user = current_user()
+
+    return jsonify({
+        "addresses": [address.serialize() for address in active_addresses(user)]
+    }), 200
+
+
+@api.route("/addresses", methods=["POST"])
+@role_required("client")
+def create_address():
+    """Crea una dirección. La primera del cliente nace como principal."""
+    user = current_user()
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    fields, error = validate_address(data)
+    if error:
+        return jsonify({"message": error}), 400
+
+    # is_default no se acepta del cuerpo: se marca con PATCH .../default.
+    address = Address(client_id=user.user_id, is_default=not active_addresses(user), **fields)
+
+    db.session.add(address)
+    db.session.commit()
+
+    return jsonify({"address": address.serialize()}), 201
+
+
+@api.route("/addresses/<int:address_id>", methods=["PUT"])
+@role_required("client")
+def update_address(address_id):
+    """Edita una dirección del cliente (solo lo que venga en el cuerpo)."""
+    user = current_user()
+    address = owned_address(user, address_id)
+
+    if not address:
+        return jsonify({"message": "Dirección no encontrada"}), 404
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    fields, error = validate_address(data, current=address)
+    if error:
+        return jsonify({"message": error}), 400
+
+    # Validado todo, ahora sí se aplica.
+    for field, value in fields.items():
+        setattr(address, field, value)
+
+    db.session.commit()
+
+    return jsonify({"address": address.serialize()}), 200
+
+
+@api.route("/addresses/<int:address_id>/default", methods=["PATCH"])
+@role_required("client")
+def set_default_address(address_id):
+    """Marca una dirección como principal y quita la marca a la anterior.
+
+    Las dos cosas en el MISMO commit: si se hiciera en dos, un fallo entre
+    medias dejaría al cliente sin principal o con dos.
+    """
+    user = current_user()
+    address = owned_address(user, address_id)
+
+    if not address:
+        return jsonify({"message": "Dirección no encontrada"}), 404
+
+    for other in active_addresses(user):
+        other.is_default = other.address_id == address.address_id
+
+    db.session.commit()
+
+    return jsonify({
+        "addresses": [item.serialize() for item in active_addresses(user)]
+    }), 200
+
+
+@api.route("/addresses/<int:address_id>", methods=["DELETE"])
+@role_required("client")
+def delete_address(address_id):
+    """Quita una dirección de la lista del cliente.
+
+    No se borra: se desactiva, porque puede haber reservas que apunten a
+    ella. Si era la principal, pasa a serlo la más reciente de las que quedan.
+    """
+    user = current_user()
+    address = owned_address(user, address_id)
+
+    if not address:
+        return jsonify({"message": "Dirección no encontrada"}), 404
+
+    was_default = address.is_default
+
+    address.is_active = False
+    address.is_default = False
+
+    if was_default:
+        remaining = active_addresses(user)
+
+        if remaining:
+            remaining[0].is_default = True
+
+    db.session.commit()
+
+    return jsonify({
+        "addresses": [item.serialize() for item in active_addresses(user)]
+    }), 200
+
+
+# ----------------------------------------------------------------------
 # RUTAS CON PERMISO POR ROL: EL PATRÓN
 # ----------------------------------------------------------------------
 #   @role_required("manager")             -> solo encargados
@@ -1015,22 +1243,6 @@ def is_whole_number(value):
     bool se descarta: en Python True vale 1 y "min_hours": true colaría.
     """
     return isinstance(value, int) and not isinstance(value, bool)
-
-
-def clean_optional_text(value, field_label, max_length=None):
-    """Texto opcional: devuelve (texto o None, None) o (None, mensaje)."""
-    if value is None:
-        return None, None
-
-    if not isinstance(value, str):
-        return None, f"{field_label} debe ser un texto"
-
-    value = value.strip()
-
-    if max_length and len(value) > max_length:
-        return None, f"{field_label} no puede superar los {max_length} caracteres"
-
-    return value or None, None
 
 
 def validate_service(data, current=None):
