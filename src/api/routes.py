@@ -28,6 +28,20 @@ api = Blueprint("api", __name__)
 CORS(api)
 
 
+# ----------------------------------------------------------------------
+# AYUDANTES COMUNES
+# ----------------------------------------------------------------------
+
+def get_json_body():
+    """Devuelve el cuerpo si es un objeto JSON, o None.
+
+    silent=True evita la excepción con cuerpo vacío o no JSON; [] o "texto"
+    tampoco valen porque luego se usa .get().
+    """
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
+
+
 @api.route("/hello", methods=["POST", "GET"])
 def handle_hello():
 
@@ -450,6 +464,8 @@ def login():
 # RUTAS CON SESIÓN
 # ----------------------------------------------------------------------
 #   GET    /api/profile    usuario del token (cualquier rol)
+#   GET    /api/account    datos de la pantalla de ajustes
+#   PUT    /api/account    editar nombre, apellidos y teléfono
 
 @api.route("/profile", methods=["GET"])
 @jwt_required()
@@ -467,6 +483,142 @@ def get_profile():
 
     # Misma forma que /login ({"user": ...}): el frontend lee siempre data.user.
     return jsonify({"user": user.serialize_session()}), 200
+
+
+# ---------- MI CUENTA ----------
+# La pantalla de ajustes (#13). Cualquier rol entra: lo que cambia es qué
+# puede editar cada uno.
+
+# Mismos topes que las columnas de User en models.py.
+ACCOUNT_NAME_MAX_LENGTH = 100
+ACCOUNT_LAST_NAME_MAX_LENGTH = 150
+
+# Números, espacios y un + inicial. Entre 9 y 15 dígitos: 9 son los de un
+# teléfono español y 15 el máximo internacional.
+PHONE_ALLOWED_PATTERN = r"^\+?[0-9 ]+$"
+PHONE_MIN_DIGITS = 9
+PHONE_MAX_DIGITS = 15
+
+
+def current_user():
+    """El usuario del token. None si la cuenta ya no existe."""
+    return db.session.get(User, get_jwt_identity())
+
+
+def clean_account_text(value, current, max_length, required_message, length_message):
+    """Texto obligatorio de la cuenta: (texto, None) o (None, mensaje).
+
+    Los mensajes llegan escritos desde fuera: "el nombre" y "los apellidos"
+    no concuerdan igual en español.
+    Si el campo no viene en el cuerpo, se conserva el que ya tenía.
+    """
+    if value is None:
+        return current, None
+
+    if not isinstance(value, str) or not value.strip():
+        return None, required_message
+
+    value = value.strip()
+
+    if len(value) > max_length:
+        return None, length_message
+
+    return value, None
+
+
+def clean_phone(value, current):
+    """Teléfono: (teléfono, None) o (None, mensaje)."""
+    if value is None:
+        return current, None
+
+    if not isinstance(value, str) or not value.strip():
+        return None, "El teléfono es obligatorio"
+
+    phone = value.strip()
+    digits = sum(1 for character in phone if character.isdigit())
+
+    if not re.match(PHONE_ALLOWED_PATTERN, phone) or not PHONE_MIN_DIGITS <= digits <= PHONE_MAX_DIGITS:
+        return None, (
+            f"El teléfono tiene que tener entre {PHONE_MIN_DIGITS} y {PHONE_MAX_DIGITS} dígitos. "
+            "Solo se admiten números, espacios y el signo + al principio"
+        )
+
+    return phone, None
+
+
+@api.route("/account", methods=["GET"])
+@jwt_required()
+def get_account():
+    """Datos del usuario del token para la pantalla de ajustes.
+
+    serialize_account() y no serialize_session(): aquí sí viaja el teléfono.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    return jsonify({"account": user.serialize_account()}), 200
+
+
+@api.route("/account", methods=["PUT"])
+@jwt_required()
+def update_account():
+    """Edita nombre, apellidos y teléfono del usuario del token.
+
+    El correo y el rol NO se tocan aquí, aunque vengan en el cuerpo: el
+    correo es la identidad de la cuenta y el rol lo decide el encargado.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    # El trabajador solo cambia su foto y su contraseña: sus datos los
+    # gestiona el encargado desde Trabajadores.
+    if user.role == "worker":
+        return jsonify({
+            "message": "Tus datos los gestiona tu encargado. Puedes cambiar tu foto y tu contraseña"
+        }), 403
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    # Se valida todo antes de escribir: si algo falla, la BD no se entera.
+    name, error = clean_account_text(
+        data.get("name"), user.name, ACCOUNT_NAME_MAX_LENGTH,
+        "El nombre es obligatorio",
+        f"El nombre no puede superar los {ACCOUNT_NAME_MAX_LENGTH} caracteres",
+    )
+    if error:
+        return jsonify({"message": error}), 400
+
+    last_name, error = clean_account_text(
+        data.get("last_name"), user.last_name, ACCOUNT_LAST_NAME_MAX_LENGTH,
+        "Los apellidos son obligatorios",
+        f"Los apellidos no pueden superar los {ACCOUNT_LAST_NAME_MAX_LENGTH} caracteres",
+    )
+    if error:
+        return jsonify({"message": error}), 400
+
+    phone, error = clean_phone(data.get("phone"), user.phone)
+    if error:
+        return jsonify({"message": error}), 400
+
+    user.name = name
+    user.last_name = last_name
+    user.phone = phone
+
+    db.session.commit()
+
+    # account rellena el formulario; user va al store, y con él se actualiza
+    # el bloque del sidebar sin recargar.
+    return jsonify({
+        "account": user.serialize_account(),
+        "user": user.serialize_session()
+    }), 200
 
 
 # ----------------------------------------------------------------------
@@ -492,16 +644,6 @@ def get_profile():
 
 # Mismo tope que la columna task_name en models.py.
 TASK_NAME_MAX_LENGTH = 100
-
-
-def get_json_body():
-    """Devuelve el cuerpo si es un objeto JSON, o None.
-
-    silent=True evita la excepción con cuerpo vacío o no JSON; [] o "texto"
-    tampoco valen porque luego se usa .get().
-    """
-    data = request.get_json(silent=True)
-    return data if isinstance(data, dict) else None
 
 
 def clean_task_name(raw_name):
