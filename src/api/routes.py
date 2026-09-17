@@ -464,8 +464,9 @@ def login():
 # RUTAS CON SESIÓN
 # ----------------------------------------------------------------------
 #   GET    /api/profile    usuario del token (cualquier rol)
-#   GET    /api/account    datos de la pantalla de ajustes
-#   PUT    /api/account    editar nombre, apellidos y teléfono
+#   GET    /api/account           datos de la pantalla de ajustes
+#   PUT    /api/account           editar nombre, apellidos y teléfono
+#   PUT    /api/account/password  cambiar la contraseña
 
 @api.route("/profile", methods=["GET"])
 @jwt_required()
@@ -492,6 +493,9 @@ def get_profile():
 # Mismos topes que las columnas de User en models.py.
 ACCOUNT_NAME_MAX_LENGTH = 100
 ACCOUNT_LAST_NAME_MAX_LENGTH = 150
+
+# El mismo mínimo que pide /register: una sola regla en toda la aplicación.
+PASSWORD_MIN_LENGTH = 6
 
 # Números, espacios y un + inicial. Entre 9 y 15 dígitos: 9 son los de un
 # teléfono español y 15 el máximo internacional.
@@ -619,6 +623,52 @@ def update_account():
         "account": user.serialize_account(),
         "user": user.serialize_session()
     }), 200
+
+
+@api.route("/account/password", methods=["PUT"])
+@jwt_required()
+def update_account_password():
+    """Cambia la contraseña del usuario del token. Cualquier rol.
+
+    Pide la actual: con una sesión abierta en un ordenador ajeno, nadie
+    puede cambiarla sin saberla.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    current_password = data.get("current_password")
+    new_password = data.get("new_password")
+
+    if not isinstance(current_password, str) or not isinstance(new_password, str) or not current_password or not new_password:
+        return jsonify({"message": "La contraseña actual y la nueva son obligatorias"}), 400
+
+    # Se comprueba la actual ANTES que nada: a quien no la sepa no se le
+    # cuentan las reglas de la nueva.
+    # ⚠️ 400 y NUNCA 401: el frontend cierra la sesión al recibir un 401, y
+    # equivocarse escribiendo no es tener la sesión caducada.
+    if not user.check_password(current_password):
+        return jsonify({"message": "La contraseña actual no es correcta"}), 400
+
+    if len(new_password) < PASSWORD_MIN_LENGTH:
+        return jsonify({"message": f"La contraseña nueva debe tener mínimo {PASSWORD_MIN_LENGTH} caracteres"}), 400
+
+    if new_password == current_password:
+        return jsonify({"message": "La contraseña nueva tiene que ser distinta de la actual"}), 400
+
+    # set_password hashea; nunca se asigna password_hash a mano.
+    user.set_password(new_password)
+    db.session.commit()
+
+    # Sin datos del usuario: aquí no cambia nada que el frontend tenga que
+    # repintar. El token sigue valiendo, así que la sesión no se corta.
+    return jsonify({"message": "Contraseña actualizada correctamente"}), 200
 
 
 # ----------------------------------------------------------------------
