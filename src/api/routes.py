@@ -10,6 +10,8 @@ ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py)
 
 import re
 
+import cloudinary
+import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Task, Service, Worker
 from api.utils import generate_sitemap, APIException, role_required, slugify
@@ -467,6 +469,8 @@ def login():
 #   GET    /api/account           datos de la pantalla de ajustes
 #   PUT    /api/account           editar nombre, apellidos y teléfono
 #   PUT    /api/account/password  cambiar la contraseña
+#   POST   /api/account/avatar    subir la foto de perfil
+#   DELETE /api/account/avatar    quitarla
 
 @api.route("/profile", methods=["GET"])
 @jwt_required()
@@ -496,6 +500,12 @@ ACCOUNT_LAST_NAME_MAX_LENGTH = 150
 
 # El mismo mínimo que pide /register: una sola regla en toda la aplicación.
 PASSWORD_MIN_LENGTH = 6
+
+# Foto de perfil. 2 MB y 256x256 bastan para un avatar, y la cuenta
+# gratuita de Cloudinary tiene límite de espacio.
+AVATAR_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
+AVATAR_MAX_BYTES = 2 * 1024 * 1024
+AVATAR_FOLDER = "cleanflow/avatars"
 
 # Números, espacios y un + inicial. Entre 9 y 15 dígitos: 9 son los de un
 # teléfono español y 15 el máximo internacional.
@@ -669,6 +679,114 @@ def update_account_password():
     # Sin datos del usuario: aquí no cambia nada que el frontend tenga que
     # repintar. El token sigue valiendo, así que la sesión no se corta.
     return jsonify({"message": "Contraseña actualizada correctamente"}), 200
+
+
+def avatar_public_id(user):
+    """Nombre del archivo en Cloudinary: uno fijo por usuario.
+
+    Al subir una foto nueva se sobrescribe la anterior, así no se acumulan
+    imágenes sueltas que ya no usa nadie.
+    """
+    return f"{AVATAR_FOLDER}/user_{user.user_id}"
+
+
+def cloudinary_is_configured():
+    """True si CLOUDINARY_URL está en el .env y el SDK la ha leído."""
+    config = cloudinary.config()
+    return bool(config.cloud_name and config.api_key and config.api_secret)
+
+
+@api.route("/account/avatar", methods=["POST"])
+@jwt_required()
+def upload_account_avatar():
+    """Sube la foto de perfil del usuario del token. Cualquier rol.
+
+    Llega como archivo (multipart/form-data) en el campo `avatar`, no como
+    JSON: por eso aquí se usa request.files y no get_json_body().
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    # content_length es el tamaño de TODA la petición. Se mira antes de leer
+    # nada: así un archivo enorme no se carga en memoria solo para caducar.
+    # El margen cubre las cabeceras del multipart.
+    if request.content_length and request.content_length > AVATAR_MAX_BYTES + 8192:
+        return jsonify({"message": "La foto no puede pesar más de 2 MB"}), 400
+
+    photo = request.files.get("avatar")
+
+    if photo is None or not photo.filename:
+        return jsonify({"message": "Envía la foto en el campo avatar"}), 400
+
+    if photo.mimetype not in AVATAR_ALLOWED_TYPES:
+        return jsonify({"message": "La foto tiene que ser JPG, PNG o WEBP"}), 400
+
+    content = photo.read()
+
+    if not content:
+        return jsonify({"message": "El archivo está vacío"}), 400
+
+    if len(content) > AVATAR_MAX_BYTES:
+        return jsonify({"message": "La foto no puede pesar más de 2 MB"}), 400
+
+    # Antes de intentar subir: sin claves, el fallo es de configuración y no
+    # del usuario. 503 y no 500, que sería "algo se ha roto".
+    if not cloudinary_is_configured():
+        return jsonify({"message": "La subida de fotos no está configurada. Falta CLOUDINARY_URL"}), 503
+
+    try:
+        result = cloudinary.uploader.upload(
+            content,
+            public_id=avatar_public_id(user),
+            overwrite=True,
+            # invalidate: borra la copia en caché de la foto anterior.
+            invalidate=True,
+            resource_type="image",
+            # Cuadrada y centrada en la cara, que es lo que se ve en el avatar.
+            transformation=[{"width": 256, "height": 256, "crop": "fill", "gravity": "face"}],
+        )
+    except Exception as error:
+        # Cloudinary caído, sin internet o claves mal: no es culpa de quien sube.
+        print("Fallo al subir la foto a Cloudinary:", error)
+        return jsonify({"message": "No se ha podido subir la foto. Inténtalo de nuevo"}), 502
+
+    # secure_url: la https, y con el número de versión, así el navegador no
+    # sigue enseñando la foto anterior de su caché.
+    user.avatar_url = result.get("secure_url")
+    db.session.commit()
+
+    return jsonify({
+        "account": user.serialize_account(),
+        "user": user.serialize_session()
+    }), 200
+
+
+@api.route("/account/avatar", methods=["DELETE"])
+@jwt_required()
+def delete_account_avatar():
+    """Quita la foto de perfil: vuelven a verse las iniciales."""
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    if user.avatar_url and cloudinary_is_configured():
+        try:
+            cloudinary.uploader.destroy(avatar_public_id(user), invalidate=True)
+        except Exception as error:
+            # Si Cloudinary falla, la imagen se queda allí, pero el usuario
+            # deja de verla igual: no se le bloquea por eso.
+            print("Fallo al borrar la foto en Cloudinary:", error)
+
+    user.avatar_url = None
+    db.session.commit()
+
+    return jsonify({
+        "account": user.serialize_account(),
+        "user": user.serialize_session()
+    }), 200
 
 
 # ----------------------------------------------------------------------
