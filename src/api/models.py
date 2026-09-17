@@ -129,10 +129,26 @@ class User(db.Model):
 
     def serialize_session(self):
         """Vista mínima para la sesión. La devuelven /api/login y /api/profile
-        y acaba en localStorage, así que solo lleva lo imprescindible."""
+        y acaba en localStorage, así que solo lleva lo imprescindible.
+
+        last_name está por el bloque de usuario del sidebar, que enseña el
+        nombre completo. El teléfono NO: no hace falta para la sesión."""
         return {
             "user_id": self.user_id,
             "name": self.name,
+            "last_name": self.last_name,
+            "email": self.email,
+            "role": self.role,
+            "avatar_url": self.avatar_url
+        }
+
+    def serialize_account(self):
+        """Vista para la pantalla de ajustes (#13). Añade el teléfono, que
+        solo se usa ahí. El correo viaja, pero no se puede cambiar."""
+        return {
+            "name": self.name,
+            "last_name": self.last_name,
+            "phone": self.phone,
             "email": self.email,
             "role": self.role,
             "avatar_url": self.avatar_url
@@ -246,7 +262,8 @@ class Worker(db.Model):
 # ==================================================================
 # ADDRESS
 # ==================================================================
-# Dirección de un cliente donde se hace el servicio.
+# Dirección de un cliente donde se hace el servicio. Cada cliente tiene una
+# principal (is_default), que es la que sale elegida al contratar.
 
 class Address(db.Model):
     __tablename__ = "addresses"
@@ -266,9 +283,12 @@ class Address(db.Model):
         String(20),
         nullable=False
     )
-    floor: Mapped[str] = mapped_column(
+
+    # Opcionales: una casa no tiene piso, y las notas de acceso (portero,
+    # timbre, dónde aparcar...) son un extra.
+    floor: Mapped[str | None] = mapped_column(
         String(20),
-        nullable=False
+        nullable=True
     )
     postal_code: Mapped[str] = mapped_column(
         String(20),
@@ -278,25 +298,45 @@ class Address(db.Model):
         String(80),
         nullable=False
     )
-    access_notes: Mapped[str] = mapped_column(
+    access_notes: Mapped[str | None] = mapped_column(
         Text,
-        nullable=False
+        nullable=True
     )
+
+    # La principal del cliente: la que sale elegida al contratar. Solo puede
+    # haber una activa, y de eso se encarga la API.
+    is_default: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        default=False
+    )
+
+    # Se desactiva, nunca se borra: hay reservas que apuntan a ella.
     is_active: Mapped[bool] = mapped_column(
         Boolean(),
-        nullable=False
+        nullable=False,
+        default=True
+    )
+
+    # La pone la BD al insertar. Sirve para saber cuál es la más reciente
+    # cuando hay que elegir principal nueva.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now()
     )
 
     def serialize(self):
+        """Sin client_id: el cliente solo recibe las suyas."""
         return {
             "address_id": self.address_id,
-            "client_id": self.client_id,
             "street": self.street,
             "number": self.number,
             "floor": self.floor,
             "postal_code": self.postal_code,
             "city": self.city,
             "access_notes": self.access_notes,
+            "is_default": self.is_default,
             "is_active": self.is_active,
         }
 
