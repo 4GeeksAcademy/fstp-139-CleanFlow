@@ -11,6 +11,11 @@
  * Estilos: dashboard.css (cf-dash-avatar*), en el paso 13.
  */
 
+// Tamaño en píxeles de cada talla. Va en los atributos width y height de la
+// imagen: sin ellos, y hasta que exista el CSS, la foto saldría a su tamaño
+// real (256px) y reventaría el sidebar. El CSS del paso 13 manda sobre esto.
+const SIZES = { sm: 32, md: 48, lg: 96 }
+
 /** "Mateo Restrepo" -> "MR". Sin apellidos, una sola letra. */
 export const initialsOf = (user) => {
     const first = (user?.name || "").trim().charAt(0)
@@ -21,11 +26,12 @@ export const initialsOf = (user) => {
 
 export const Avatar = ({ user, size = "md", alt = "" }) => {
     const className = `cf-dash-avatar cf-dash-avatar--${size}`
+    const pixels = SIZES[size] || SIZES.md
 
     if (user?.avatar_url) {
         // alt vacío por defecto: al lado casi siempre está el nombre, y
         // repetirlo solo molesta a quien usa lector de pantalla.
-        return <img className={className} src={user.avatar_url} alt={alt} />
+        return <img className={className} src={user.avatar_url} alt={alt} width={pixels} height={pixels} />
     }
 
     // aria-hidden: las iniciales son un dibujo, no un texto que aporte.
