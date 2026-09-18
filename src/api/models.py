@@ -164,18 +164,50 @@ class Shift(db.Model):
     __tablename__ = "shifts"
 
     shift_id: Mapped[int] = mapped_column(primary_key=True)
+
     name: Mapped[str] = mapped_column(
         String(50),
         nullable=False
     )
+
     start_time: Mapped[time] = mapped_column(
         Time,
         nullable=False
     )
+
     end_time: Mapped[time] = mapped_column(
         Time,
         nullable=False
     )
+
+
+    # Días de la semana en que se trabaja, como texto: "1,2,3,4,5".
+    # Lunes = 1 ... domingo = 7, igual que date.isoweekday(): se compara
+    # sin convertir nada. Se lee y se escribe con la propiedad `days`.
+    work_days: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="1,2,3,4,5"
+    )
+
+    # Desactivado: se conserva, pero no ofrece huecos para reservar.
+    # server_default: los turnos que ya existían quedan activos al migrar.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        default=True,
+        server_default="true"
+    )
+
+    @property
+    def days(self):
+        """Los días como lista de números: "1,3,5" -> [1, 3, 5]."""
+        return [int(day) for day in self.work_days.split(",") if day]
+
+    @days.setter
+    def days(self, values):
+        """Guarda la lista ordenada y sin repetidos: [5, 1, 1] -> "1,5"."""
+        self.work_days = ",".join(str(day) for day in sorted(set(values)))
 
     def serialize(self):
         return {
@@ -183,6 +215,17 @@ class Shift(db.Model):
             "name": self.name,
             "start_time": self.start_time.strftime("%H:%M"),
             "end_time": self.end_time.strftime("%H:%M"),
+            "work_days": self.days,
+            "is_active": self.is_active,
+            "workers": [
+                {
+                    "worker_id": worker.worker_id,
+                    "name": worker.user.name,
+                    "last_name": worker.user.last_name,
+                }
+                for worker in self.workers
+                if worker.user is not None
+            ],
         }
 
 
@@ -568,6 +611,13 @@ class Booking(db.Model):
         ForeignKey("addresses.address_id"),
         nullable=False
     )
+    # Quién hace la reserva: lo elige el cliente (o se asigna solo con
+    # "Cualquiera"). Por eso la reserva nace ya confirmada.
+    worker_id: Mapped[int] = mapped_column(
+        ForeignKey("workers.worker_id"),
+        nullable=False,
+        index=True
+    )
     # Hora de Madrid, sin zona: el negocio está en Madrid y así se lee tal
     # cual. Las horas contratadas no se guardan: son fin menos inicio.
     scheduled_start: Mapped[datetime] = mapped_column(
@@ -610,13 +660,21 @@ class Booking(db.Model):
     )
 
     # ---- RELACIONES ----
-    # No cambian ninguna tabla: solo le dicen a SQLAlchemy cómo cruzar las
-    # claves que ya existen. Así se lee booking.service en vez de buscarlo.
+    # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
+    # Así se lee booking.service en vez de buscarlo.
+    worker = db.relationship("Worker")
     service = db.relationship("Service")
     address = db.relationship("Address")
 
-    # Las tareas en el orden en que se añadieron. Al hacer
-    # booking.tasks.append(...), se guardan junto con la reserva.
+    # Los tramos, en orden. Con booking.days.append(...) se guardan
+    # junto con la reserva.
+    days = db.relationship(
+        "BookingDay",
+        order_by="BookingDay.starts_at"
+    )
+
+    # Las tareas en el orden en que se añadieron. Con
+    # booking.tasks.append(...) se guardan junto con la reserva.
     tasks = db.relationship(
         "BookingTask",
         order_by="BookingTask.booking_task_id"
@@ -633,6 +691,7 @@ class Booking(db.Model):
             "client_id": self.client_id,
             "service_id": self.service_id,
             "address_id": self.address_id,
+            "worker_id": self.worker_id,
             "scheduled_start": (
                 self.scheduled_start.isoformat()
                 if self.scheduled_start
@@ -679,6 +738,43 @@ class Booking(db.Model):
         }
 
 
+
+
+# ==================================================================
+# BOOKING DAY
+# ==================================================================
+# Los tramos de trabajo de una reserva: uno por día, de 6 h como mucho
+# (3 h = un tramo; 12 h = dos). La disponibilidad mira estos tramos y no
+# el inicio y fin de la reserva: entre dos puede caer un fin de semana.
+
+class BookingDay(db.Model):
+    __tablename__ = "booking_days"
+
+    booking_day_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+    booking_id: Mapped[int] = mapped_column(
+        ForeignKey("bookings.booking_id"),
+        nullable=False,
+        index=True
+    )
+    # Hora de Madrid sin zona. starts_at/ends_at y no start/end: END es
+    # palabra reservada de SQL.
+    starts_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+    ends_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+
+    def serialize(self):
+        return {
+            "booking_day_id": self.booking_day_id,
+            "starts_at": self.starts_at.isoformat(),
+            "ends_at": self.ends_at.isoformat(),
+        }
 
 
 # ==================================================================

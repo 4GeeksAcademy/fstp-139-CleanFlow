@@ -22,6 +22,8 @@ import { RoleRoute } from "./pages/dashboard/RoleRoute";
 import { ManageTasks } from "./pages/dashboard/ManageTasks";
 import { ManageServices } from "./pages/dashboard/ManageServices";
 import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
+import { ListadoTurnos } from "./pages/dashboard/ListadoTurnos";
+import { EditarTrabajador } from "./pages/dashboard/EditarTrabajador";
 import { ServiceCatalog } from "./pages/dashboard/ServiceCatalog";
 import { AccountLayout } from "./pages/dashboard/account/AccountLayout";
 import { AccountDetails } from "./pages/dashboard/account/AccountDetails";
@@ -83,9 +85,17 @@ export const router = createBrowserRouter(
               tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
             <Route path="workers" element={<ListadoTrabajadores />} />
+            <Route
+              path="workers/:workerId/edit"
+              element={<EditarTrabajador />}
+            />
+            <Route
+              path="workers/new"
+              element={<EditarTrabajador />}
+            />
+            <Route path="shifts" element={<ListadoTurnos />} />
             <Route path="services-catalog" element={<ManageServices />} />
             <Route path="tasks-catalog" element={<ManageTasks />} />
-            <Route path="shifts" element={<h1>Turnos</h1>} />
           </Route>
 
           {/* ---- CÓMO AÑADIR UNA SECCIÓN NUEVA ----

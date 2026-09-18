@@ -87,3 +87,32 @@ export const createWorker = async (token, workerData) => {
     };
   }
 };
+export const getWorker = async (token, workerId) => {
+    try {
+        const response = await fetch(
+            `${BACKEND_URL}/api/workers/${workerId}`,
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        const data = await response.json();
+
+        return {
+            ok: response.ok,
+            data,
+        };
+    } catch (error) {
+        console.error("Error al obtener el trabajador:", error);
+
+        return {
+            ok: false,
+            data: {
+                error: "No se han podido cargar los datos del trabajador.",
+            },
+        };
+    }
+};
