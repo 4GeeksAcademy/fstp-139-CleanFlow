@@ -180,12 +180,39 @@ class Shift(db.Model):
         nullable=False
     )
 
+
+    # Días de la semana en que se trabaja, guardados como texto: "1,2,3,4,5".
+    # Lunes = 1 ... domingo = 7, el mismo número que da date.isoweekday(),
+    # así que comparar un día con el turno no necesita ninguna conversión.
+    #
+    # No se lee ni se escribe a mano: para eso está la propiedad `days`.
+    work_days: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="1,2,3,4,5"
+    )
+
+    @property
+    def days(self):
+        """Los días como lista de números: "1,3,5" -> [1, 3, 5]."""
+        return [int(day) for day in self.work_days.split(",") if day]
+
+    @days.setter
+    def days(self, values):
+        """Guarda la lista ordenada y sin repetidos: [5, 1, 1] -> "1,5".
+
+        Así dos turnos con los mismos días se guardan igual, y comparar es
+        comparar dos textos.
+        """
+        self.work_days = ",".join(str(day) for day in sorted(set(values)))
+
     def serialize(self):
         return {
             "shift_id": self.shift_id,
             "name": self.name,
             "start_time": self.start_time.strftime("%H:%M"),
             "end_time": self.end_time.strftime("%H:%M"),
+            "work_days": self.days,
             "workers": [
                 {
                     "worker_id": worker.worker_id,
