@@ -607,6 +607,13 @@ class Booking(db.Model):
         ForeignKey("addresses.address_id"),
         nullable=False
     )
+    # Quién hace la reserva. Lo elige el cliente al reservar, o se asigna
+    # solo con "Cualquiera": por eso la reserva nace confirmada.
+    worker_id: Mapped[int] = mapped_column(
+        ForeignKey("workers.worker_id"),
+        nullable=False,
+        index=True
+    )
     scheduled_start: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False
@@ -648,12 +655,24 @@ class Booking(db.Model):
         nullable=True
     )
 
+        # ---- RELACIONES ----
+    # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
+    worker = db.relationship("Worker")
+
+    # Los tramos, del primero al último. Al añadirlos con
+    # booking.days.append(...) se guardan junto con la reserva.
+    days = db.relationship(
+        "BookingDay",
+        order_by="BookingDay.starts_at"
+    )
+
     def serialize(self):
         return {
             "booking_id": self.booking_id,
             "client_id": self.client_id,
             "service_id": self.service_id,
             "address_id": self.address_id,
+            "worker_id": self.worker_id,
             "scheduled_start": (
                 self.scheduled_start.isoformat()
                 if self.scheduled_start
@@ -683,6 +702,46 @@ class Booking(db.Model):
                 if self.updated_at
                 else None
             ),
+        }
+
+
+# ==================================================================
+# BOOKING DAY
+# ==================================================================
+# Cada tramo de trabajo de una reserva: uno por día, de 6 h como mucho.
+# Una reserva de 3 h tiene un tramo; una de 12 h, dos (6 + 6).
+#
+# La disponibilidad mira estos tramos y no el inicio y fin de la reserva:
+# entre dos tramos puede haber un fin de semana en el que el trabajador
+# está libre.
+
+class BookingDay(db.Model):
+    __tablename__ = "booking_days"
+
+    booking_day_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+    booking_id: Mapped[int] = mapped_column(
+        ForeignKey("bookings.booking_id"),
+        nullable=False,
+        index=True
+    )
+    # Hora de Madrid sin zona, como el resto de la reserva. starts_at y
+    # ends_at y no start y end: END es palabra reservada de SQL.
+    starts_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+    ends_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+
+    def serialize(self):
+        return {
+            "booking_day_id": self.booking_day_id,
+            "starts_at": self.starts_at.isoformat(),
+            "ends_at": self.ends_at.isoformat(),
         }
 
 
