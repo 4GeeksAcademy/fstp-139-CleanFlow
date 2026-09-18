@@ -15,12 +15,14 @@ import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Task, Service, Worker, Address, Shift
 from api.utils import generate_sitemap, APIException, role_required, slugify
+from api.availability import can_work, load_busy, madrid_now, month_availability, BOOKING_HORIZON, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 
 api = Blueprint("api", __name__)
@@ -28,22 +30,6 @@ api = Blueprint("api", __name__)
 # El frontend (puerto 3000) y la API (3001) son orígenes distintos: sin
 # CORS el navegador bloquearía las respuestas.
 CORS(api)
-
-# ----------------------------------------------------------------------
-# TURNOS
-# ----------------------------------------------------------------------
-
-
-@api.route("/shifts", methods=["GET"])
-@role_required("manager")
-def get_shifts():
-    shifts = Shift.query.order_by(Shift.start_time).all()
-
-    return jsonify([
-        shift.serialize()
-        for shift in shifts
-    ]), 200
-
 
 # ----------------------------------------------------------------------
 # AYUDANTES COMUNES
@@ -84,61 +70,104 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
-@api.route("/shifts", methods=["POST"])
-@role_required("manager")
-def create_shift():
-    data = request.get_json()
 
-    if not isinstance(data, dict):
-        return jsonify({
-            "message": "Debes enviar un objeto JSON"
-        }), 400
+# ----------------------------------------------------------------------
+# TURNOS
+# ----------------------------------------------------------------------
+#   GET    /api/shifts               listar, cada uno con sus trabajadores
+#   POST   /api/shifts               crear
+#   PUT    /api/shifts/<id>          editar
+#   PATCH  /api/shifts/<id>/status   activar o desactivar
+#   DELETE /api/shifts/<id>          borrar, solo si no tiene trabajadores
+#
+# Lo normal es desactivar: el turno se conserva, pero sin huecos.
+# Borrar es seguro sin trabajadores: ninguna reserva apunta a un turno.
 
+# Lunes = 1 ... domingo = 7, como Shift.days.
+WEEKDAY_NUMBERS = range(1, 8)
+
+
+def validate_shift(data):
+    """Valida un turno. Devuelve (campos, None) o (None, mensaje).
+
+    Los días son opcionales: si no vienen, al crear se usa lunes a viernes
+    y al editar se conservan los que tenía.
+    """
     name = data.get("name")
-    start_time = data.get("start_time")
-    end_time = data.get("end_time")
 
     if not isinstance(name, str) or not name.strip():
-        return jsonify({
-            "message": "El nombre del turno es obligatorio"
-        }), 400
+        return None, "El nombre del turno es obligatorio"
 
     name = name.strip()
 
     if len(name) > 50:
-        return jsonify({
-            "message": "El nombre no puede superar los 50 caracteres"
-        }), 400
+        return None, "El nombre no puede superar los 50 caracteres"
 
     try:
-        parsed_start = datetime.strptime(start_time, "%H:%M").time()
-        parsed_end = datetime.strptime(end_time, "%H:%M").time()
+        start_time = datetime.strptime(data.get("start_time"), "%H:%M").time()
+        end_time = datetime.strptime(data.get("end_time"), "%H:%M").time()
     except (ValueError, TypeError):
-        return jsonify({
-            "message": "Las horas deben tener el formato HH:MM"
-        }), 400
+        return None, "Las horas deben tener el formato HH:MM"
 
-    if parsed_start >= parsed_end:
-        return jsonify({
-            "message": "La hora de fin debe ser posterior a la de inicio"
-        }), 400
+    if start_time >= end_time:
+        return None, "La hora de fin debe ser posterior a la de inicio"
 
-    shift = Shift(
-        name=name,
-        start_time=parsed_start,
-        end_time=parsed_end
-    )
+    fields = {"name": name, "start_time": start_time, "end_time": end_time}
+
+    # ---- días de la semana ----
+    if "work_days" in data:
+        days = data["work_days"]
+
+        if not isinstance(days, list) or not days:
+            return None, "Elige al menos un día de la semana"
+
+        # bool cuenta como int en Python: sin excluirlo, `true` pasaría por un 1.
+        if not all(isinstance(day, int) and not isinstance(day, bool) and day in WEEKDAY_NUMBERS for day in days):
+            return None, "Los días van del 1 (lunes) al 7 (domingo)"
+
+        # "days" y no "work_days": pasa por la propiedad de Shift, que lo
+        # guarda ordenado y sin repetidos.
+        fields["days"] = days
+
+    return fields, None
+
+
+@api.route("/shifts", methods=["GET"])
+@role_required("manager")
+def get_shifts():
+    """Todos los turnos, del que empieza antes al que empieza después."""
+    shifts = db.session.execute(
+        db.select(Shift).order_by(Shift.start_time)
+    ).scalars().all()
+
+    return jsonify({"shifts": [shift.serialize() for shift in shifts]}), 200
+
+
+@api.route("/shifts", methods=["POST"])
+@role_required("manager")
+def create_shift():
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    fields, error = validate_shift(data)
+    if error:
+        return jsonify({"message": error}), 400
+
+    shift = Shift()
+    for field, value in fields.items():
+        setattr(shift, field, value)
 
     try:
         db.session.add(shift)
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({
-            "message": "No se ha podido crear el turno"
-        }), 500
+        return jsonify({"message": "No se ha podido crear el turno"}), 500
 
-    return jsonify(shift.serialize()), 201
+    return jsonify({"shift": shift.serialize()}), 201
+
 
 @api.route("/shifts/<int:shift_id>", methods=["PUT"])
 @role_required("manager")
@@ -146,59 +175,49 @@ def update_shift(shift_id):
     shift = db.session.get(Shift, shift_id)
 
     if not shift:
-        return jsonify({
-            "message": "Turno no encontrado"
-        }), 404
+        return jsonify({"message": "Turno no encontrado"}), 404
 
-    data = request.get_json()
+    data = get_json_body()
 
-    if not isinstance(data, dict):
-        return jsonify({
-            "message": "Debes enviar un objeto JSON"
-        }), 400
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
 
-    name = data.get("name")
-    start_time = data.get("start_time")
-    end_time = data.get("end_time")
+    fields, error = validate_shift(data)
+    if error:
+        return jsonify({"message": error}), 400
 
-    if not isinstance(name, str) or not name.strip():
-        return jsonify({
-            "message": "El nombre del turno es obligatorio"
-        }), 400
-
-    name = name.strip()
-
-    if len(name) > 50:
-        return jsonify({
-            "message": "El nombre no puede superar los 50 caracteres"
-        }), 400
-
-    try:
-        parsed_start = datetime.strptime(start_time, "%H:%M").time()
-        parsed_end = datetime.strptime(end_time, "%H:%M").time()
-    except (ValueError, TypeError):
-        return jsonify({
-            "message": "Las horas deben tener el formato HH:MM"
-        }), 400
-
-    if parsed_start >= parsed_end:
-        return jsonify({
-            "message": "La hora de fin debe ser posterior a la de inicio"
-        }), 400
-
-    shift.name = name
-    shift.start_time = parsed_start
-    shift.end_time = parsed_end
+    for field, value in fields.items():
+        setattr(shift, field, value)
 
     try:
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({
-            "message": "No se ha podido actualizar el turno"
-        }), 500
+        return jsonify({"message": "No se ha podido actualizar el turno"}), 500
 
-    return jsonify(shift.serialize()), 200
+    return jsonify({"shift": shift.serialize()}), 200
+
+
+@api.route("/shifts/<int:shift_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_shift_status(shift_id):
+    """Activa o desactiva un turno. Desactivado, sus trabajadores lo
+    conservan, pero no ofrece huecos."""
+    shift = db.session.get(Shift, shift_id)
+
+    if not shift:
+        return jsonify({"message": "Turno no encontrado"}), 404
+
+    data = get_json_body()
+
+    if data is None or not isinstance(data.get("is_active"), bool):
+        return jsonify({"message": "Envía is_active con true o false"}), 400
+
+    shift.is_active = data["is_active"]
+    db.session.commit()
+
+    return jsonify({"shift": shift.serialize()}), 200
+
 
 @api.route("/shifts/<int:shift_id>", methods=["DELETE"])
 @role_required("manager")
@@ -206,31 +225,25 @@ def delete_shift(shift_id):
     shift = db.session.get(Shift, shift_id)
 
     if not shift:
-        return jsonify({
-            "message": "Turno no encontrado"
-        }), 404
+        return jsonify({"message": "Turno no encontrado"}), 404
 
-    assigned_worker = Worker.query.filter_by(
-        shift_id=shift_id
-    ).first()
+    assigned_worker = db.session.execute(
+        db.select(Worker).filter_by(shift_id=shift_id)
+    ).scalars().first()
 
     if assigned_worker:
-        return jsonify({
-            "message": "No puedes eliminar un turno con trabajadores asignados"
-        }), 409
+        return jsonify({"message": "No puedes eliminar un turno con trabajadores asignados"}), 409
 
     try:
         db.session.delete(shift)
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({
-            "message": "No se ha podido eliminar el turno"
-        }), 500
+        return jsonify({"message": "No se ha podido eliminar el turno"}), 500
 
-    return jsonify({
-        "message": "Turno eliminado correctamente"
-    }), 200
+    return jsonify({"message": "Turno eliminado correctamente"}), 200
+
+
 # ----------------------------------------------------------------------
 # WORKERS
 # ----------------------------------------------------------------------
@@ -1667,3 +1680,132 @@ def update_service_status(service_id):
     db.session.commit()
 
     return jsonify({"service": service.serialize()}), 200
+
+
+
+# ----------------------------------------------------------------------
+# DISPONIBILIDAD (CLIENTE)
+# ----------------------------------------------------------------------
+#   GET    /api/availability/workers   a quién se puede reservar
+#   GET    /api/availability           los huecos de un mes
+#
+# El cálculo está en api/availability.py; aquí solo se lee la petición
+# y se devuelve la respuesta.
+
+def public_worker(worker):
+    """Lo que ve un cliente de un trabajador: nombre con inicial, foto y
+    valoración. Sin correo ni teléfono (Worker.serialize() es del encargado)."""
+    user = worker.user
+    last_name = (user.last_name or "").strip()
+    initial = f" {last_name[0]}." if last_name else ""
+
+    return {
+        "worker_id": worker.worker_id,
+        "name": f"{user.name}{initial}",
+        "avatar_url": user.avatar_url,
+        # Sin valorar todavía: las notas por trabajador llegan con la #20.
+        "rating": None,
+    }
+
+
+def bookable_workers():
+    """Los trabajadores que se pueden reservar (can_work), por nombre.
+
+    selectinload trae usuarios y turnos de golpe, no uno por trabajador."""
+    workers = db.session.execute(
+        db.select(Worker)
+        .join(User, Worker.user_id == User.user_id)
+        .options(selectinload(Worker.user), selectinload(Worker.shift))
+        .order_by(User.name, Worker.worker_id)
+    ).scalars().all()
+
+    return [worker for worker in workers if can_work(worker)]
+
+
+@api.route("/availability/workers", methods=["GET"])
+@role_required("client")
+def get_availability_workers():
+    """Los trabajadores que el cliente puede elegir al reservar. La opción
+    "Cualquiera" no es un trabajador: la añade el panel."""
+    return jsonify({"workers": [public_worker(worker) for worker in bookable_workers()]}), 200
+
+
+
+
+# Tope de horas al pedir huecos. Ningún servicio llega, y evita que
+# alguien pida "hours=5000" y ponga al servidor a calcular para nada.
+MAX_REQUEST_HOURS = 60
+
+
+@api.route("/availability", methods=["GET"])
+@role_required("client")
+def get_availability():
+    """Los huecos de un mes para una reserva de `hours` horas.
+
+        GET /api/availability?hours=6&worker=any&month=2026-10
+
+    worker: "any" (Cualquiera, por defecto) o el id de un trabajador.
+    Responde {"days": {"2026-10-05": [{"start": "09:00", "options": [...]}]}}
+    solo con los días que tienen hueco. Cada opción: un trabajador libre y
+    los días que ocuparía la reserva.
+    """
+    # ---- HORAS ----
+    hours = request.args.get("hours", "")
+
+    if not hours.isdigit() or not 1 <= int(hours) <= MAX_REQUEST_HOURS:
+        return jsonify({"message": f"Indica las horas: un número entero entre 1 y {MAX_REQUEST_HOURS}"}), 400
+
+    hours = int(hours)
+
+    # ---- MES ----
+    try:
+        month_first_day = datetime.strptime(request.args.get("month", ""), "%Y-%m").date()
+    except ValueError:
+        return jsonify({"message": "Indica el mes con el formato AAAA-MM, por ejemplo 2026-10"}), 400
+
+    # Solo meses dentro de la ventana de reserva (hoy + 60 días).
+    now = madrid_now()
+    this_month = now.date().replace(day=1)
+    last_month = (now + BOOKING_HORIZON).date().replace(day=1)
+
+    if not this_month <= month_first_day <= last_month:
+        return jsonify({"message": "Ese mes está fuera de las fechas en las que se puede reservar"}), 400
+
+    # ---- TRABAJADOR ----
+    workers = bookable_workers()
+    worker_param = request.args.get("worker", "any")
+
+    if worker_param != "any":
+        chosen = [worker for worker in workers if str(worker.worker_id) == worker_param]
+
+        # Mismo 404 si no existe o si no se puede reservar: para el
+        # cliente es lo mismo.
+        if not chosen:
+            return jsonify({"message": "Ese trabajador no está disponible para reservar"}), 404
+
+        workers = chosen
+
+    # ---- CÁLCULO ----
+    # Se carga un poco más allá del fin de mes: una reserva que empieza
+    # el día 30 puede tener tramos en el mes siguiente.
+    next_month = (month_first_day.replace(day=28) + timedelta(days=4)).replace(day=1)
+    busy = load_busy(workers, month_first_day, next_month + timedelta(days=SEARCH_LIMIT_DAYS))
+
+    days = month_availability(workers, hours, month_first_day, now, busy)
+
+    # Las fechas viajan como texto "2026-10-05": JSON no tiene fechas.
+    return jsonify({
+        "days": {
+            day.isoformat(): [
+                {
+                    "start": slot["start"],
+                    "options": [
+                        {"worker_id": option["worker_id"], "days": [d.isoformat() for d in option["days"]]}
+                        for option in slot["options"]
+                    ],
+                }
+                for slot in slots
+            ]
+            for day, slots in days.items()
+        }
+    }), 200
