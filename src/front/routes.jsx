@@ -15,6 +15,8 @@ import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
 import { DashboardLayout } from "./pages/dashboard/DashboardLayout";
 import { RoleRoute } from "./pages/dashboard/RoleRoute";
 import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
+import { ListadoTurnos } from "./pages/dashboard/ListadoTurnos";
+import { EditarTrabajador } from "./pages/dashboard/EditarTrabajador";
 
 
 export const router = createBrowserRouter(
@@ -58,8 +60,16 @@ export const router = createBrowserRouter(
               no hace falta repetir el guardián en cada una. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
             <Route path="workers" element={<ListadoTrabajadores />} />
+            <Route
+              path="workers/:workerId/edit"
+              element={<EditarTrabajador />}
+            />
+            <Route
+              path="workers/new"
+              element={<EditarTrabajador />}
+            />
             <Route path="services" element={<h1>Servicios</h1>} />
-            <Route path="shifts" element={<h1>Turnos</h1>} />
+            <Route path="shifts" element={<ListadoTurnos />} />
           </Route>
 
           {/* ---- CÓMO AÑADIR UNA SECCIÓN NUEVA ----
