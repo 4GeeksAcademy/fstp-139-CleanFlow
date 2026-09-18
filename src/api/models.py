@@ -164,14 +164,17 @@ class Shift(db.Model):
     __tablename__ = "shifts"
 
     shift_id: Mapped[int] = mapped_column(primary_key=True)
+
     name: Mapped[str] = mapped_column(
         String(50),
         nullable=False
     )
+
     start_time: Mapped[time] = mapped_column(
         Time,
         nullable=False
     )
+
     end_time: Mapped[time] = mapped_column(
         Time,
         nullable=False
@@ -183,6 +186,15 @@ class Shift(db.Model):
             "name": self.name,
             "start_time": self.start_time.strftime("%H:%M"),
             "end_time": self.end_time.strftime("%H:%M"),
+            "workers": [
+                {
+                    "worker_id": worker.worker_id,
+                    "name": worker.user.name,
+                    "last_name": worker.user.last_name,
+                }
+                for worker in self.workers
+                if worker.user is not None
+            ],
         }
 
 

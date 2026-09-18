@@ -13,7 +13,7 @@ import re
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task, Service, Worker, Address
+from api.models import db, User, Task, Service, Worker, Address, Shift
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from flask_cors import CORS
 from datetime import datetime
@@ -28,6 +28,21 @@ api = Blueprint("api", __name__)
 # El frontend (puerto 3000) y la API (3001) son orígenes distintos: sin
 # CORS el navegador bloquearía las respuestas.
 CORS(api)
+
+# ----------------------------------------------------------------------
+# TURNOS
+# ----------------------------------------------------------------------
+
+
+@api.route("/shifts", methods=["GET"])
+@role_required("manager")
+def get_shifts():
+    shifts = Shift.query.order_by(Shift.start_time).all()
+
+    return jsonify([
+        shift.serialize()
+        for shift in shifts
+    ]), 200
 
 
 # ----------------------------------------------------------------------
@@ -69,7 +84,153 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
+@api.route("/shifts", methods=["POST"])
+@role_required("manager")
+def create_shift():
+    data = request.get_json()
 
+    if not isinstance(data, dict):
+        return jsonify({
+            "message": "Debes enviar un objeto JSON"
+        }), 400
+
+    name = data.get("name")
+    start_time = data.get("start_time")
+    end_time = data.get("end_time")
+
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({
+            "message": "El nombre del turno es obligatorio"
+        }), 400
+
+    name = name.strip()
+
+    if len(name) > 50:
+        return jsonify({
+            "message": "El nombre no puede superar los 50 caracteres"
+        }), 400
+
+    try:
+        parsed_start = datetime.strptime(start_time, "%H:%M").time()
+        parsed_end = datetime.strptime(end_time, "%H:%M").time()
+    except (ValueError, TypeError):
+        return jsonify({
+            "message": "Las horas deben tener el formato HH:MM"
+        }), 400
+
+    if parsed_start >= parsed_end:
+        return jsonify({
+            "message": "La hora de fin debe ser posterior a la de inicio"
+        }), 400
+
+    shift = Shift(
+        name=name,
+        start_time=parsed_start,
+        end_time=parsed_end
+    )
+
+    try:
+        db.session.add(shift)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({
+            "message": "No se ha podido crear el turno"
+        }), 500
+
+    return jsonify(shift.serialize()), 201
+
+@api.route("/shifts/<int:shift_id>", methods=["PUT"])
+@role_required("manager")
+def update_shift(shift_id):
+    shift = db.session.get(Shift, shift_id)
+
+    if not shift:
+        return jsonify({
+            "message": "Turno no encontrado"
+        }), 404
+
+    data = request.get_json()
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "message": "Debes enviar un objeto JSON"
+        }), 400
+
+    name = data.get("name")
+    start_time = data.get("start_time")
+    end_time = data.get("end_time")
+
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({
+            "message": "El nombre del turno es obligatorio"
+        }), 400
+
+    name = name.strip()
+
+    if len(name) > 50:
+        return jsonify({
+            "message": "El nombre no puede superar los 50 caracteres"
+        }), 400
+
+    try:
+        parsed_start = datetime.strptime(start_time, "%H:%M").time()
+        parsed_end = datetime.strptime(end_time, "%H:%M").time()
+    except (ValueError, TypeError):
+        return jsonify({
+            "message": "Las horas deben tener el formato HH:MM"
+        }), 400
+
+    if parsed_start >= parsed_end:
+        return jsonify({
+            "message": "La hora de fin debe ser posterior a la de inicio"
+        }), 400
+
+    shift.name = name
+    shift.start_time = parsed_start
+    shift.end_time = parsed_end
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({
+            "message": "No se ha podido actualizar el turno"
+        }), 500
+
+    return jsonify(shift.serialize()), 200
+
+@api.route("/shifts/<int:shift_id>", methods=["DELETE"])
+@role_required("manager")
+def delete_shift(shift_id):
+    shift = db.session.get(Shift, shift_id)
+
+    if not shift:
+        return jsonify({
+            "message": "Turno no encontrado"
+        }), 404
+
+    assigned_worker = Worker.query.filter_by(
+        shift_id=shift_id
+    ).first()
+
+    if assigned_worker:
+        return jsonify({
+            "message": "No puedes eliminar un turno con trabajadores asignados"
+        }), 409
+
+    try:
+        db.session.delete(shift)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({
+            "message": "No se ha podido eliminar el turno"
+        }), 500
+
+    return jsonify({
+        "message": "Turno eliminado correctamente"
+    }), 200
 # ----------------------------------------------------------------------
 # WORKERS
 # ----------------------------------------------------------------------
