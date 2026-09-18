@@ -15,9 +15,9 @@ import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Task, Service, Worker, Address, Shift
 from api.utils import generate_sitemap, APIException, role_required, slugify
-from api.availability import can_work
+from api.availability import can_work, load_busy, madrid_now, month_availability, BOOKING_HORIZON, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
 from sqlalchemy import func
@@ -1733,3 +1733,86 @@ def get_availability_workers():
     """Los trabajadores que el cliente puede elegir al reservar. La opción
     "Cualquiera" no es un trabajador: la añade el panel."""
     return jsonify({"workers": [public_worker(worker) for worker in bookable_workers()]}), 200
+
+
+
+
+# Tope de horas por reserva al pedir huecos. Ningún servicio llega (fin de
+# obra va de 3 en 3 y 15 h ya son tres días), y evita que alguien pida
+# "hours=5000" y ponga al servidor a calcular para nada.
+MAX_REQUEST_HOURS = 60
+
+
+@api.route("/availability", methods=["GET"])
+@role_required("client")
+def get_availability():
+    """Los huecos de un mes para una reserva de `hours` horas.
+
+        GET /api/availability?hours=6&worker=any&month=2026-10
+
+    worker es "any" (Cualquiera, por defecto) o el id de un trabajador.
+    Responde {"days": {"2026-10-05": [{"start": "09:00", "options": [...]}]}},
+    solo con los días que tienen algún hueco. Cada opción es un trabajador
+    libre y los días que ocuparía la reserva.
+    """
+    # ---- HORAS ----
+    hours = request.args.get("hours", "")
+
+    if not hours.isdigit() or not 1 <= int(hours) <= MAX_REQUEST_HOURS:
+        return jsonify({"message": f"Indica las horas: un número entero entre 1 y {MAX_REQUEST_HOURS}"}), 400
+
+    hours = int(hours)
+
+    # ---- MES ----
+    try:
+        month_first_day = datetime.strptime(request.args.get("month", ""), "%Y-%m").date()
+    except ValueError:
+        return jsonify({"message": "Indica el mes con el formato AAAA-MM, por ejemplo 2026-10"}), 400
+
+    # El mes tiene que tocar la ventana de reserva: del mes actual hasta el
+    # del último día que se puede reservar (60 días vista).
+    now = madrid_now()
+    this_month = now.date().replace(day=1)
+    last_month = (now + BOOKING_HORIZON).date().replace(day=1)
+
+    if not this_month <= month_first_day <= last_month:
+        return jsonify({"message": "Ese mes está fuera de las fechas en las que se puede reservar"}), 400
+
+    # ---- TRABAJADOR ----
+    workers = bookable_workers()
+    worker_param = request.args.get("worker", "any")
+
+    if worker_param != "any":
+        chosen = [worker for worker in workers if str(worker.worker_id) == worker_param]
+
+        # Mismo 404 si no existe o si no se le puede reservar (turno
+        # desactivado, de baja...): para el cliente es lo mismo.
+        if not chosen:
+            return jsonify({"message": "Ese trabajador no está disponible para reservar"}), 404
+
+        workers = chosen
+
+    # ---- CÁLCULO ----
+    # Las reservas se cargan hasta un poco después de fin de mes: una de
+    # varios días que empieza el 30 tiene tramos en el mes siguiente.
+    next_month = (month_first_day.replace(day=28) + timedelta(days=4)).replace(day=1)
+    busy = load_busy(workers, month_first_day, next_month + timedelta(days=SEARCH_LIMIT_DAYS))
+
+    days = month_availability(workers, hours, month_first_day, now, busy)
+
+    # Las fechas viajan como texto "2026-10-05": JSON no tiene fechas.
+    return jsonify({
+        "days": {
+            day.isoformat(): [
+                {
+                    "start": slot["start"],
+                    "options": [
+                        {"worker_id": option["worker_id"], "days": [d.isoformat() for d in option["days"]]}
+                        for option in slot["options"]
+                    ],
+                }
+                for slot in slots
+            ]
+            for day, slots in days.items()
+        }
+    }), 200
