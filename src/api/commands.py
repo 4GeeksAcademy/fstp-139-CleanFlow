@@ -3,10 +3,16 @@ Comandos de terminal del backend: corren fuera de la API, con acceso a la BD.
 
     pipenv run insert-test-data    catálogo, personas y reservas de prueba
 
-Se puede repetir sin miedo: lo que ya existe no se duplica ni se modifica.
+Se puede repetir sin miedo: lo que ya existe no se duplica ni se toca.
 
-⚠️ SOLO PARA DESARROLLO: todas las cuentas usan la contraseña de
-TEST_PASSWORD. Este comando no se ejecuta nunca en producción.
+    1. Catálogo      tareas y servicios
+    2. Personas      turnos, encargado, cliente y trabajadores
+    3. Reservas      tres escenarios para probar la disponibilidad
+    4. Ayudantes     búsquedas y crear una reserva
+    5. Bloques       lo que crea cada parte
+    6. El comando
+
+⚠️ SOLO PARA DESARROLLO: todas las cuentas usan TEST_PASSWORD.
 """
 
 from datetime import datetime, time, timedelta
@@ -20,12 +26,11 @@ from api.utils import slugify
 
 
 # ------------------------------------------------------------------
-# CATÁLOGO DE PRUEBA
+# 1. CATÁLOGO
 # ------------------------------------------------------------------
-# Las tareas y servicios del negocio (#11), más una tarea y un servicio
-# desactivados a propósito: sirven para probar las pestañas "Desactivadas"
-# del panel y que las rutas públicas (#36) no enseñan lo inactivo.
-# Los precios de la web salen de aquí hasta que el encargado los cambie.
+# El del negocio (#11), más una tarea y un servicio desactivados a
+# propósito: para probar las pestañas "Desactivadas" y que las rutas
+# públicas (#36) no enseñan lo inactivo.
 
 # En singular: tres habitaciones son tres veces "Limpiar habitación".
 TASKS = [
@@ -98,10 +103,9 @@ SERVICES = [
 
 
 # ------------------------------------------------------------------
-# PERSONAS DE PRUEBA
+# 2. PERSONAS
 # ------------------------------------------------------------------
-# Para poder entrar en la aplicación después de cada reset_db, sin
-# registrarse a mano. Todas con la misma contraseña.
+# Para entrar en la aplicación tras cada reset_db sin registrarse a mano.
 
 TEST_PASSWORD = "cleanflow123"
 
@@ -111,8 +115,7 @@ SHIFTS = [
     {"name": "Tarde",  "start_time": time(14, 0), "end_time": time(20, 0), "days": [1, 2, 3, 4, 5]},
 ]
 
-# Tres trabajadores de mañana y uno de tarde: con tres a la vez, la
-# mañana se puede llenar entera (ver RESERVAS DE PRUEBA).
+# Tres de mañana y uno de tarde: así la mañana se puede llenar entera.
 PEOPLE = [
     {"email": "encargado@cleanflow.test", "name": "Elena",  "last_name": "Soto",   "phone": "600000001", "role": "manager"},
     {"email": "cliente@cleanflow.test",   "name": "Pablo",  "last_name": "Vega",   "phone": "600000002", "role": "client"},
@@ -124,11 +127,11 @@ PEOPLE = [
 
 
 # ------------------------------------------------------------------
-# RESERVAS DE PRUEBA
+# 3. RESERVAS
 # ------------------------------------------------------------------
-# Tres escenarios para comprobar la disponibilidad (#69) a mano. Las
-# fechas se calculan a partir del día en que se ejecuta el comando, así
-# siempre caen dentro de la ventana de reserva (de 24 h a 60 días).
+# Tres escenarios para probar la disponibilidad (#69). Las fechas se
+# calculan desde el día en que se ejecuta el comando: siempre caen
+# dentro de la ventana de reserva.
 #
 #   DÍA LLENO     un miércoles con la mañana entera ocupada: Ana, Luis y
 #                 Marta de 08:00 a 14:00. Ese día no hay huecos de mañana.
@@ -138,20 +141,20 @@ PEOPLE = [
 #   VARIOS DÍAS   el viernes siguiente, Carlos (tarde, de lunes a viernes)
 #                 12 horas: viernes y LUNES, saltándose el fin de semana.
 #
-# La #15 usará estas mismas reservas para probar las reservas afectadas.
+# La #15 las reutiliza para probar las reservas afectadas.
 
-# Las reservas se guardan en hora de Madrid, sin zona (ver Booking).
+# Hora de Madrid sin zona, como se guardan las reservas.
 MADRID = ZoneInfo("Europe/Madrid")
 
-# Marca en client_notes: así el comando reconoce sus reservas y no las repite.
+# Marca en client_notes: así el comando reconoce sus reservas y no las duplica.
 SEED_MARK = "[datos de prueba]"
 
 
 # ------------------------------------------------------------------
-# AYUDANTES
+# 4. AYUDANTES
 # ------------------------------------------------------------------
 
-# Para imprimir los días en español sin depender del idioma del sistema.
+# Días en español sin depender del idioma del sistema.
 WEEKDAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
 
 
@@ -164,6 +167,8 @@ def at(day, hour):
     """Un día a una hora en punto: at(miércoles, 8) -> miércoles 08:00."""
     return datetime.combine(day, time(hour, 0))
 
+
+# Buscar una fila por un dato único.
 
 def user_by_email(email):
     return db.session.execute(
@@ -184,8 +189,10 @@ def service_by_slug(slug):
 
 
 def add_booking(client, address, service, worker, days, note, tasks=()):
-    """Una reserva confirmada con sus tramos. `days` es una lista de
-    (inicio, fin); `tasks`, las tareas con sus repeticiones."""
+    """Una reserva confirmada con sus tramos.
+
+    days: lista de (inicio, fin) · tasks: tareas, con sus repeticiones.
+    """
     hours = sum((end - start).seconds // 3600 for start, end in days)
 
     booking = Booking(
@@ -203,13 +210,13 @@ def add_booking(client, address, service, worker, days, note, tasks=()):
         created_at=datetime.now(MADRID).replace(tzinfo=None),
     )
 
-    # Los tramos se guardan con la reserva gracias a la relación.
+    # Se guardan con la reserva gracias a la relación Booking.days.
     for start, end in days:
         booking.days.append(BookingDay(starts_at=start, ends_at=end))
 
     db.session.add(booking)
 
-    # flush: la reserva necesita su id antes de colgarle las tareas.
+    # flush: pide el id de la reserva sin cerrar la transacción.
     db.session.flush()
 
     for task in tasks:
@@ -222,7 +229,7 @@ def add_booking(client, address, service, worker, days, note, tasks=()):
 
 
 # ------------------------------------------------------------------
-# LOS TRES BLOQUES
+# 5. BLOQUES
 # ------------------------------------------------------------------
 
 def create_catalog():
@@ -230,8 +237,7 @@ def create_catalog():
     created_tasks = 0
 
     for data in TASKS:
-        # Si ya existe no se toca: así no se pierden los cambios hechos
-        # a mano desde el panel al repetir el comando.
+        # Si ya existe no se toca: se respetan los cambios hechos desde el panel.
         exists = db.session.execute(
             db.select(Task).where(Task.task_name == data["task_name"])
         ).scalar_one_or_none()
@@ -245,7 +251,7 @@ def create_catalog():
     created_services = 0
 
     for data in SERVICES:
-        # Mismo criterio que con las tareas, buscando por slug.
+        # Igual que las tareas, pero buscando por slug.
         slug = slugify(data["name"])
 
         exists = db.session.execute(
@@ -258,7 +264,7 @@ def create_catalog():
         db.session.add(Service(slug=slug, **data))
         created_services += 1
 
-    # flush: las reservas de más abajo necesitan los ids del catálogo.
+    # flush: las reservas necesitan los ids del catálogo.
     db.session.flush()
 
     return created_tasks, created_services
@@ -282,7 +288,7 @@ def create_people():
 
         shifts[data["name"]] = shift
 
-    # flush: los trabajadores necesitan el id de su turno.
+    # flush: cada trabajador necesita el id de su turno.
     db.session.flush()
 
     created_people = 0
@@ -328,9 +334,8 @@ def create_people():
 def create_bookings():
     """Las reservas de los tres escenarios. Devuelve cuántas se crearon.
 
-    Van todas o ninguna: si ya hay alguna con la marca, no se crea nada.
-    Las fechas quedan fijas desde que se crean; para moverlas a partir
-    de hoy, hay que rehacer la base de datos.
+    Todas o ninguna: si ya hay alguna con la marca, no crea nada. Sus
+    fechas quedan fijas: para recalcularlas, rehacer la base de datos.
     """
     exists = db.session.execute(
         db.select(Booking).where(Booking.client_notes.startswith(SEED_MARK))
@@ -350,7 +355,7 @@ def create_bookings():
         db.select(Task).filter_by(task_name="Limpiar habitación")
     ).scalar_one()
 
-    # Al menos tres días por delante: fuera de las 24 h de antelación.
+    # Tres días por delante como mínimo: fuera de las 24 h de antelación.
     today = datetime.now(MADRID).date()
     full_day = next_weekday(today + timedelta(days=3), 3)    # miércoles
     margin_day = full_day + timedelta(days=1)                # jueves
@@ -366,7 +371,7 @@ def create_bookings():
         )
 
     # ---- MARGEN ----
-    # Profunda: 60 minutos por tarea, así que 3 habitaciones = 3 horas.
+    # Profunda: 60 min por tarea, así que 3 habitaciones = 3 h.
     add_booking(
         client, address, profunda, worker_by_email("ana@cleanflow.test"),
         [(at(margin_day, 8), at(margin_day, 11))],
@@ -385,8 +390,7 @@ def create_bookings():
 
 
 def print_seed_bookings():
-    """Las reservas de prueba con sus fechas: son las que hay que usar al
-    probar la disponibilidad con Postman."""
+    """Lista las reservas de prueba con sus fechas, para las pruebas."""
     bookings = db.session.execute(
         db.select(Booking)
         .where(Booking.client_notes.startswith(SEED_MARK))
@@ -404,7 +408,7 @@ def print_seed_bookings():
 
 
 # ------------------------------------------------------------------
-# EL COMANDO
+# 6. EL COMANDO
 # ------------------------------------------------------------------
 
 def setup_commands(app):

@@ -288,9 +288,8 @@ export const EditarTrabajador = () => {
                                         key={shift.shift_id}
                                         value={shift.shift_id}
                                     >
-                                        {/* Un turno desactivado no ofrece huecos: que se
-                                            sepa antes de asignárselo a alguien. */}
                                         {shift.name} ({shift.start_time} – {shift.end_time})
+                                        {/* Aviso: un turno desactivado no ofrece huecos */}
                                         {shift.is_active ? "" : " · desactivado"}
                                     </option>
                                 ))}

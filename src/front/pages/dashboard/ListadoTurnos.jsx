@@ -1,17 +1,15 @@
 /**
  * TURNOS (ENCARGADO).
  *
- * Los horarios del equipo: nombre, horas y días de la semana. Cada
- * trabajador tiene un turno, y sus días y horas deciden cuándo se le puede
- * reservar (#69).
+ * Los horarios del equipo: nombre, horas y días. El turno de cada
+ * trabajador decide cuándo se le puede reservar (#69).
  *
- * Mismo diseño que tareas y servicios: pestañas para filtrar, formulario
- * que se abre encima de la lista e interruptor para activar y desactivar.
- * Desactivar un turno con trabajadores pide confirmación; eliminar solo se
- * permite si no tiene ninguno.
+ *  - Mismo diseño que tareas y servicios: pestañas, formulario e interruptor.
+ *  - Desactivar un turno con trabajadores pide confirmación.
+ *  - Eliminar solo se permite si no tiene trabajadores.
  *
- * API: services/shiftService.js · Estilos: dashboard.css (cf-dash-*,
- * cf-shifts__* y las pestañas cf-tasks__*, que se reutilizan).
+ * API: services/shiftService.js
+ * Estilos: dashboard.css (cf-dash-*, cf-shifts__* y las pestañas cf-tasks__*).
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -46,8 +44,7 @@ const PRESETS = [
     { label: "Todos los días", days: [1, 2, 3, 4, 5, 6, 7] },
 ]
 
-// Un turno nuevo trabaja de lunes a viernes, como el valor por defecto de
-// la base de datos.
+// Un turno nuevo trabaja de lunes a viernes, como en la base de datos.
 const EMPTY_FORM = { name: "", start_time: "", end_time: "", work_days: [1, 2, 3, 4, 5] }
 
 const FILTERS = [
@@ -56,8 +53,7 @@ const FILTERS = [
     { value: "inactive", label: "Desactivados" },
 ]
 
-// Lo que dura el resaltado de la fila guardada. Igual que la animación
-// .cf-tasks__row--flash de dashboard.css.
+// Lo que dura el resaltado de la fila guardada (.cf-tasks__row--flash).
 const FLASH_MS = 1600
 
 const SKELETON_ROWS = 3

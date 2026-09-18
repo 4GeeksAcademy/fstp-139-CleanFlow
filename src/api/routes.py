@@ -80,9 +80,8 @@ def handle_hello():
 #   PATCH  /api/shifts/<id>/status   activar o desactivar
 #   DELETE /api/shifts/<id>          borrar, solo si no tiene trabajadores
 #
-# Desactivar es lo habitual: el turno se conserva pero deja de ofrecer
-# huecos para reservar. Borrar existe porque ninguna reserva apunta a un
-# turno, así que quitar uno sin trabajadores no rompe ningún histórico.
+# Lo normal es desactivar: el turno se conserva, pero sin huecos.
+# Borrar es seguro sin trabajadores: ninguna reserva apunta a un turno.
 
 # Lunes = 1 ... domingo = 7, como Shift.days.
 WEEKDAY_NUMBERS = range(1, 8)
@@ -91,9 +90,8 @@ WEEKDAY_NUMBERS = range(1, 8)
 def validate_shift(data):
     """Valida un turno. Devuelve (campos, None) o (None, mensaje).
 
-    Los días son opcionales: si no vienen, al crear se queda el valor por
-    defecto (lunes a viernes) y al editar se conservan los que tenía. Así
-    un formulario que todavía no los envíe sigue funcionando.
+    Los días son opcionales: si no vienen, al crear se usa lunes a viernes
+    y al editar se conservan los que tenía.
     """
     name = data.get("name")
 
@@ -127,8 +125,8 @@ def validate_shift(data):
         if not all(isinstance(day, int) and not isinstance(day, bool) and day in WEEKDAY_NUMBERS for day in days):
             return None, "Los días van del 1 (lunes) al 7 (domingo)"
 
-        # "days" y no "work_days": al asignarlo pasa por la propiedad de
-        # Shift, que lo guarda ordenado y sin repetidos.
+        # "days" y no "work_days": pasa por la propiedad de Shift, que lo
+        # guarda ordenado y sin repetidos.
         fields["days"] = days
 
     return fields, None
@@ -203,8 +201,8 @@ def update_shift(shift_id):
 @api.route("/shifts/<int:shift_id>/status", methods=["PATCH"])
 @role_required("manager")
 def update_shift_status(shift_id):
-    """Activa o desactiva un turno. Sus trabajadores lo conservan, pero un
-    turno desactivado no ofrece huecos para reservas nuevas."""
+    """Activa o desactiva un turno. Desactivado, sus trabajadores lo
+    conservan, pero no ofrece huecos."""
     shift = db.session.get(Shift, shift_id)
 
     if not shift:
@@ -1691,13 +1689,12 @@ def update_service_status(service_id):
 #   GET    /api/availability/workers   a quién se puede reservar
 #   GET    /api/availability           los huecos de un mes
 #
-# El cálculo vive en api/availability.py: aquí solo se lee la petición,
-# se llama a ese módulo y se devuelve la respuesta.
+# El cálculo está en api/availability.py; aquí solo se lee la petición
+# y se devuelve la respuesta.
 
 def public_worker(worker):
-    """Lo que ve un cliente de un trabajador: nombre con la inicial del
-    apellido, foto y valoración. Nunca el correo ni el teléfono: por eso
-    no se usa Worker.serialize(), que es para el encargado."""
+    """Lo que ve un cliente de un trabajador: nombre con inicial, foto y
+    valoración. Sin correo ni teléfono (Worker.serialize() es del encargado)."""
     user = worker.user
     last_name = (user.last_name or "").strip()
     initial = f" {last_name[0]}." if last_name else ""
@@ -1712,11 +1709,9 @@ def public_worker(worker):
 
 
 def bookable_workers():
-    """Los trabajadores a los que se puede reservar: activos, con usuario
-    activo y con un turno activo (can_work), ordenados por nombre.
+    """Los trabajadores que se pueden reservar (can_work), por nombre.
 
-    selectinload trae usuarios y turnos en una consulta más, en vez de una
-    por trabajador al leer worker.user y worker.shift."""
+    selectinload trae usuarios y turnos de golpe, no uno por trabajador."""
     workers = db.session.execute(
         db.select(Worker)
         .join(User, Worker.user_id == User.user_id)
@@ -1737,9 +1732,8 @@ def get_availability_workers():
 
 
 
-# Tope de horas por reserva al pedir huecos. Ningún servicio llega (fin de
-# obra va de 3 en 3 y 15 h ya son tres días), y evita que alguien pida
-# "hours=5000" y ponga al servidor a calcular para nada.
+# Tope de horas al pedir huecos. Ningún servicio llega, y evita que
+# alguien pida "hours=5000" y ponga al servidor a calcular para nada.
 MAX_REQUEST_HOURS = 60
 
 
@@ -1750,10 +1744,10 @@ def get_availability():
 
         GET /api/availability?hours=6&worker=any&month=2026-10
 
-    worker es "any" (Cualquiera, por defecto) o el id de un trabajador.
-    Responde {"days": {"2026-10-05": [{"start": "09:00", "options": [...]}]}},
-    solo con los días que tienen algún hueco. Cada opción es un trabajador
-    libre y los días que ocuparía la reserva.
+    worker: "any" (Cualquiera, por defecto) o el id de un trabajador.
+    Responde {"days": {"2026-10-05": [{"start": "09:00", "options": [...]}]}}
+    solo con los días que tienen hueco. Cada opción: un trabajador libre y
+    los días que ocuparía la reserva.
     """
     # ---- HORAS ----
     hours = request.args.get("hours", "")
@@ -1769,8 +1763,7 @@ def get_availability():
     except ValueError:
         return jsonify({"message": "Indica el mes con el formato AAAA-MM, por ejemplo 2026-10"}), 400
 
-    # El mes tiene que tocar la ventana de reserva: del mes actual hasta el
-    # del último día que se puede reservar (60 días vista).
+    # Solo meses dentro de la ventana de reserva (hoy + 60 días).
     now = madrid_now()
     this_month = now.date().replace(day=1)
     last_month = (now + BOOKING_HORIZON).date().replace(day=1)
@@ -1785,16 +1778,16 @@ def get_availability():
     if worker_param != "any":
         chosen = [worker for worker in workers if str(worker.worker_id) == worker_param]
 
-        # Mismo 404 si no existe o si no se le puede reservar (turno
-        # desactivado, de baja...): para el cliente es lo mismo.
+        # Mismo 404 si no existe o si no se puede reservar: para el
+        # cliente es lo mismo.
         if not chosen:
             return jsonify({"message": "Ese trabajador no está disponible para reservar"}), 404
 
         workers = chosen
 
     # ---- CÁLCULO ----
-    # Las reservas se cargan hasta un poco después de fin de mes: una de
-    # varios días que empieza el 30 tiene tramos en el mes siguiente.
+    # Se carga un poco más allá del fin de mes: una reserva que empieza
+    # el día 30 puede tener tramos en el mes siguiente.
     next_month = (month_first_day.replace(day=28) + timedelta(days=4)).replace(day=1)
     busy = load_busy(workers, month_first_day, next_month + timedelta(days=SEARCH_LIMIT_DAYS))
 

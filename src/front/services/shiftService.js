@@ -1,12 +1,11 @@
 /**
  * TURNOS (ENCARGADO) · llamadas a la API.
  *
- * Mismo contrato que el resto de servicios: devuelven { ok, status, data }
- * y nunca lanzan. Con ok, `data` ya viene desenvuelta (el turno o la
- * lista); sin ok, el mensaje de error está en data.message.
+ * Devuelven { ok, status, data } y nunca lanzan errores.
+ *  - ok:    `data` ya es el turno o la lista.
+ *  - error: el mensaje está en data.message.
  *
- * Orden de los argumentos: primero los datos y el token al final, como en
- * taskService y serviceService.
+ * El token va siempre el último, como en taskService y serviceService.
  */
 
 import { apiRequest } from "./apiClient";
@@ -37,7 +36,7 @@ export const toggleShiftStatus = async (shiftId, isActive, token) => {
   return result.ok ? { ...result, data: result.data.shift } : result;
 };
 
-// Solo funciona con turnos sin trabajadores: con alguno, la API da 409.
+// Solo borra turnos sin trabajadores; si tiene alguno, la API da 409.
 export const deleteShift = async (shiftId, token) => {
   return apiRequest(`/api/shifts/${shiftId}`, { method: "DELETE", token });
 };
