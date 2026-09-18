@@ -30,22 +30,6 @@ api = Blueprint("api", __name__)
 CORS(api)
 
 # ----------------------------------------------------------------------
-# TURNOS
-# ----------------------------------------------------------------------
-
-
-@api.route("/shifts", methods=["GET"])
-@role_required("manager")
-def get_shifts():
-    shifts = Shift.query.order_by(Shift.start_time).all()
-
-    return jsonify([
-        shift.serialize()
-        for shift in shifts
-    ]), 200
-
-
-# ----------------------------------------------------------------------
 # AYUDANTES COMUNES
 # ----------------------------------------------------------------------
 
@@ -84,61 +68,104 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
-@api.route("/shifts", methods=["POST"])
-@role_required("manager")
-def create_shift():
-    data = request.get_json()
 
-    if not isinstance(data, dict):
-        return jsonify({
-            "message": "Debes enviar un objeto JSON"
-        }), 400
+# ----------------------------------------------------------------------
+# TURNOS
+# ----------------------------------------------------------------------
+#   GET    /api/shifts        listar, cada uno con sus trabajadores
+#   POST   /api/shifts        crear
+#   PUT    /api/shifts/<id>   editar
+#   DELETE /api/shifts/<id>   borrar, solo si no tiene trabajadores
+#
+# Los turnos se borran y no se desactivan: ninguna reserva apunta a un
+# turno, así que borrar uno no rompe ningún histórico.
 
+# Lunes = 1 ... domingo = 7, como Shift.days.
+WEEKDAY_NUMBERS = range(1, 8)
+
+
+def validate_shift(data):
+    """Valida un turno. Devuelve (campos, None) o (None, mensaje).
+
+    Los días son opcionales: si no vienen, al crear se queda el valor por
+    defecto (lunes a viernes) y al editar se conservan los que tenía. Así
+    un formulario que todavía no los envíe sigue funcionando.
+    """
     name = data.get("name")
-    start_time = data.get("start_time")
-    end_time = data.get("end_time")
 
     if not isinstance(name, str) or not name.strip():
-        return jsonify({
-            "message": "El nombre del turno es obligatorio"
-        }), 400
+        return None, "El nombre del turno es obligatorio"
 
     name = name.strip()
 
     if len(name) > 50:
-        return jsonify({
-            "message": "El nombre no puede superar los 50 caracteres"
-        }), 400
+        return None, "El nombre no puede superar los 50 caracteres"
 
     try:
-        parsed_start = datetime.strptime(start_time, "%H:%M").time()
-        parsed_end = datetime.strptime(end_time, "%H:%M").time()
+        start_time = datetime.strptime(data.get("start_time"), "%H:%M").time()
+        end_time = datetime.strptime(data.get("end_time"), "%H:%M").time()
     except (ValueError, TypeError):
-        return jsonify({
-            "message": "Las horas deben tener el formato HH:MM"
-        }), 400
+        return None, "Las horas deben tener el formato HH:MM"
 
-    if parsed_start >= parsed_end:
-        return jsonify({
-            "message": "La hora de fin debe ser posterior a la de inicio"
-        }), 400
+    if start_time >= end_time:
+        return None, "La hora de fin debe ser posterior a la de inicio"
 
-    shift = Shift(
-        name=name,
-        start_time=parsed_start,
-        end_time=parsed_end
-    )
+    fields = {"name": name, "start_time": start_time, "end_time": end_time}
+
+    # ---- días de la semana ----
+    if "work_days" in data:
+        days = data["work_days"]
+
+        if not isinstance(days, list) or not days:
+            return None, "Elige al menos un día de la semana"
+
+        # bool cuenta como int en Python: sin excluirlo, `true` pasaría por un 1.
+        if not all(isinstance(day, int) and not isinstance(day, bool) and day in WEEKDAY_NUMBERS for day in days):
+            return None, "Los días van del 1 (lunes) al 7 (domingo)"
+
+        # "days" y no "work_days": al asignarlo pasa por la propiedad de
+        # Shift, que lo guarda ordenado y sin repetidos.
+        fields["days"] = days
+
+    return fields, None
+
+
+@api.route("/shifts", methods=["GET"])
+@role_required("manager")
+def get_shifts():
+    """Todos los turnos, del que empieza antes al que empieza después."""
+    shifts = db.session.execute(
+        db.select(Shift).order_by(Shift.start_time)
+    ).scalars().all()
+
+    return jsonify({"shifts": [shift.serialize() for shift in shifts]}), 200
+
+
+@api.route("/shifts", methods=["POST"])
+@role_required("manager")
+def create_shift():
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    fields, error = validate_shift(data)
+    if error:
+        return jsonify({"message": error}), 400
+
+    shift = Shift()
+    for field, value in fields.items():
+        setattr(shift, field, value)
 
     try:
         db.session.add(shift)
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({
-            "message": "No se ha podido crear el turno"
-        }), 500
+        return jsonify({"message": "No se ha podido crear el turno"}), 500
 
-    return jsonify(shift.serialize()), 201
+    return jsonify({"shift": shift.serialize()}), 201
+
 
 @api.route("/shifts/<int:shift_id>", methods=["PUT"])
 @role_required("manager")
@@ -146,59 +173,28 @@ def update_shift(shift_id):
     shift = db.session.get(Shift, shift_id)
 
     if not shift:
-        return jsonify({
-            "message": "Turno no encontrado"
-        }), 404
+        return jsonify({"message": "Turno no encontrado"}), 404
 
-    data = request.get_json()
+    data = get_json_body()
 
-    if not isinstance(data, dict):
-        return jsonify({
-            "message": "Debes enviar un objeto JSON"
-        }), 400
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
 
-    name = data.get("name")
-    start_time = data.get("start_time")
-    end_time = data.get("end_time")
+    fields, error = validate_shift(data)
+    if error:
+        return jsonify({"message": error}), 400
 
-    if not isinstance(name, str) or not name.strip():
-        return jsonify({
-            "message": "El nombre del turno es obligatorio"
-        }), 400
-
-    name = name.strip()
-
-    if len(name) > 50:
-        return jsonify({
-            "message": "El nombre no puede superar los 50 caracteres"
-        }), 400
-
-    try:
-        parsed_start = datetime.strptime(start_time, "%H:%M").time()
-        parsed_end = datetime.strptime(end_time, "%H:%M").time()
-    except (ValueError, TypeError):
-        return jsonify({
-            "message": "Las horas deben tener el formato HH:MM"
-        }), 400
-
-    if parsed_start >= parsed_end:
-        return jsonify({
-            "message": "La hora de fin debe ser posterior a la de inicio"
-        }), 400
-
-    shift.name = name
-    shift.start_time = parsed_start
-    shift.end_time = parsed_end
+    for field, value in fields.items():
+        setattr(shift, field, value)
 
     try:
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({
-            "message": "No se ha podido actualizar el turno"
-        }), 500
+        return jsonify({"message": "No se ha podido actualizar el turno"}), 500
 
-    return jsonify(shift.serialize()), 200
+    return jsonify({"shift": shift.serialize()}), 200
+
 
 @api.route("/shifts/<int:shift_id>", methods=["DELETE"])
 @role_required("manager")
@@ -206,31 +202,25 @@ def delete_shift(shift_id):
     shift = db.session.get(Shift, shift_id)
 
     if not shift:
-        return jsonify({
-            "message": "Turno no encontrado"
-        }), 404
+        return jsonify({"message": "Turno no encontrado"}), 404
 
-    assigned_worker = Worker.query.filter_by(
-        shift_id=shift_id
-    ).first()
+    assigned_worker = db.session.execute(
+        db.select(Worker).filter_by(shift_id=shift_id)
+    ).scalars().first()
 
     if assigned_worker:
-        return jsonify({
-            "message": "No puedes eliminar un turno con trabajadores asignados"
-        }), 409
+        return jsonify({"message": "No puedes eliminar un turno con trabajadores asignados"}), 409
 
     try:
         db.session.delete(shift)
         db.session.commit()
     except Exception:
         db.session.rollback()
-        return jsonify({
-            "message": "No se ha podido eliminar el turno"
-        }), 500
+        return jsonify({"message": "No se ha podido eliminar el turno"}), 500
 
-    return jsonify({
-        "message": "Turno eliminado correctamente"
-    }), 200
+    return jsonify({"message": "Turno eliminado correctamente"}), 200
+
+
 # ----------------------------------------------------------------------
 # WORKERS
 # ----------------------------------------------------------------------
