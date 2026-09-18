@@ -568,6 +568,8 @@ class Booking(db.Model):
         ForeignKey("addresses.address_id"),
         nullable=False
     )
+    # Hora de Madrid, sin zona: el negocio está en Madrid y así se lee tal
+    # cual. Las horas contratadas no se guardan: son fin menos inicio.
     scheduled_start: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False
@@ -576,7 +578,6 @@ class Booking(db.Model):
         DateTime,
         nullable=False
     )
-
     # Congelados al reservar (tarifa, minutos y total): si el servicio cambia
     # después, esta reserva conserva los suyos. El histórico no se reescribe.
     hourly_rate: Mapped[float] = mapped_column(
@@ -591,7 +592,6 @@ class Booking(db.Model):
         Float,
         nullable=False
     )
-
     status: Mapped[BookingStatus] = mapped_column(
         SQLEnum(BookingStatus),
         nullable=False
@@ -608,6 +608,24 @@ class Booking(db.Model):
         DateTime,
         nullable=True
     )
+
+    # ---- RELACIONES ----
+    # No cambian ninguna tabla: solo le dicen a SQLAlchemy cómo cruzar las
+    # claves que ya existen. Así se lee booking.service en vez de buscarlo.
+    service = db.relationship("Service")
+    address = db.relationship("Address")
+
+    # Las tareas en el orden en que se añadieron. Al hacer
+    # booking.tasks.append(...), se guardan junto con la reserva.
+    tasks = db.relationship(
+        "BookingTask",
+        order_by="BookingTask.booking_task_id"
+    )
+
+    @property
+    def hours(self):
+        """Horas contratadas, deducidas del horario."""
+        return int((self.scheduled_end - self.scheduled_start).total_seconds() // 3600)
 
     def serialize(self):
         return {
@@ -645,6 +663,22 @@ class Booking(db.Model):
                 else None
             ),
         }
+
+    def serialize_detail(self):
+        """La reserva con lo que enseña la confirmación del panel (y, más
+        adelante, "Mis reservas" de la #16): servicio, dirección y tareas."""
+        return {
+            **self.serialize(),
+            "hours": self.hours,
+            "service": {
+                "name": self.service.name,
+                "slug": self.service.slug,
+            },
+            "address": self.address.serialize(),
+            "tasks": [task.serialize() for task in self.tasks],
+        }
+
+
 
 
 # ==================================================================
