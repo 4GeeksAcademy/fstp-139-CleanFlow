@@ -22,6 +22,7 @@ import { RoleRoute } from "./pages/dashboard/RoleRoute";
 import { ManageTasks } from "./pages/dashboard/ManageTasks";
 import { ManageServices } from "./pages/dashboard/ManageServices";
 import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
+import { ServiceCatalog } from "./pages/dashboard/ServiceCatalog";
 import { AccountLayout } from "./pages/dashboard/account/AccountLayout";
 import { AccountDetails } from "./pages/dashboard/account/AccountDetails";
 import { AccountSecurity } from "./pages/dashboard/account/AccountSecurity";
@@ -64,8 +65,11 @@ export const router = createBrowserRouter(
             </Route>
           </Route>
 
-          {/* ---- SECCIONES DE CLIENT ---- */}
+          {/* ---- SECCIONES DE CLIENT ----
+              service-catalog es un contrato: "Reservar ahora" (WEB-15) apunta
+              aquí. No confundir con services-catalog, la del encargado. */}
           <Route element={<RoleRoute allowed={["client"]} />}>
+            <Route path="service-catalog" element={<ServiceCatalog />} />
             <Route path="contracted-services" element={<h1>Mis servicios</h1>} />
           </Route>
 

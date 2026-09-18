@@ -1,15 +1,16 @@
 /* ======================================================================
    ESTILOS DEL DASHBOARD
 
-   Lo importan ManageTasks.jsx, ManageServices.jsx, Sidebar.jsx y las
-   pantallas de account/ (Vite lo carga una sola vez). Valores de
-   index.css, salvo los marcados con ⚠️.
+   Lo importan ManageTasks.jsx, ManageServices.jsx, ServiceCatalog.jsx,
+   Sidebar.jsx y las pantallas de account/ (Vite lo carga una sola vez).
+   Valores de index.css, salvo los marcados con ⚠️.
 
      1. Componentes compartidos (cf-dash-*) y sidebar (cf-side-*)
      2. Página de tareas (cf-tasks__*)
      3. Página de servicios del encargado (cf-services__*)
-     4. Ajustes de la cuenta (cf-account__*) y avatar
-     5. Movimiento reducido
+     4. Página del catálogo del cliente (cf-catalog__*)
+     5. Ajustes de la cuenta (cf-account__*) y avatar
+     6. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -1804,7 +1805,271 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   4. PÁGINA: AJUSTES DE LA CUENTA (account/*.jsx y Avatar.jsx)
+   4. PÁGINA: CATÁLOGO DEL CLIENTE (ServiceCatalog.jsx)
+   ====================================================================== */
+
+/* container-type: como en tareas y servicios, manda el ancho del contenido
+   y no el de la ventana (ver @container al final del bloque). */
+.cf-catalog {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-catalog__header {
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-catalog__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--cf-primary);
+}
+
+.cf-catalog__lede {
+  margin: var(--cf-space-1) 0 0;
+  max-width: 60ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- TARJETAS DE SERVICIO ----------
+   Dos columnas fijas y no auto-fill: con 4 servicios, auto-fill dejaría
+   uno solo en la última fila segun el ancho. */
+
+.cf-catalog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cf-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-catalog__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-catalog__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+}
+
+.cf-catalog__name {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--cf-primary);
+}
+
+.cf-catalog__desc {
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- ETIQUETA "POR TAREAS" / "SOLO HORAS" ----------
+   Como los desactivados del encargado: lo distinto va en terracota. En
+   --cf-accent-dark, que sí se lee en letra pequeña. */
+
+.cf-catalog__kind {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-catalog__kind--hours {
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+}
+
+/* ---------- PRECIO Y DATOS ---------- */
+
+.cf-catalog__price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+}
+
+.cf-catalog__price strong {
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--cf-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-catalog__price span {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-catalog__facts {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: var(--cf-space-4) 0 0;
+  border-top: 1px solid var(--cf-border);
+  list-style: none;
+  font-size: var(--cf-text-sm);
+}
+
+.cf-catalog__facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-2);
+}
+
+.cf-catalog__facts i {
+  flex-shrink: 0;
+  width: 16px;
+  margin-top: 3px;
+  color: var(--cf-primary);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+/* margin-top auto: el botón baja al fondo de la tarjeta, así queda a la
+   misma altura en las dos de la fila. */
+.cf-catalog__cta {
+  align-self: flex-end;
+  margin-top: auto;
+  text-decoration: none;
+}
+
+/* ---------- TAREAS ----------
+   Una sola vez en la página: la lista es la misma para todos los servicios
+   que llevan tareas. */
+
+.cf-catalog__section {
+  margin-top: var(--cf-space-12);
+}
+
+.cf-catalog__subtitle {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  color: var(--cf-primary);
+}
+
+.cf-catalog__tasks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--cf-space-4) var(--cf-space-6);
+  margin: var(--cf-space-4) 0 0;
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  list-style: none;
+}
+
+.cf-catalog__task {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-3);
+}
+
+.cf-catalog__task-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 0.6875rem;
+}
+
+.cf-catalog__task-name {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cf-catalog__task-desc {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* ---------- CARGANDO ----------
+   Medidas de las barras grises (.cf-dash-skel) dentro de la tarjeta. */
+
+.cf-catalog__skel-name {
+  width: 55%;
+  height: 18px;
+}
+
+.cf-catalog__skel-line {
+  width: 90%;
+}
+
+.cf-catalog__skel-price {
+  width: 30%;
+  height: 26px;
+}
+
+.cf-catalog__skel-btn {
+  width: 120px;
+  height: 36px;
+  border-radius: 999px;
+}
+
+/* ---------- PANTALLAS ESTRECHAS ----------
+   Una sola columna y el botón a todo lo ancho. 640px: con el sidebar,
+   tablet y móvil ya entran aquí. */
+
+@container (max-width: 640px) {
+  .cf-catalog__title {
+    font-size: var(--cf-text-xl);
+  }
+
+  .cf-catalog__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-catalog__card,
+  .cf-catalog__tasks {
+    padding: var(--cf-space-4);
+  }
+
+  .cf-catalog__cta {
+    align-self: stretch;
+  }
+}
+
+/* ======================================================================
+   5. PÁGINA: AJUSTES DE LA CUENTA (account/*.jsx y Avatar.jsx)
    ====================================================================== */
 
 /* ---------- AVATAR (Avatar.jsx) ----------
@@ -2240,7 +2505,7 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   5. MOVIMIENTO REDUCIDO
+   6. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */

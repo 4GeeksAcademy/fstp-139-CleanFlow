@@ -1,7 +1,7 @@
 """
 ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py).
 
-  Públicas:     /register, /login
+  Públicas:     /register, /login y el catálogo (GET /services, /services/<slug>, /tasks)
   Con sesión:   @jwt_required()         -> token válido, cualquier rol
   Con permiso:  @role_required("...")   -> token + rol correcto (403 si no)
 
@@ -476,6 +476,60 @@ def login():
         }), 200
     else:
         return jsonify({"error": "Invalid email or password"}), 401
+
+
+# ----------------------------------------------------------------------
+# CATÁLOGO PÚBLICO (WEB Y CLIENTE)
+# ----------------------------------------------------------------------
+#   GET    /api/services          servicios activos
+#   GET    /api/services/<slug>   un servicio activo, con su ficha
+#   GET    /api/tasks             tareas activas
+#
+# Sin decorador: lo ve cualquiera, con sesión o sin ella. Por eso solo
+# devuelve lo activo y con serialize_public(), nunca el estado.
+
+@api.route("/services", methods=["GET"])
+def get_services():
+    """Servicios activos, para la web pública y el panel del cliente.
+
+    El listado completo es otra ruta (/manage/services): así no decide
+    quien llama si ve también los desactivados.
+    """
+    services = db.session.execute(
+        db.select(Service).filter_by(is_active=True).order_by(Service.service_id)
+    ).scalars().all()
+
+    return jsonify({"services": [service.serialize_public() for service in services]}), 200
+
+
+@api.route("/services/<slug>", methods=["GET"])
+def get_service(slug):
+    """Un servicio activo por su slug, con descripción larga e imagen.
+
+    Desactivado da el mismo 404 que si no existiera: un servicio retirado
+    no sigue accesible escribiendo su URL.
+    """
+    service = db.session.execute(
+        db.select(Service).filter_by(slug=slug, is_active=True)
+    ).scalar_one_or_none()
+
+    if not service:
+        return jsonify({"message": "Servicio no encontrado"}), 404
+
+    return jsonify({"service": service.serialize_public()}), 200
+
+
+@api.route("/tasks", methods=["GET"])
+def get_tasks():
+    """Tareas activas: el catálogo compartido que ve el cliente.
+
+    Sin minutos: dependen del servicio (Service.minutes_per_task).
+    """
+    tasks = db.session.execute(
+        db.select(Task).filter_by(is_active=True).order_by(Task.task_id)
+    ).scalars().all()
+
+    return jsonify({"tasks": [task.serialize_public() for task in tasks]}), 200
 
 
 # ----------------------------------------------------------------------
