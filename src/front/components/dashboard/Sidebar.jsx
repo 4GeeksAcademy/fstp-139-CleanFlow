@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
+import { Avatar } from "./Avatar"
 // Estilos del grupo desplegable y del menú de móvil (cf-side-*).
 import "../../dashboard.css"
 
@@ -29,13 +30,15 @@ import "../../dashboard.css"
 //   children: [...] en vez de `to`  -> grupo desplegable; sus `roles` valen para los hijos
 //   end: true (solo Inicio)         -> sin él, saldría activo en todo /dashboard
 //
+// "Mi cuenta" ya no está aquí: se entra por "Ajustes", en el bloque de
+// usuario de abajo.
+//
 // Decide `roles`, no el orden: los comentarios por rol son solo para leer.
 // ¿Más datos por enlace (un icono)? Se añaden como otra propiedad.
 
 const LINKS = [
     // --- Comunes a todos los roles ---
     { to: "/dashboard",                    label: "Inicio",        roles: ["client", "worker", "manager"], end: true },
-    { to: "/dashboard/profile",            label: "Mi cuenta",     roles: ["client", "worker", "manager"] },
 
     // --- Solo CLIENT ---
     { to: "/dashboard/service-catalog",    label: "Catálogo de servicios", roles: ["client"] },
@@ -74,6 +77,10 @@ export const Sidebar = () => {
     // Solo los enlaces del rol actual. Sin rol (sesión sin cargar o datos
     // corruptos) no sale nada: ante la duda, no enseñar de más.
     const visibleLinks = LINKS.filter(link => link.roles.includes(role))
+
+    // Nombre completo del bloque de usuario. Con filter: si a una sesión
+    // guardada antes de la #13 le falta el apellido, sale solo el nombre.
+    const fullName = [store.user?.name, store.user?.last_name].filter(Boolean).join(" ")
 
     // Grupos abiertos o cerrados a mano, junto a la URL donde se tocaron. Al
     // cambiar de página se olvidan: cada grupo se abre si contiene la página actual.
@@ -271,14 +278,36 @@ export const Sidebar = () => {
                 </ul>
 
                 <hr />
-                {/* <button> y no <a href="#">: cerrar sesión es una acción, no una navegación. */}
-                <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="btn btn-link nav-link text-white p-0 text-start"
-                >
-                    Cerrar sesión
-                </button>
+
+                {/* BLOQUE DE USUARIO (#13): quién ha entrado, sus ajustes y
+                    salir. Con utilidades de Bootstrap, como el resto del
+                    sidebar: vestirlo es de otra issue.
+                    El avatar y el nombre cambian solos al guardar en Ajustes,
+                    porque esas pantallas despachan SET_USER. */}
+                <div className="cf-side-user">
+                    <div className="d-flex align-items-center gap-2 mb-2">
+                        <Avatar user={store.user} size="sm" />
+
+                        {/* text-truncate: un correo largo no debe ensanchar el panel. */}
+                        <div className="text-truncate">
+                            <div className="text-white text-truncate">{fullName}</div>
+                            <div className="text-white-50 small text-truncate">{store.user?.email}</div>
+                        </div>
+                    </div>
+
+                    <NavLink to="/dashboard/profile" className={linkClass} onClick={closeMenu}>
+                        Ajustes
+                    </NavLink>
+
+                    {/* <button> y no <a href="#">: cerrar sesión es una acción, no una navegación. */}
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="btn btn-link nav-link text-white p-0 text-start"
+                    >
+                        Cerrar sesión
+                    </button>
+                </div>
             </div>
         </>
     )

@@ -23,6 +23,10 @@ import { ManageTasks } from "./pages/dashboard/ManageTasks";
 import { ManageServices } from "./pages/dashboard/ManageServices";
 import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
 import { ServiceCatalog } from "./pages/dashboard/ServiceCatalog";
+import { AccountLayout } from "./pages/dashboard/account/AccountLayout";
+import { AccountDetails } from "./pages/dashboard/account/AccountDetails";
+import { AccountSecurity } from "./pages/dashboard/account/AccountSecurity";
+import { AccountAddresses } from "./pages/dashboard/account/AccountAddresses";
 
 
 export const router = createBrowserRouter(
@@ -48,7 +52,18 @@ export const router = createBrowserRouter(
           {/* ---- COMUNES A TODOS LOS ROLES ----
               Sin RoleRoute a propósito: son la entrada de todo el mundo. */}
           <Route index element={<h1>Inicio</h1>} />
-          <Route path="profile" element={<h1>Mi cuenta</h1>} />
+
+          {/* Ajustes de la cuenta: un marco con pestañas y una ruta por
+              apartado, para poder enlazar cada uno por separado.
+              Direcciones solo para client: no contratan ni el encargado ni
+              el trabajador. */}
+          <Route path="profile" element={<AccountLayout />}>
+            <Route index element={<AccountDetails />} />
+            <Route path="security" element={<AccountSecurity />} />
+            <Route element={<RoleRoute allowed={["client"]} />}>
+              <Route path="addresses" element={<AccountAddresses />} />
+            </Route>
+          </Route>
 
           {/* ---- SECCIONES DE CLIENT ----
               service-catalog es un contrato: "Reservar ahora" (WEB-15) apunta
