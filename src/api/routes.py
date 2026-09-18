@@ -9,14 +9,15 @@ ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py)
 """
 
 import re
-
+import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Task, Service, Worker, Address
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
 from sqlalchemy import func
@@ -1506,3 +1507,170 @@ def update_service_status(service_id):
     db.session.commit()
 
     return jsonify({"service": service.serialize()}), 200
+
+
+
+# ----------------------------------------------------------------------
+# RESERVAS DEL CLIENTE
+# ----------------------------------------------------------------------
+#   POST   /api/bookings   crear una reserva
+#
+# Las cuentas de esta sección están repetidas en el frontend, en
+# bookingRules.js, para enseñarlas en directo. Si cambia una, cambian
+# las dos: si no, el panel enseña un precio y el servidor lo rechaza.
+
+# Las reservas se guardan en hora de Madrid, sin zona (ver Booking).
+MADRID = ZoneInfo("Europe/Madrid")
+
+BOOKING_MIN_NOTICE = timedelta(hours=24)   # antelación mínima
+BOOKING_FIRST_START = time(8, 0)          # primera hora de inicio
+BOOKING_LAST_START = time(20, 0)          # última hora de inicio
+BOOKING_MAX_TASKS = 30                     # tope de filas por reserva
+BOOKING_NOTES_MAX_LENGTH = 1000
+
+
+def is_int(value):
+    """True si es un entero de verdad. bool cuenta como int en Python, así
+    que sin esto un `true` en el JSON pasaría por un id o por una hora."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def hours_needed(service, task_count):
+    """Horas mínimas que exigen las tareas en este servicio.
+
+        tareas × minutos  →  a horas, redondeando hacia arriba
+                          →  nunca menos que el mínimo del servicio
+                          →  subido hasta respetar el salto (6, 9, 12...)
+
+    Fin de obra (sin minutos por tarea) necesita solo su mínimo.
+    """
+    if service.minutes_per_task is None:
+        return service.min_hours
+
+    # La hora se cobra entera: 90 minutos de trabajo son 2 horas.
+    hours = math.ceil(task_count * service.minutes_per_task / 60)
+    hours = max(hours, service.min_hours)
+
+    # Cuántos saltos hacen falta por encima del mínimo.
+    steps = math.ceil((hours - service.min_hours) / service.hour_step)
+
+    return service.min_hours + steps * service.hour_step
+
+
+def validate_booking(data, user):
+    """Valida una reserva ANTES de escribir nada en la base de datos.
+
+    Devuelve (campos, None) o (None, (mensaje, código)). El código es 400,
+    salvo la dirección ajena: 404, para no confirmarle a nadie que existe.
+    """
+
+    # ---- SERVICIO ----
+    # Llega por slug: la vista pública del servicio no expone su id.
+    slug = data.get("service_slug")
+    service = None
+
+    if isinstance(slug, str):
+        service = db.session.execute(
+            db.select(Service).filter_by(slug=slug, is_active=True)
+        ).scalar_one_or_none()
+
+    if not service:
+        return None, ("Elige un servicio disponible", 400)
+
+    # ---- TAREAS ----
+    task_ids = data.get("task_ids", [])
+
+    if not isinstance(task_ids, list) or not all(is_int(task_id) for task_id in task_ids):
+        return None, ("Las tareas no tienen un formato válido", 400)
+
+    if service.minutes_per_task is None:
+        # Fin de obra: se contrata solo por horas.
+        if task_ids:
+            return None, (f"{service.name} no lleva tareas: se contrata solo por horas", 400)
+        tasks = []
+
+    else:
+        if not task_ids:
+            return None, ("Añade al menos una tarea", 400)
+
+        if len(task_ids) > BOOKING_MAX_TASKS:
+            return None, (f"Como mucho {BOOKING_MAX_TASKS} tareas por reserva", 400)
+
+        # Se consultan los ids sin repetir y después se rehace la lista con
+        # sus repeticiones: tres habitaciones siguen siendo tres.
+        unique_ids = set(task_ids)
+        found = db.session.execute(
+            db.select(Task).filter_by(is_active=True).where(Task.task_id.in_(unique_ids))
+        ).scalars().all()
+        by_id = {task.task_id: task for task in found}
+
+        if len(by_id) != len(unique_ids):
+            return None, ("Alguna de las tareas ya no está disponible", 400)
+
+        tasks = [by_id[task_id] for task_id in task_ids]
+
+    # ---- HORAS ----
+    hours = data.get("hours")
+
+    if not is_int(hours):
+        return None, ("Indica cuántas horas quieres contratar", 400)
+
+    needed = hours_needed(service, len(tasks))
+
+    if hours < needed:
+        if tasks:
+            return None, (f"Tus tareas necesitan {needed} h", 400)
+        return None, (f"{service.name} se contrata desde {needed} h", 400)
+
+    if (hours - service.min_hours) % service.hour_step != 0:
+        step = service.hour_step
+        return None, (f"{service.name} se contrata de {step} en {step} horas", 400)
+
+    if service.max_hours is not None and hours > service.max_hours:
+        return None, (f"{service.name} se contrata como mucho {service.max_hours} h", 400)
+
+    # ---- INICIO ----
+    # Llega como "2026-09-20T09:30", sin zona: es hora de Madrid.
+    try:
+        start = datetime.fromisoformat(data.get("start"))
+    except (TypeError, ValueError):
+        return None, ("Elige una fecha y una hora de inicio", 400)
+
+    # Si alguien la manda con zona, se pasa a Madrid y se le quita: así
+    # se compara siempre lo mismo con lo mismo.
+    if start.tzinfo is not None:
+        start = start.astimezone(MADRID).replace(tzinfo=None)
+
+    now = datetime.now(MADRID).replace(tzinfo=None)
+
+    if start < now + BOOKING_MIN_NOTICE:
+        return None, ("Las reservas se hacen con al menos 24 horas de antelación", 400)
+
+    on_slot = start.minute in (0, 30) and start.second == 0 and start.microsecond == 0
+    in_hours = BOOKING_FIRST_START <= start.time() <= BOOKING_LAST_START
+
+    if not (on_slot and in_hours):
+        return None, ("Se puede empezar entre las 08:00 y las 20:00, en punto o y media", 400)
+
+    # ---- DIRECCIÓN ----
+    # owned_address() ya filtra por cliente y por activa (#13).
+    address_id = data.get("address_id")
+    address = owned_address(user, address_id) if is_int(address_id) else None
+
+    if not address:
+        return None, ("Dirección no encontrada", 404)
+
+    # ---- DESCRIPCIÓN ----
+    notes, error = clean_optional_text(data.get("notes"), "La descripción", BOOKING_NOTES_MAX_LENGTH)
+
+    if error:
+        return None, (error, 400)
+
+    return {
+        "service": service,
+        "tasks": tasks,
+        "hours": hours,
+        "address": address,
+        "start": start,
+        "notes": notes,
+    }, None
