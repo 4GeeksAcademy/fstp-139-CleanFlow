@@ -72,13 +72,15 @@ def handle_hello():
 # ----------------------------------------------------------------------
 # TURNOS
 # ----------------------------------------------------------------------
-#   GET    /api/shifts        listar, cada uno con sus trabajadores
-#   POST   /api/shifts        crear
-#   PUT    /api/shifts/<id>   editar
-#   DELETE /api/shifts/<id>   borrar, solo si no tiene trabajadores
+#   GET    /api/shifts               listar, cada uno con sus trabajadores
+#   POST   /api/shifts               crear
+#   PUT    /api/shifts/<id>          editar
+#   PATCH  /api/shifts/<id>/status   activar o desactivar
+#   DELETE /api/shifts/<id>          borrar, solo si no tiene trabajadores
 #
-# Los turnos se borran y no se desactivan: ninguna reserva apunta a un
-# turno, así que borrar uno no rompe ningún histórico.
+# Desactivar es lo habitual: el turno se conserva pero deja de ofrecer
+# huecos para reservar. Borrar existe porque ninguna reserva apunta a un
+# turno, así que quitar uno sin trabajadores no rompe ningún histórico.
 
 # Lunes = 1 ... domingo = 7, como Shift.days.
 WEEKDAY_NUMBERS = range(1, 8)
@@ -192,6 +194,27 @@ def update_shift(shift_id):
     except Exception:
         db.session.rollback()
         return jsonify({"message": "No se ha podido actualizar el turno"}), 500
+
+    return jsonify({"shift": shift.serialize()}), 200
+
+
+@api.route("/shifts/<int:shift_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_shift_status(shift_id):
+    """Activa o desactiva un turno. Sus trabajadores lo conservan, pero un
+    turno desactivado no ofrece huecos para reservas nuevas."""
+    shift = db.session.get(Shift, shift_id)
+
+    if not shift:
+        return jsonify({"message": "Turno no encontrado"}), 404
+
+    data = get_json_body()
+
+    if data is None or not isinstance(data.get("is_active"), bool):
+        return jsonify({"message": "Envía is_active con true o false"}), 400
+
+    shift.is_active = data["is_active"]
+    db.session.commit()
 
     return jsonify({"shift": shift.serialize()}), 200
 

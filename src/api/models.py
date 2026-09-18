@@ -192,6 +192,15 @@ class Shift(db.Model):
         server_default="1,2,3,4,5"
     )
 
+    # Un turno desactivado se conserva, pero no ofrece huecos para reservar.
+    # server_default: los turnos que ya existían nacen activos al migrar.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        default=True,
+        server_default="true"
+    )
+
     @property
     def days(self):
         """Los días como lista de números: "1,3,5" -> [1, 3, 5]."""
@@ -213,6 +222,7 @@ class Shift(db.Model):
             "start_time": self.start_time.strftime("%H:%M"),
             "end_time": self.end_time.strftime("%H:%M"),
             "work_days": self.days,
+            "is_active": self.is_active,
             "workers": [
                 {
                     "worker_id": worker.worker_id,

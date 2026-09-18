@@ -10,7 +10,8 @@
      3. Página de servicios del encargado (cf-services__*)
      4. Página del catálogo del cliente (cf-catalog__*)
      5. Ajustes de la cuenta (cf-account__*) y avatar
-     6. Movimiento reducido
+     6. Página de turnos (cf-shifts__*)
+     7. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -2505,7 +2506,472 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   6. MOVIMIENTO REDUCIDO
+   6. PÁGINA: TURNOS (ListadoTurnos.jsx)
+   ====================================================================== */
+
+/* Calcada de la de tareas: mismas medidas y mismos componentes. Las
+   pestañas son las de tareas (cf-tasks__tabs), sin copiarlas.
+   container-type: el diseño estrecho lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final). */
+.cf-shifts {
+  container-type: inline-size;
+  max-width: 1080px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-shifts__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-shifts__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--cf-primary);
+}
+
+.cf-shifts__lede {
+  margin: var(--cf-space-1) 0 0;
+  max-width: 60ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- FORMULARIO ---------- */
+
+.cf-shifts__form {
+  display: grid;
+  gap: var(--cf-space-6);
+  margin-bottom: var(--cf-space-6);
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-shifts__form-title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  color: var(--cf-primary);
+}
+
+/* Tres columnas: el nombre ocupa la fila entera (__wide) y debajo van
+   inicio, fin y duración. align-items: end deja los campos alineados por
+   abajo aunque una etiqueta ocupe más. */
+.cf-shifts__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cf-space-4);
+  align-items: end;
+}
+
+.cf-shifts__wide {
+  grid-column: 1 / -1;
+}
+
+/* Etiqueta a la izquierda y contador a la derecha, en la misma línea: el
+   contador no empuja el campo hacia abajo. */
+.cf-shifts__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+}
+
+/* Altura fija: un campo de hora del navegador es más alto que uno de
+   texto si se deja a su aire. Así miden lo mismo los cuatro. */
+.cf-shifts__form .cf-dash-input,
+.cf-shifts__stat {
+  height: 46px;
+}
+
+.cf-shifts__form .cf-dash-input {
+  padding-block: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-shifts__form input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+/* La duración no se escribe, se calcula: por eso parece un dato y no un
+   campo. */
+.cf-shifts__stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+  padding: 0 14px;
+  border: 1px solid var(--cf-accent-soft);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-shifts__stat small {
+  color: var(--cf-accent-dark);
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* ⚠️ Rojos a mano: ver .cf-dash-alert. */
+.cf-shifts__stat--error {
+  border-color: #efc4bc;
+  background-color: #fbe9e6;
+  color: #7a2e22;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Días: título y atajos en una línea, y debajo siete pastillas iguales. */
+.cf-shifts__days-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cf-space-2) var(--cf-space-4);
+  margin-bottom: var(--cf-space-3);
+}
+
+.cf-shifts__days .cf-dash-chips {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--cf-space-2);
+}
+
+.cf-shifts__days .cf-dash-chip span {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0;
+}
+
+.cf-shifts__days .cf-dash-field__error {
+  margin-top: var(--cf-space-2);
+}
+
+.cf-shifts__presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-1) var(--cf-space-3);
+  color: var(--cf-border);
+  font-size: 0.8125rem;
+}
+
+.cf-shifts__preset-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+}
+
+.cf-shifts__preset {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cf-accent-dark);
+  font: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--cf-accent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cf-shifts__preset:hover {
+  text-decoration-color: currentColor;
+}
+
+.cf-shifts__preset:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.cf-shifts__form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-3);
+  padding-top: var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+/* El aviso del interruptor o de la papelera, entre formulario y lista. */
+.cf-shifts__alert {
+  margin-bottom: var(--cf-space-4);
+}
+
+/* ---------- LISTA ---------- */
+
+.cf-shifts__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+/* Cinco columnas: turno, días, asignados, estado y acciones. La cabecera
+   usa las mismas para que todo quede alineado. */
+.cf-shifts__head,
+.cf-shifts__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 150px 150px 128px;
+  align-items: center;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-4) var(--cf-space-6);
+}
+
+.cf-shifts__head {
+  padding-block: var(--cf-space-3);
+  background-color: rgba(var(--cf-bg-rgb), 0.6);
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cf-shifts__row {
+  border-top: 1px solid var(--cf-border);
+  transition: background-color var(--cf-transition);
+}
+
+.cf-shifts__row:hover {
+  background-color: rgba(var(--cf-bg-rgb), 0.45);
+}
+
+.cf-shifts__name {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cf-shifts__hours {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-shifts__daytext {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+/* La semana en siete marcas: terracota los días que se trabaja, siempre,
+   también en un turno desactivado. */
+.cf-shifts__week {
+  display: flex;
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.cf-shifts__week span {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--cf-border);
+}
+
+.cf-shifts__week span.is-on {
+  background-color: var(--cf-accent);
+}
+
+.cf-shifts__team {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* El número, en pastilla terracota: es lo que se busca al leer la columna. */
+.cf-shifts__count {
+  min-width: 28px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-shifts__team--none {
+  font-style: italic;
+}
+
+/* Desactivado: la fila entera se tiñe de terracota suave y el texto se
+   apaga. El color va en el fondo, no pegado a los botones. */
+.cf-shifts__row--inactive,
+.cf-shifts__row--inactive:hover {
+  background-color: color-mix(in srgb, var(--cf-accent-soft) 55%, var(--cf-surface));
+}
+
+.cf-shifts__row--inactive .cf-shifts__name,
+.cf-shifts__row--inactive .cf-shifts__daytext {
+  color: var(--cf-muted);
+}
+
+.cf-shifts__row--inactive .cf-shifts__count {
+  background-color: var(--cf-surface);
+}
+
+.cf-shifts__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cf-space-2);
+}
+
+/* Eliminar, en icono y neutro: solo se pone rojo al pasar por encima.
+   Así no compite con "Editar" ni con el terracota del estado.
+   ⚠️ Rojos a mano: ver .cf-dash-alert. */
+.cf-shifts__delete {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background: none;
+  color: var(--cf-muted);
+  cursor: pointer;
+  transition:
+    color var(--cf-transition),
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
+}
+
+.cf-shifts__delete:hover:not(:disabled) {
+  border-color: #c2574a;
+  background-color: #fbe9e6;
+  color: #a33b2b;
+}
+
+.cf-shifts__delete:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+}
+
+.cf-shifts__delete:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+/* Barras de carga. */
+.cf-shifts__skel-name {
+  width: 30%;
+}
+
+.cf-shifts__skel-line {
+  width: 45%;
+  height: 10px;
+  margin-top: 10px;
+}
+
+/* ---------- PANTALLAS ESTRECHAS ----------
+   Cada fila pasa a pisos: turno y días arriba, asignados y estado en
+   medio, acciones abajo. Sin cabecera de columnas. */
+
+@container (max-width: 720px) {
+  .cf-shifts__title {
+    font-size: var(--cf-text-xl);
+  }
+
+  .cf-shifts__head {
+    display: none;
+  }
+
+  .cf-shifts__row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "info days"
+      "team status"
+      "actions actions";
+    row-gap: var(--cf-space-3);
+    padding: var(--cf-space-4);
+  }
+
+  .cf-shifts__info {
+    grid-area: info;
+  }
+
+  .cf-shifts__daycell {
+    grid-area: days;
+    text-align: right;
+  }
+
+  .cf-shifts__daycell .cf-shifts__week {
+    justify-content: flex-end;
+  }
+
+  .cf-shifts__team {
+    grid-area: team;
+  }
+
+  .cf-shifts__status {
+    grid-area: status;
+    justify-self: end;
+  }
+
+  .cf-shifts__actions {
+    grid-area: actions;
+    justify-content: flex-start;
+  }
+
+  /* El formulario, a dos columnas: nombre arriba, horas en medio y la
+     duración a todo lo ancho. */
+  .cf-shifts__form {
+    padding: var(--cf-space-4);
+  }
+
+  .cf-shifts__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cf-shifts__grid > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .cf-shifts__days .cf-dash-chips {
+    gap: var(--cf-space-1);
+  }
+
+  .cf-shifts__days .cf-dash-chip span {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ======================================================================
+   7. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
