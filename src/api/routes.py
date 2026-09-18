@@ -15,12 +15,14 @@ import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Task, Service, Worker, Address, Shift
 from api.utils import generate_sitemap, APIException, role_required, slugify
+from api.availability import can_work
 from flask_cors import CORS
 from datetime import datetime
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 
 api = Blueprint("api", __name__)
@@ -1680,3 +1682,54 @@ def update_service_status(service_id):
     db.session.commit()
 
     return jsonify({"service": service.serialize()}), 200
+
+
+
+# ----------------------------------------------------------------------
+# DISPONIBILIDAD (CLIENTE)
+# ----------------------------------------------------------------------
+#   GET    /api/availability/workers   a quién se puede reservar
+#   GET    /api/availability           los huecos de un mes
+#
+# El cálculo vive en api/availability.py: aquí solo se lee la petición,
+# se llama a ese módulo y se devuelve la respuesta.
+
+def public_worker(worker):
+    """Lo que ve un cliente de un trabajador: nombre con la inicial del
+    apellido, foto y valoración. Nunca el correo ni el teléfono: por eso
+    no se usa Worker.serialize(), que es para el encargado."""
+    user = worker.user
+    last_name = (user.last_name or "").strip()
+    initial = f" {last_name[0]}." if last_name else ""
+
+    return {
+        "worker_id": worker.worker_id,
+        "name": f"{user.name}{initial}",
+        "avatar_url": user.avatar_url,
+        # Sin valorar todavía: las notas por trabajador llegan con la #20.
+        "rating": None,
+    }
+
+
+def bookable_workers():
+    """Los trabajadores a los que se puede reservar: activos, con usuario
+    activo y con un turno activo (can_work), ordenados por nombre.
+
+    selectinload trae usuarios y turnos en una consulta más, en vez de una
+    por trabajador al leer worker.user y worker.shift."""
+    workers = db.session.execute(
+        db.select(Worker)
+        .join(User, Worker.user_id == User.user_id)
+        .options(selectinload(Worker.user), selectinload(Worker.shift))
+        .order_by(User.name, Worker.worker_id)
+    ).scalars().all()
+
+    return [worker for worker in workers if can_work(worker)]
+
+
+@api.route("/availability/workers", methods=["GET"])
+@role_required("client")
+def get_availability_workers():
+    """Los trabajadores que el cliente puede elegir al reservar. La opción
+    "Cualquiera" no es un trabajador: la añade el panel."""
+    return jsonify({"workers": [public_worker(worker) for worker in bookable_workers()]}), 200
