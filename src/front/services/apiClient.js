@@ -23,9 +23,14 @@ export const apiRequest = async (path, { method = "GET", token, body } = {}) => 
     headers.Authorization = `Bearer ${token}`;
   }
 
+  // Un archivo viaja en un FormData, y entonces el Content-Type lo pone el
+  // navegador: lleva un separador que hay que calcular. Si lo escribiéramos
+  // a mano, el backend no encontraría el archivo.
+  const isFormData = body instanceof FormData;
+
   // Sin esta cabecera, Flask no lee el cuerpo como JSON y
   // request.get_json() llega vacío.
-  if (body !== undefined) {
+  if (body !== undefined && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -35,7 +40,7 @@ export const apiRequest = async (path, { method = "GET", token, body } = {}) => 
     response = await fetch(`${BACKEND_URL}${path}`, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     });
   } catch (error) {
     // Sin respuesta (backend caído, sin conexión o CORS). networkError
