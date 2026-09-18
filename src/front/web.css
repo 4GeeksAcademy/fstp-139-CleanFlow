@@ -1722,7 +1722,7 @@ main > section:nth-of-type(even) {
 .cf-contact__card {
   display: grid;
   grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1.25fr);
-  margin-top: var(--cf-space-10);
+  margin-top: var(--cf-space-12);
   overflow: hidden;
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-lg);

@@ -71,7 +71,7 @@ export const ContactSection = () => {
 
             if (!ok) {
                 setError(
-                    data?.error || "No se pudo enviar el mensaje. Inténtalo de nuevo."
+                    data?.message || "No se pudo enviar el mensaje. Inténtalo de nuevo."
                 );
                 return;
             }
