@@ -618,8 +618,8 @@ class Booking(db.Model):
         nullable=False,
         index=True
     )
-    # Hora de Madrid, sin zona: el negocio está en Madrid y así se lee tal
-    # cual. Las horas contratadas no se guardan: son fin menos inicio.
+    # Hora de Madrid, sin zona: inicio del primer tramo y fin del último.
+    # Las horas contratadas no se guardan: salen de los tramos (hours).
     scheduled_start: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False
@@ -682,8 +682,13 @@ class Booking(db.Model):
 
     @property
     def hours(self):
-        """Horas contratadas, deducidas del horario."""
-        return int((self.scheduled_end - self.scheduled_start).total_seconds() // 3600)
+        """Horas contratadas: la suma de sus tramos.
+
+        Fin menos inicio no vale: una reserva de viernes a lunes contaría
+        también las noches y el fin de semana.
+        """
+        seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
+        return int(seconds // 3600)
 
     def serialize(self):
         return {
@@ -725,7 +730,8 @@ class Booking(db.Model):
 
     def serialize_detail(self):
         """La reserva con lo que enseña la confirmación del panel (y, más
-        adelante, "Mis reservas" de la #16): servicio, dirección y tareas."""
+        adelante, "Mis reservas" de la #16): servicio, dirección, tramos
+        y tareas."""
         return {
             **self.serialize(),
             "hours": self.hours,
@@ -734,10 +740,9 @@ class Booking(db.Model):
                 "slug": self.service.slug,
             },
             "address": self.address.serialize(),
+            "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
         }
-
-
 
 
 # ==================================================================
