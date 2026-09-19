@@ -15,10 +15,9 @@ import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Task, Service, Worker, Address, Shift
 from api.utils import generate_sitemap, APIException, role_required, slugify
-from api.availability import can_work, load_busy, madrid_now, month_availability, BOOKING_HORIZON, SEARCH_LIMIT_DAYS
+from api.availability import can_work, load_busy, madrid_now, month_availability, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
-from datetime import datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
 from sqlalchemy import func
@@ -1822,13 +1821,9 @@ def get_availability():
 # bookingRules.js, para enseñarlas en directo. Si cambia una, cambian
 # las dos: si no, el panel enseña un precio y el servidor lo rechaza.
 
-# Las reservas se guardan en hora de Madrid, sin zona (ver Booking).
-MADRID = ZoneInfo("Europe/Madrid")
-
-BOOKING_MIN_NOTICE = timedelta(hours=24)   # antelación mínima
-BOOKING_FIRST_START = time(8, 0)          # primera hora de inicio
-BOOKING_LAST_START = time(20, 0)          # última hora de inicio
-BOOKING_MAX_TASKS = 30                     # tope de filas por reserva
+# La ventana de reserva y la hora de Madrid vienen de api/availability.py:
+# cada regla vive en un solo sitio.
+BOOKING_MAX_TASKS = 30                 # tope de filas por reserva
 BOOKING_NOTES_MAX_LENGTH = 1000
 
 
@@ -1864,7 +1859,10 @@ def validate_booking(data, user):
     """Valida una reserva ANTES de escribir nada en la base de datos.
 
     Devuelve (campos, None) o (None, (mensaje, código)). El código es 400,
-    salvo la dirección ajena: 404, para no confirmarle a nadie que existe.
+    salvo un trabajador o una dirección que no se encuentran: 404.
+
+    No mira si el hueco está libre: eso lo hace create_booking(), dentro
+    de su transacción.
     """
 
     # ---- SERVICIO ----
@@ -1932,28 +1930,42 @@ def validate_booking(data, user):
     if service.max_hours is not None and hours > service.max_hours:
         return None, (f"{service.name} se contrata como mucho {service.max_hours} h", 400)
 
+    # ---- TRABAJADOR ----
+    # "any" (Cualquiera) o el id de uno: lo mismo que acepta GET /availability.
+    worker_choice = data.get("worker", "any")
+    workers = bookable_workers()
+
+    if worker_choice != "any":
+        workers = [
+            worker for worker in workers
+            if is_int(worker_choice) and worker.worker_id == worker_choice
+        ]
+
+        # Mismo 404 si no existe o si no se puede reservar.
+        if not workers:
+            return None, ("Ese trabajador no está disponible para reservar", 404)
+
     # ---- INICIO ----
-    # Llega como "2026-09-20T09:30", sin zona: es hora de Madrid.
+    # Llega como "2026-10-05T09:30", sin zona: es hora de Madrid.
     try:
         start = datetime.fromisoformat(data.get("start"))
     except (TypeError, ValueError):
         return None, ("Elige una fecha y una hora de inicio", 400)
 
-    # Si alguien la manda con zona, se pasa a Madrid y se le quita: así
-    # se compara siempre lo mismo con lo mismo.
+    # Si llega con zona, se pasa a Madrid y se le quita: así se compara
+    # siempre lo mismo con lo mismo.
     if start.tzinfo is not None:
         start = start.astimezone(MADRID).replace(tzinfo=None)
 
-    now = datetime.now(MADRID).replace(tzinfo=None)
+    # Solo la ventana de reserva. Si la hora cae en el turno y está libre
+    # lo comprueba create_booking().
+    now = madrid_now()
 
-    if start < now + BOOKING_MIN_NOTICE:
+    if start < now + MIN_NOTICE:
         return None, ("Las reservas se hacen con al menos 24 horas de antelación", 400)
 
-    on_slot = start.minute in (0, 30) and start.second == 0 and start.microsecond == 0
-    in_hours = BOOKING_FIRST_START <= start.time() <= BOOKING_LAST_START
-
-    if not (on_slot and in_hours):
-        return None, ("Se puede empezar entre las 08:00 y las 20:00, en punto o y media", 400)
+    if start > now + BOOKING_HORIZON:
+        return None, ("Solo se puede reservar hasta 60 días vista", 400)
 
     # ---- DIRECCIÓN ----
     # owned_address() ya filtra por cliente y por activa (#13).
@@ -1973,6 +1985,7 @@ def validate_booking(data, user):
         "service": service,
         "tasks": tasks,
         "hours": hours,
+        "workers": workers,
         "address": address,
         "start": start,
         "notes": notes,
