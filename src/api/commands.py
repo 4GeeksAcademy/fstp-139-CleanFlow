@@ -59,6 +59,7 @@ SERVICES = [
         "minutes_per_task": 20,     # 3 tareas por hora
         "min_hours": 1,
         "hour_step": 1,
+        "max_hours": 8,             # una jornada: no se parte en varios días
         "is_active": True,
     },
     {
@@ -68,6 +69,7 @@ SERVICES = [
         "minutes_per_task": 30,     # 2 tareas por hora
         "min_hours": 1,
         "hour_step": 1,
+        "max_hours": 8,
         "is_active": True,
     },
     {
@@ -77,6 +79,7 @@ SERVICES = [
         "minutes_per_task": 60,     # 1 tarea por hora
         "min_hours": 1,
         "hour_step": 1,
+        "max_hours": 8,
         "is_active": True,
     },
     {
@@ -84,8 +87,9 @@ SERVICES = [
         "description": "Retirada de polvo y restos tras una reforma.",
         "base_hourly_rate": 90,
         "minutes_per_task": None,   # sin tareas: se contratan horas
-        "min_hours": 6,             # 6, 9, 12, 15...
+        "min_hours": 8,             # 8, 11, 14... 56
         "hour_step": 3,
+        "max_hours": 56,            # 7 jornadas: la obra sí se parte en días
         "is_active": True,
     },
 
@@ -97,6 +101,7 @@ SERVICES = [
         "minutes_per_task": 30,     # 2 tareas por hora
         "min_hours": 2,
         "hour_step": 1,
+        "max_hours": 8,
         "is_active": False,
     },
 ]
