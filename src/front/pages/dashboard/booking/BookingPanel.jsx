@@ -15,8 +15,11 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
+import useGlobalReducer from "../../../hooks/useGlobalReducer"
 import { getServices } from "../../../services/serviceService"
 import { getTasks } from "../../../services/taskService"
+import { getBookableWorkers } from "../../../services/availabilityService"
+import { Avatar } from "../../../components/dashboard/Avatar"
 import { formatPrice, taskWord } from "../../../components/dashboard/ServiceForm"
 import { hoursNeeded, hourOptions, spareTasks, totalPrice } from "./bookingRules"
 import "../../../dashboard.css"
@@ -24,6 +27,10 @@ import "../../../dashboard.css"
 // Nombre del parámetro con el que llega el servicio elegido. Es un CONTRATO
 // con ServiceCatalog.jsx: si cambia aquí, cambia allí.
 const SERVICE_PARAM = "servicio"
+
+// Sin trabajador elegido: lo asigna la disponibilidad. Es lo que espera la
+// API, y también el valor por defecto.
+const ANY_WORKER = "any"
 
 // Bloques grises que se ven mientras carga.
 const SKELETON_BLOCKS = 3
@@ -59,15 +66,24 @@ const taskTimeText = (minutes) => {
     return rest ? `${hours} h ${rest} min` : `${hours} h`
 }
 
+/** La API manda el nombre ya recortado ("Ana G."); Avatar lo quiere en dos. */
+const workerUser = (worker) => {
+    const [name, ...rest] = worker.name.split(" ")
+
+    return { name, last_name: rest.join(" "), avatar_url: worker.avatar_url }
+}
+
 // ----------------------------------------------------------------------
 // COMPONENTE
 // ----------------------------------------------------------------------
 
 export const BookingPanel = () => {
+    const { store, dispatch } = useGlobalReducer()
     const [searchParams] = useSearchParams()
 
     const [services, setServices] = useState([])
     const [tasks, setTasks] = useState([])
+    const [workers, setWorkers] = useState([])
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState("")
 
@@ -76,6 +92,7 @@ export const BookingPanel = () => {
     const [slug, setSlug] = useState("")
     const [chosenTasks, setChosenTasks] = useState([])
     const [hours, setHours] = useState(0)
+    const [worker, setWorker] = useState(ANY_WORKER)
 
     // La tarea que está marcada en el desplegable de "Añadir", todavía sin
     // añadir. Vacío = la primera de la lista.
@@ -85,12 +102,24 @@ export const BookingPanel = () => {
         setLoading(true)
         setLoadError("")
 
-        // Las dos peticiones a la vez: ninguna necesita a la otra.
-        const [servicesResult, tasksResult] = await Promise.all([getServices(), getTasks()])
+        // Las tres a la vez: ninguna necesita a las otras.
+        const [servicesResult, tasksResult, workersResult] = await Promise.all([
+            getServices(),
+            getTasks(),
+            getBookableWorkers(store.token),
+        ])
 
-        if (servicesResult.ok && tasksResult.ok) {
+        // 401 = token caducado: se cierra la sesión y ProtectedRoutes manda
+        // al login.
+        if (workersResult.status === 401) {
+            dispatch({ type: "LOGOUT" })
+            return
+        }
+
+        if (servicesResult.ok && tasksResult.ok && workersResult.ok) {
             setServices(servicesResult.data)
             setTasks(tasksResult.data)
+            setWorkers(workersResult.data)
 
             // El servicio de la URL, solo si sigue estando activo. Si no, se
             // queda sin elegir y el desplegable lo pide.
@@ -100,8 +129,10 @@ export const BookingPanel = () => {
             setSlug(found ? wanted : "")
             setHours(found ? hoursNeeded(found, 0) : 0)
         } else {
-            // Un solo mensaje: si fallan las dos, es por lo mismo.
-            setLoadError((servicesResult.ok ? tasksResult : servicesResult).data.message)
+            // Un solo mensaje: si fallan varias, suele ser por lo mismo.
+            const failed = [servicesResult, tasksResult, workersResult].find((result) => !result.ok)
+
+            setLoadError(failed.data.message)
         }
 
         setLoading(false)
@@ -163,6 +194,19 @@ export const BookingPanel = () => {
     const needed = service ? hoursNeeded(service, chosenTasks.length) : 0
     const spare = service ? spareTasks(service, hours, chosenTasks.length) : 0
 
+    // Tareas que caben en el tope del servicio: con esencial (8 h y 20 min
+    // por tarea) son 24. Sin tope, las que quiera.
+    const maxTasks = withTasks && service.max_hours
+        ? Math.floor((service.max_hours * 60) / service.minutes_per_task)
+        : Infinity
+
+    const roomForTasks = chosenTasks.length < maxTasks
+
+    // El número de cada paso: sin tareas, todos los de después suben uno.
+    const step = { service: 1, tasks: 2, hours: withTasks ? 3 : 2, worker: withTasks ? 4 : 3 }
+
+    const chosenWorker = workers.find((item) => String(item.worker_id) === worker) || null
+
     // ------------------------------------------------------------------
     // CAMBIOS DEL FORMULARIO
     // ------------------------------------------------------------------
@@ -205,7 +249,7 @@ export const BookingPanel = () => {
 
                     {/* ---- 1 · SERVICIO ---- */}
                     <section className="cf-booking__block">
-                        <BlockHead step="1" title="Servicio" />
+                        <BlockHead step={step.service} title="Servicio" />
 
                         <div className="cf-dash-field">
                             <label className="cf-dash-field__label" htmlFor="booking-service">
@@ -240,7 +284,7 @@ export const BookingPanel = () => {
                                 )}
                                 <li>
                                     <i className="fa-solid fa-hourglass-start" aria-hidden="true" />
-                                    {` Desde ${service.min_hours} h`}
+                                    {` De ${service.min_hours} a ${service.max_hours || "muchas"} h`}
                                 </li>
                             </ul>
                         )}
@@ -251,7 +295,7 @@ export const BookingPanel = () => {
                     {withTasks && (
                         <section className="cf-booking__block">
                             <BlockHead
-                                step="2"
+                                step={step.tasks}
                                 title="Tareas"
                                 note={`${chosenTasks.length} ${taskWord(chosenTasks.length)} · ${taskTimeText(chosenTasks.length * service.minutes_per_task)}`}
                             />
@@ -287,6 +331,7 @@ export const BookingPanel = () => {
                                     className="cf-dash-input"
                                     value={nextTaskId || ""}
                                     onChange={(event) => setTaskToAdd(event.target.value)}
+                                    disabled={!roomForTasks}
                                     aria-label="Tarea que añadir"
                                 >
                                     {tasks.map((task) => (
@@ -298,7 +343,7 @@ export const BookingPanel = () => {
                                 <button
                                     type="button"
                                     className="cf-dash-btn cf-dash-btn--ghost"
-                                    disabled={!nextTaskId}
+                                    disabled={!nextTaskId || !roomForTasks}
                                     onClick={() => addTask(nextTaskId)}
                                 >
                                     <i className="fa-solid fa-plus" aria-hidden="true" />
@@ -309,7 +354,16 @@ export const BookingPanel = () => {
                             {chosenTasks.length === 0 && (
                                 <p className="cf-booking__hint">
                                     <i className="fa-solid fa-circle-info" aria-hidden="true" />
-                                    Añade al menos una tarea para poder reservar.
+                                    {" Añade al menos una tarea para poder reservar."}
+                                </p>
+                            )}
+
+                            {/* El tope del servicio manda: con 8 h no caben más
+                                de 24 tareas de 20 minutos. */}
+                            {!roomForTasks && (
+                                <p className="cf-booking__hint">
+                                    <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                                    {` En ${service.max_hours} h caben ${maxTasks} ${taskWord(maxTasks)}: quita alguna para añadir otra.`}
                                 </p>
                             )}
 
@@ -325,7 +379,7 @@ export const BookingPanel = () => {
                     {/* ---- 3 · HORAS ---- */}
                     {service && (
                         <section className="cf-booking__block">
-                            <BlockHead step={withTasks ? "3" : "2"} title="Horas" />
+                            <BlockHead step={step.hours} title="Horas" />
 
                             <div className="cf-booking__hours">
                                 <div className="cf-dash-field">
@@ -357,11 +411,67 @@ export const BookingPanel = () => {
                             </div>
                         </section>
                     )}
+
+                    {/* ---- 4 · QUIÉN VIENE ----
+                        "Cualquiera" no es un trabajador: lo elige la
+                        disponibilidad, y así hay más huecos libres. */}
+                    {service && (
+                        <section className="cf-booking__block">
+                            <BlockHead
+                                step={step.worker}
+                                title="Quién viene"
+                                note={workers.length ? null : "Ahora mismo no hay nadie disponible"}
+                            />
+
+                            <div className="cf-booking__workers">
+                                <label className="cf-booking__worker">
+                                    <input
+                                        type="radio"
+                                        name="booking-worker"
+                                        value={ANY_WORKER}
+                                        checked={worker === ANY_WORKER}
+                                        onChange={() => setWorker(ANY_WORKER)}
+                                    />
+                                    <span className="cf-booking__worker-card">
+                                        <span className="cf-booking__avatar">
+                                            <i className="fa-solid fa-users" aria-hidden="true" />
+                                        </span>
+                                        <span>
+                                            <span className="cf-booking__worker-name">Cualquiera</span>
+                                            <span className="cf-booking__worker-note">Más huecos libres</span>
+                                        </span>
+                                    </span>
+                                </label>
+
+                                {workers.map((item) => (
+                                    <label className="cf-booking__worker" key={item.worker_id}>
+                                        <input
+                                            type="radio"
+                                            name="booking-worker"
+                                            value={item.worker_id}
+                                            checked={worker === String(item.worker_id)}
+                                            onChange={() => setWorker(String(item.worker_id))}
+                                        />
+                                        <span className="cf-booking__worker-card">
+                                            <Avatar user={workerUser(item)} size="md" />
+                                            <span>
+                                                <span className="cf-booking__worker-name">{item.name}</span>
+                                                <span className="cf-booking__worker-note">
+                                                    {item.rating
+                                                        ? `${item.rating} de 5`
+                                                        : "Sin valoraciones todavía"}
+                                                </span>
+                                            </span>
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </section>
+                    )}
                 </div>
 
                 {/* ---- RESUMEN ----
-                    Se irá llenando con cada paso: faltan trabajador, día y
-                    dirección. */}
+                    Se irá llenando con cada paso: faltan día y dirección. */}
                 <aside className="cf-booking__summary">
                     <h2 className="cf-booking__summary-title">Tu reserva</h2>
 
@@ -380,6 +490,10 @@ export const BookingPanel = () => {
                                 </dd>
                             </dl>
                         )}
+                        <dl className="cf-booking__row">
+                            <dt>Quién</dt>
+                            <dd>{chosenWorker ? chosenWorker.name : "Cualquiera"}</dd>
+                        </dl>
                     </div>
 
                     {service && (

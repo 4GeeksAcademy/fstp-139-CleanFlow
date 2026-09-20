@@ -3212,19 +3212,15 @@ textarea.cf-dash-input {
   outline-offset: 2px;
 }
 
+/* El círculo de "Cualquiera". Los trabajadores usan el avatar del
+   proyecto (cf-dash-avatar--md), así que miden lo mismo: 48px. */
 .cf-booking__avatar {
   display: grid;
   place-items: center;
   flex: none;
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   border-radius: 999px;
-  background-color: var(--cf-accent-soft);
-  color: var(--cf-accent-dark);
-  font-weight: 700;
-}
-
-.cf-booking__avatar--any {
   background-color: var(--cf-primary);
   color: var(--cf-on-primary);
 }
