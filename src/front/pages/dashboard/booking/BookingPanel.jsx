@@ -14,11 +14,13 @@
  */
 
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import useGlobalReducer from "../../../hooks/useGlobalReducer"
 import { getServices } from "../../../services/serviceService"
 import { getTasks } from "../../../services/taskService"
+import { getAddresses, createAddress } from "../../../services/addressService"
 import { getAvailability, getBookableWorkers } from "../../../services/availabilityService"
+import { AddressForm } from "../../../components/dashboard/AddressForm"
 import { Avatar } from "../../../components/dashboard/Avatar"
 import { formatPrice, taskWord } from "../../../components/dashboard/ServiceForm"
 import { hoursNeeded, hourOptions, spareTasks, totalPrice } from "./bookingRules"
@@ -48,6 +50,16 @@ const shiftMonth = (month, step) => {
     const [year, number] = month.split("-").map(Number)
 
     return monthOf(new Date(year, number - 1 + step, 1))
+}
+
+// Las direcciones del cliente se gestionan en sus ajustes (#13).
+const ADDRESSES_PATH = "/dashboard/profile/addresses"
+
+/** "Calle de Alcalá 42, 3º B · 28014 Madrid". */
+const addressText = (address) => {
+    const floor = address.floor ? `, ${address.floor}` : ""
+
+    return `${address.street} ${address.number}${floor} · ${address.postal_code} ${address.city}`
 }
 
 /** "2026-10-05" -> "lun 5 oct", para el resumen. */
@@ -112,6 +124,7 @@ export const BookingPanel = () => {
     const [services, setServices] = useState([])
     const [tasks, setTasks] = useState([])
     const [workers, setWorkers] = useState([])
+    const [addresses, setAddresses] = useState([])
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState("")
 
@@ -134,28 +147,43 @@ export const BookingPanel = () => {
     const [day, setDay] = useState("")
     const [start, setStart] = useState("")
 
+    // La dirección elegida y el formulario de crear una sin salir del panel.
+    const [addressId, setAddressId] = useState("")
+    const [addingAddress, setAddingAddress] = useState(false)
+    const [savingAddress, setSavingAddress] = useState(false)
+    const [addressError, setAddressError] = useState("")
+
     const loadCatalog = async () => {
         setLoading(true)
         setLoadError("")
 
-        // Las tres a la vez: ninguna necesita a las otras.
-        const [servicesResult, tasksResult, workersResult] = await Promise.all([
+        // Las cuatro a la vez: ninguna necesita a las otras.
+        const [servicesResult, tasksResult, workersResult, addressesResult] = await Promise.all([
             getServices(),
             getTasks(),
             getBookableWorkers(store.token),
+            getAddresses(store.token),
         ])
 
         // 401 = token caducado: se cierra la sesión y ProtectedRoutes manda
         // al login.
-        if (workersResult.status === 401) {
+        if (workersResult.status === 401 || addressesResult.status === 401) {
             dispatch({ type: "LOGOUT" })
             return
         }
 
-        if (servicesResult.ok && tasksResult.ok && workersResult.ok) {
+        if (servicesResult.ok && tasksResult.ok && workersResult.ok && addressesResult.ok) {
             setServices(servicesResult.data)
             setTasks(tasksResult.data)
             setWorkers(workersResult.data)
+            setAddresses(addressesResult.data)
+
+            // La principal viene primera. Sin ninguna, el formulario de
+            // crear sale abierto: sin dirección no hay reserva.
+            const [main] = addressesResult.data
+
+            setAddressId(main ? String(main.address_id) : "")
+            setAddingAddress(!main)
 
             // El servicio de la URL, solo si sigue estando activo. Si no, se
             // queda sin elegir y el desplegable lo pide.
@@ -166,7 +194,8 @@ export const BookingPanel = () => {
             setHours(found ? hoursNeeded(found, 0) : 0)
         } else {
             // Un solo mensaje: si fallan varias, suele ser por lo mismo.
-            const failed = [servicesResult, tasksResult, workersResult].find((result) => !result.ok)
+            const failed = [servicesResult, tasksResult, workersResult, addressesResult]
+                .find((result) => !result.ok)
 
             setLoadError(failed.data.message)
         }
@@ -178,6 +207,32 @@ export const BookingPanel = () => {
     useEffect(() => {
         loadCatalog()
     }, [])
+
+    // "Gestionar mis direcciones" abre otra pestaña, así que al volver a
+    // esta la lista puede haber cambiado. Se vuelve a pedir sin tocar nada
+    // más de la reserva.
+    useEffect(() => {
+        const refreshAddresses = async () => {
+            const result = await getAddresses(store.token)
+
+            if (!result.ok) return
+
+            setAddresses(result.data)
+
+            // Si la elegida ya no está (la quitaron allí), vuelve la principal.
+            setAddressId((current) => {
+                if (result.data.some((item) => String(item.address_id) === current)) return current
+
+                const [main] = result.data
+
+                return main ? String(main.address_id) : ""
+            })
+        }
+
+        window.addEventListener("focus", refreshAddresses)
+
+        return () => window.removeEventListener("focus", refreshAddresses)
+    }, [store.token])
 
     // Los huecos se recalculan cada vez que cambia algo que los afecta: las
     // horas, el trabajador o el mes.
@@ -293,7 +348,16 @@ export const BookingPanel = () => {
 
     // El número de cada paso: sin tareas, todos los de después suben uno.
     const shift = withTasks ? 0 : -1
-    const step = { service: 1, tasks: 2, hours: 3 + shift, worker: 4 + shift, when: 5 + shift }
+    const step = {
+        service: 1,
+        tasks: 2,
+        hours: 3 + shift,
+        worker: 4 + shift,
+        when: 5 + shift,
+        address: 6 + shift,
+    }
+
+    const chosenAddress = addresses.find((item) => String(item.address_id) === addressId) || null
 
     const chosenWorker = workers.find((item) => String(item.worker_id) === worker) || null
 
@@ -335,6 +399,34 @@ export const BookingPanel = () => {
 
     // Se quita por posición y no por id: la misma tarea puede estar repetida.
     const removeTask = (index) => changeTasks(chosenTasks.filter((_, position) => position !== index))
+
+    // Crea una dirección sin salir del panel y la deja elegida. La lista se
+    // vuelve a pedir para que la principal siga saliendo la primera.
+    const saveAddress = async (fields) => {
+        setSavingAddress(true)
+        setAddressError("")
+
+        const created = await createAddress(fields, store.token)
+
+        if (created.status === 401) {
+            dispatch({ type: "LOGOUT" })
+            return
+        }
+
+        if (!created.ok) {
+            setAddressError(created.data.message)
+            setSavingAddress(false)
+            return
+        }
+
+        const list = await getAddresses(store.token)
+
+        if (list.ok) setAddresses(list.data)
+
+        setAddressId(String(created.data.address_id))
+        setAddingAddress(false)
+        setSavingAddress(false)
+    }
 
     const taskById = (taskId) => tasks.find((task) => task.task_id === taskId)
 
@@ -640,10 +732,81 @@ export const BookingPanel = () => {
                             )}
                         </section>
                     )}
+
+                    {/* ---- 6 · DIRECCIÓN ----
+                        Las direcciones son las de la #13: aquí solo se elige
+                        una o se crea, con el mismo formulario de los ajustes. */}
+                    {service && (
+                        <section className="cf-booking__block">
+                            <BlockHead step={step.address} title="Dirección" />
+
+                            {addingAddress ? (
+                                <AddressForm
+                                    saving={savingAddress}
+                                    apiError={addressError}
+                                    onSubmit={saveAddress}
+                                    onCancel={() => setAddingAddress(false)}
+                                />
+                            ) : (
+                                <>
+                                    {/* Sin direcciones no hay desplegable que enseñar. */}
+                                    {addresses.length === 0 ? (
+                                        <p className="cf-booking__hint">
+                                            <i className="fa-solid fa-circle-info" aria-hidden="true" />
+                                            {" Todavía no tienes ninguna dirección: añade dónde quieres que vayamos."}
+                                        </p>
+                                    ) : (
+                                        <div className="cf-dash-field">
+                                            <label className="cf-dash-field__label" htmlFor="booking-address">
+                                                ¿Dónde limpiamos?
+                                            </label>
+                                            <select
+                                                id="booking-address"
+                                                className="cf-dash-input"
+                                                value={addressId}
+                                                onChange={(event) => setAddressId(event.target.value)}
+                                            >
+                                                {addresses.map((item) => (
+                                                    <option key={item.address_id} value={item.address_id}>
+                                                        {addressText(item)}
+                                                        {item.is_default ? " (principal)" : ""}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <div className="cf-booking__address-links">
+                                        <button
+                                            type="button"
+                                            className="cf-dash-btn cf-dash-btn--ghost cf-dash-btn--sm"
+                                            onClick={() => setAddingAddress(true)}
+                                        >
+                                            <i className="fa-solid fa-plus" aria-hidden="true" />
+                                            Añadir dirección
+                                        </button>
+                                        {/* En otra pestaña: si se saliera del panel, se
+                                            perdería todo lo elegido. Al volver, la lista
+                                            se actualiza sola. */}
+                                        <Link
+                                            className="cf-booking__link"
+                                            to={ADDRESSES_PATH}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            Gestionar mis direcciones
+                                            <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
+                                            <span className="sr-only">(se abre en una pestaña nueva)</span>
+                                        </Link>
+                                    </div>
+                                </>
+                            )}
+                        </section>
+                    )}
                 </div>
 
                 {/* ---- RESUMEN ----
-                    Se irá llenando con cada paso: falta la dirección. */}
+                    Falta la descripción y el botón de reservar (paso 14). */}
                 <aside className="cf-booking__summary">
                     <h2 className="cf-booking__summary-title">Tu reserva</h2>
 
@@ -675,6 +838,14 @@ export const BookingPanel = () => {
                                             {`${dayText(key)} · ${index === 0 ? start : "desde " + start}`}
                                         </span>
                                     ))
+                                    : "Sin elegir"}
+                            </dd>
+                        </dl>
+                        <dl className="cf-booking__row">
+                            <dt>Dónde</dt>
+                            <dd>
+                                {chosenAddress
+                                    ? `${chosenAddress.street} ${chosenAddress.number}`
                                     : "Sin elegir"}
                             </dd>
                         </dl>
