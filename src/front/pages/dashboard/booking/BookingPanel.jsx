@@ -22,19 +22,15 @@ import { getAddresses, createAddress } from "../../../services/addressService"
 import { getAvailability, getBookableWorkers } from "../../../services/availabilityService"
 import { createBooking } from "../../../services/bookingService"
 import { AddressForm } from "../../../components/dashboard/AddressForm"
-import { Avatar } from "../../../components/dashboard/Avatar"
 import { formatPrice, taskWord } from "../../../components/dashboard/ServiceForm"
-import { hoursNeeded, hourOptions, spareTasks, totalPrice } from "./bookingRules"
-import { BookingCalendar } from "./BookingCalendar"
+import { hoursNeeded, hourOptions, spareTasks, splitIntoDays, totalPrice } from "./bookingRules"
+import { BookingCalendar } from "../../../components/dashboard/booking/BookingCalendar"
+import { ANY_WORKER, WorkerPicker } from "../../../components/dashboard/booking/WorkerPicker"
 import "../../../dashboard.css"
 
 // Nombre del parámetro con el que llega el servicio elegido. Es un CONTRATO
 // con ServiceCatalog.jsx: si cambia aquí, cambia allí.
 const SERVICE_PARAM = "servicio"
-
-// Sin trabajador elegido: lo asigna la disponibilidad. Es lo que espera la
-// API, y también el valor por defecto.
-const ANY_WORKER = "any"
 
 // Bloques grises que se ven mientras carga.
 const SKELETON_BLOCKS = 3
@@ -118,13 +114,6 @@ const taskTimeText = (minutes) => {
     if (!hours) return `${rest} min`
 
     return rest ? `${hours} h ${rest} min` : `${hours} h`
-}
-
-/** La API manda el nombre ya recortado ("Ana G."); Avatar lo quiere en dos. */
-const workerUser = (worker) => {
-    const [name, ...rest] = worker.name.split(" ")
-
-    return { name, last_name: rest.join(" "), avatar_url: worker.avatar_url }
 }
 
 // ----------------------------------------------------------------------
@@ -767,49 +756,11 @@ export const BookingPanel = () => {
                                 note={workers.length ? null : "Ahora mismo no hay nadie disponible"}
                             />
 
-                            <div className="cf-booking__workers">
-                                <label className="cf-booking__worker">
-                                    <input
-                                        type="radio"
-                                        name="booking-worker"
-                                        value={ANY_WORKER}
-                                        checked={worker === ANY_WORKER}
-                                        onChange={() => setWorker(ANY_WORKER)}
-                                    />
-                                    <span className="cf-booking__worker-card">
-                                        <span className="cf-booking__avatar">
-                                            <i className="fa-solid fa-users" aria-hidden="true" />
-                                        </span>
-                                        <span>
-                                            <span className="cf-booking__worker-name">Cualquiera</span>
-                                            <span className="cf-booking__worker-note">Más huecos libres</span>
-                                        </span>
-                                    </span>
-                                </label>
-
-                                {workers.map((item) => (
-                                    <label className="cf-booking__worker" key={item.worker_id}>
-                                        <input
-                                            type="radio"
-                                            name="booking-worker"
-                                            value={item.worker_id}
-                                            checked={worker === String(item.worker_id)}
-                                            onChange={() => setWorker(String(item.worker_id))}
-                                        />
-                                        <span className="cf-booking__worker-card">
-                                            <Avatar user={workerUser(item)} size="md" />
-                                            <span>
-                                                <span className="cf-booking__worker-name">{item.name}</span>
-                                                <span className="cf-booking__worker-note">
-                                                    {item.rating
-                                                        ? `${item.rating} de 5`
-                                                        : "Sin valoraciones todavía"}
-                                                </span>
-                                            </span>
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
+                            <WorkerPicker
+                                workers={workers}
+                                value={worker}
+                                onChange={setWorker}
+                            />
                         </section>
                     )}
 
@@ -1005,8 +956,10 @@ export const BookingPanel = () => {
                             <dd>
                                 {bookedDays.length
                                     ? bookedDays.map((key, index) => (
+                                        // Cada día con lo que se trabaja en él: una
+                                        // reserva larga son varias jornadas.
                                         <span key={key}>
-                                            {`${dayText(key)} · ${index === 0 ? start : "desde " + start}`}
+                                            {`${dayText(key)} · ${start} · ${splitIntoDays(hours)[index]} h`}
                                         </span>
                                     ))
                                     : "Sin elegir"}
