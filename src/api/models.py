@@ -748,7 +748,7 @@ class Booking(db.Model):
 # ==================================================================
 # BOOKING DAY
 # ==================================================================
-# Los tramos de trabajo de una reserva: uno por día, de 6 h como mucho
+# Los tramos de trabajo de una reserva: uno por día, de 8 h como mucho
 # (3 h = un tramo; 12 h = dos). La disponibilidad mira estos tramos y no
 # el inicio y fin de la reserva: entre dos puede caer un fin de semana.
 
