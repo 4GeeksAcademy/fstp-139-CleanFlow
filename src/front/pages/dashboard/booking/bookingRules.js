@@ -9,9 +9,10 @@
  * panel enseña un precio y el servidor rechaza la reserva.
  */
 
-// Jornada máxima de un trabajador: una reserva más larga se reparte en
-// varios días (12 h = 6 + 6). Igual que MAX_HOURS_PER_DAY en availability.py.
-export const MAX_HOURS_PER_DAY = 6;
+// Jornada máxima de un trabajador, la duración de un turno: una reserva más
+// larga se reparte en varios días (12 h = 8 + 4). Igual que
+// MAX_HOURS_PER_DAY en availability.py.
+export const MAX_HOURS_PER_DAY = 8;
 
 // Tope de horas cuando el servicio no tiene el suyo. Igual que
 // MAX_REQUEST_HOURS en routes.py, que es lo que acepta la disponibilidad.
@@ -71,7 +72,7 @@ export const spareTasks = (service, hours, taskCount) => {
 export const totalPrice = (service, hours) =>
   service ? Math.round(hours * service.base_hourly_rate * 100) / 100 : 0;
 
-/** Las horas repartidas en días: 9 -> [6, 3] · 12 -> [6, 6]. */
+/** Las horas repartidas en días: 9 -> [8, 1] · 12 -> [8, 4]. */
 export const splitIntoDays = (hours) => {
   const fullDays = Math.floor(hours / MAX_HOURS_PER_DAY);
   const rest = hours % MAX_HOURS_PER_DAY;
