@@ -133,13 +133,14 @@ PEOPLE = [
 # calculan desde el día en que se ejecuta el comando: siempre caen
 # dentro de la ventana de reserva.
 #
-#   DÍA LLENO     un miércoles con la mañana entera ocupada: Ana, Luis y
-#                 Marta de 08:00 a 14:00. Ese día no hay huecos de mañana.
+#   DÍA LLENO     un miércoles con el turno de mañana entero ocupado: Ana,
+#                 Luis y Marta las 8 h. Ese día no hay huecos de mañana.
 #   MARGEN        el jueves siguiente, Ana de 08:00 a 11:00. Con los 30
 #                 minutos de margen no puede empezar otra a las 11:00,
 #                 pero sí a las 11:30.
 #   VARIOS DÍAS   el viernes siguiente, Carlos (tarde, de lunes a viernes)
-#                 12 horas: viernes y LUNES, saltándose el fin de semana.
+#                 12 horas: 8 h el viernes y 4 el LUNES, saltándose el
+#                 fin de semana.
 #
 # La #15 las reutiliza para probar las reservas afectadas.
 
@@ -366,8 +367,8 @@ def create_bookings():
     for email in ("ana@cleanflow.test", "luis@cleanflow.test", "marta@cleanflow.test"):
         add_booking(
             client, address, fin_de_obra, worker_by_email(email),
-            [(at(full_day, 8), at(full_day, 14))],
-            "Día lleno: la mañana entera ocupada.",
+            [(at(full_day, 6), at(full_day, 14))],
+            "Día lleno: el turno de mañana entero ocupado.",
         )
 
     # ---- MARGEN ----
@@ -382,8 +383,8 @@ def create_bookings():
     # ---- VARIOS DÍAS ----
     add_booking(
         client, address, fin_de_obra, worker_by_email("carlos@cleanflow.test"),
-        [(at(long_start, 14), at(long_start, 20)), (at(long_second, 14), at(long_second, 20))],
-        "Varios días: viernes y lunes.",
+        [(at(long_start, 14), at(long_start, 22)), (at(long_second, 14), at(long_second, 18))],
+        "Varios días: 8 h el viernes y 4 el lunes.",
     )
 
     return 5

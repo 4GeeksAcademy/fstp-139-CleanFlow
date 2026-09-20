@@ -25,8 +25,9 @@ from api.models import db, Booking, BookingDay, BookingStatus
 # 1. REGLAS
 # ----------------------------------------------------------------------
 
-# Jornada máxima: una reserva más larga se reparte en días (12 h = 6 + 6).
-MAX_HOURS_PER_DAY = 6
+# Jornada máxima, la duración de un turno: una reserva más larga se reparte
+# en días (12 h = 8 + 4).
+MAX_HOURS_PER_DAY = 8
 
 # Hueco entre dos reservas del mismo trabajador, para desplazarse.
 TRAVEL_MARGIN = timedelta(minutes=30)
@@ -55,7 +56,7 @@ def madrid_now():
 # ----------------------------------------------------------------------
 
 def split_into_days(hours):
-    """Las horas en tramos de un día: 9 -> [6, 3] · 12 -> [6, 6]."""
+    """Las horas en tramos de un día: 9 -> [8, 1] · 12 -> [8, 4]."""
     full_days, rest = divmod(hours, MAX_HOURS_PER_DAY)
     return [MAX_HOURS_PER_DAY] * full_days + ([rest] if rest else [])
 
