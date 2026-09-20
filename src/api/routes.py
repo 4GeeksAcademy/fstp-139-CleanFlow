@@ -13,9 +13,9 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task, Service, Worker, Address, Shift
+from api.models import db, User, Task, Service, Worker, Address, Shift, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
-from api.availability import can_work, load_busy, madrid_now, month_availability, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
+from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -1990,3 +1990,115 @@ def validate_booking(data, user):
         "start": start,
         "notes": notes,
     }, None
+
+
+def free_options_at(workers, hours, start, busy):
+    """Las opciones libres para empezar justo a esa hora, o [].
+
+    Usa month_availability, el mismo cálculo que el calendario: lo que no
+    sale allí tampoco se puede reservar aquí.
+    """
+    day = start.date()
+    slots = month_availability(workers, hours, day.replace(day=1), madrid_now(), busy)
+
+    for slot in slots.get(day, []):
+        if slot["start"] == start.strftime("%H:%M"):
+            return slot["options"]
+
+    return []
+
+
+@api.route("/bookings", methods=["POST"])
+@role_required("client")
+def create_booking():
+    """Crea una reserva confirmada, con su trabajador y sus tramos.
+
+        POST /api/bookings
+        {"service_slug": "limpieza-esencial", "task_ids": [1, 1, 3],
+         "hours": 2, "worker": "any", "start": "2026-10-05T09:00",
+         "address_id": 4, "notes": ""}
+
+    Responde 201 {"booking": {...}}. El total lo calcula el servidor: lo
+    que mande el navegador ni se lee.
+    """
+    user = current_user()
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    fields, error = validate_booking(data, user)
+
+    if error:
+        message, code = error
+        return jsonify({"message": message}), code
+
+    workers = fields["workers"]
+    hours = fields["hours"]
+    start = fields["start"]
+    day = start.date()
+
+    # Bloquea a los candidatos hasta el commit: si dos clientes piden el
+    # mismo hueco a la vez, el segundo espera aquí y vuelve a mirar.
+    db.session.execute(
+        db.select(Worker)
+        .where(Worker.worker_id.in_([worker.worker_id for worker in workers]))
+        .with_for_update()
+    )
+
+    busy = load_busy(workers, day, day + timedelta(days=SEARCH_LIMIT_DAYS))
+    options = free_options_at(workers, hours, start, busy)
+
+    if not options:
+        # Sin reservas por medio: si entonces sí había hueco, es que acaban
+        # de ocuparlo; si tampoco, esa hora nunca fue reservable.
+        if free_options_at(workers, hours, start, {}):
+            return jsonify({"message": "Ese hueco acaba de ocuparse, elige otro"}), 409
+
+        return jsonify({"message": "Esa hora no está disponible para reservar"}), 400
+
+    # Con "Cualquiera", el que menos horas tenga ese día.
+    by_id = {worker.worker_id: worker for worker in workers}
+    worker = pick_worker([by_id[option["worker_id"]] for option in options], busy, day)
+
+    service = fields["service"]
+    intervals = booking_intervals(worker, start, hours)
+
+    booking = Booking(
+        client_id=user.user_id,
+        service_id=service.service_id,
+        address_id=fields["address"].address_id,
+        worker_id=worker.worker_id,
+        scheduled_start=intervals[0][0],
+        scheduled_end=intervals[-1][1],
+        # Congelados: si el servicio cambia, esta reserva conserva los suyos.
+        hourly_rate=service.base_hourly_rate,
+        minutes_per_task=service.minutes_per_task,
+        total_price=round(hours * service.base_hourly_rate, 2),
+        status=BookingStatus.CONFIRMED,
+        client_notes=fields["notes"],
+        created_at=madrid_now(),
+    )
+
+    # Se guardan con la reserva gracias a la relación Booking.days.
+    for begins, ends in intervals:
+        booking.days.append(BookingDay(starts_at=begins, ends_at=ends))
+
+    db.session.add(booking)
+
+    # flush: pide el id de la reserva sin cerrar la transacción.
+    db.session.flush()
+
+    for task in fields["tasks"]:
+        db.session.add(BookingTask(
+            booking_id=booking.booking_id,
+            task_id=task.task_id,
+            task_name=task.task_name,
+            status=BookingTaskStatus.PENDING,
+        ))
+
+    db.session.commit()
+
+    return jsonify({
+        "booking": {**booking.serialize_detail(), "worker": public_worker(worker)}
+    }), 201
