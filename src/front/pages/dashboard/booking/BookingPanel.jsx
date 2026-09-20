@@ -20,6 +20,7 @@ import { getServices } from "../../../services/serviceService"
 import { getTasks } from "../../../services/taskService"
 import { getAddresses, createAddress } from "../../../services/addressService"
 import { getAvailability, getBookableWorkers } from "../../../services/availabilityService"
+import { createBooking } from "../../../services/bookingService"
 import { AddressForm } from "../../../components/dashboard/AddressForm"
 import { Avatar } from "../../../components/dashboard/Avatar"
 import { formatPrice, taskWord } from "../../../components/dashboard/ServiceForm"
@@ -55,6 +56,12 @@ const shiftMonth = (month, step) => {
 // Las direcciones del cliente se gestionan en sus ajustes (#13).
 const ADDRESSES_PATH = "/dashboard/profile/addresses"
 
+// Las reservas del cliente, donde acaba la confirmación (#16).
+const BOOKINGS_PATH = "/dashboard/contracted-services"
+
+// El mismo tope que client_notes en la API.
+const NOTES_MAX_LENGTH = 1000
+
 /** "Calle de Alcalá 42, 3º B · 28014 Madrid". */
 const addressText = (address) => {
     const floor = address.floor ? `, ${address.floor}` : ""
@@ -73,6 +80,13 @@ const dayText = (key) => {
 
     // El navegador devuelve "lun., 5 oct."; aquí se lee mejor sin puntuación.
     return text.replace(/[.,]/g, "")
+}
+
+/** Un tramo ya reservado: "lun 5 oct · 09:00 a 11:00". */
+const bookedDayText = (bookedDay) => {
+    const [date, time] = bookedDay.starts_at.split("T")
+
+    return `${dayText(date)} · ${time.slice(0, 5)} a ${bookedDay.ends_at.split("T")[1].slice(0, 5)}`
 }
 
 // Título y entradilla. También salen mientras carga y con error.
@@ -152,6 +166,15 @@ export const BookingPanel = () => {
     const [addingAddress, setAddingAddress] = useState(false)
     const [savingAddress, setSavingAddress] = useState(false)
     const [addressError, setAddressError] = useState("")
+
+    // La reserva: mientras se guarda, si falla, y la que devuelve la API.
+    const [notes, setNotes] = useState("")
+    const [booking, setBooking] = useState(null)
+    const [saving, setSaving] = useState(false)
+    const [bookingError, setBookingError] = useState("")
+
+    // Sube de uno en uno para volver a pedir los huecos tras un 409.
+    const [slotsReload, setSlotsReload] = useState(0)
 
     const loadCatalog = async () => {
         setLoading(true)
@@ -274,7 +297,7 @@ export const BookingPanel = () => {
         return () => {
             current = false
         }
-    }, [slug, hours, worker, month, store.token])
+    }, [slug, hours, worker, month, slotsReload, store.token])
 
     // El día y la hora elegidos pueden dejar de estar libres al cambiar las
     // horas o el trabajador: entonces se desmarcan.
@@ -355,6 +378,7 @@ export const BookingPanel = () => {
         worker: 4 + shift,
         when: 5 + shift,
         address: 6 + shift,
+        notes: 7 + shift,
     }
 
     const chosenAddress = addresses.find((item) => String(item.address_id) === addressId) || null
@@ -372,6 +396,16 @@ export const BookingPanel = () => {
     const chosenSlot = slots[day]?.find((slot) => slot.start === start)
     const bookedDays = chosenSlot ? chosenSlot.options[0].days : []
     const spillDays = bookedDays.slice(1)
+
+    // Qué falta para poder reservar, en el orden de los pasos. El backend lo
+    // valida todo otra vez: esto solo evita un viaje en balde.
+    const missing = !service ? "Elige un servicio"
+        : withTasks && chosenTasks.length === 0 ? "Añade al menos una tarea"
+            : !start ? "Elige el día y la hora"
+                : !addressId ? "Elige una dirección"
+                    : ""
+
+    const canBook = !missing && !saving
 
     // ------------------------------------------------------------------
     // CAMBIOS DEL FORMULARIO
@@ -428,11 +462,127 @@ export const BookingPanel = () => {
         setSavingAddress(false)
     }
 
+    // Reserva de verdad. El precio no se envía: lo calcula el servidor.
+    const book = async () => {
+        setSaving(true)
+        setBookingError("")
+
+        const result = await createBooking({
+            service_slug: slug,
+            task_ids: chosenTasks,
+            hours,
+            worker: worker === ANY_WORKER ? ANY_WORKER : Number(worker),
+            start: `${day}T${start}`,
+            address_id: Number(addressId),
+            notes,
+        }, store.token)
+
+        if (result.status === 401) {
+            dispatch({ type: "LOGOUT" })
+            return
+        }
+
+        if (result.ok) {
+            setBooking(result.data)
+            return
+        }
+
+        setBookingError(result.data.message)
+        setSaving(false)
+
+        // 409: alguien ha cogido el hueco mientras el cliente decidía. Se
+        // desmarca la hora y se piden los huecos otra vez.
+        if (result.status === 409) {
+            setStart("")
+            setSlotsReload((current) => current + 1)
+        }
+    }
+
+    // Volver a empezar sin recargar la página: se conserva lo ya cargado
+    // (catálogo, trabajadores y direcciones) y se olvida lo elegido.
+    const bookAnother = () => {
+        setBooking(null)
+        setChosenTasks([])
+        setHours(hoursNeeded(service, 0))
+        setWorker(ANY_WORKER)
+        setDay("")
+        setStart("")
+        setNotes("")
+        setBookingError("")
+        setSaving(false)
+    }
+
     const taskById = (taskId) => tasks.find((task) => task.task_id === taskId)
 
     // Sin tocar el desplegable, se añade la primera de la lista.
     const [firstTask] = tasks
     const nextTaskId = Number(taskToAdd) || firstTask?.task_id
+
+    // ---- CONFIRMACIÓN ----
+    // Reservado: en lugar del formulario se enseña lo contratado, con lo que
+    // devuelve la API (no lo que eligió el cliente: manda el servidor).
+    if (booking) {
+        return (
+            <section className="cf-booking">
+                <div className="cf-booking__done">
+                    <div className="cf-booking__done-icon">
+                        <i className="fa-solid fa-check" aria-hidden="true" />
+                    </div>
+
+                    <h1 className="cf-booking__done-title">¡Reserva confirmada!</h1>
+                    <p className="cf-booking__done-text">
+                        {`${booking.worker.name} irá a tu casa el ${dayText(booking.days[0].starts_at.split("T")[0])}.`}
+                    </p>
+
+                    <div className="cf-booking__rows">
+                        <dl className="cf-booking__row">
+                            <dt>Servicio</dt>
+                            <dd>
+                                {booking.service.name}
+                                {booking.tasks.length
+                                    ? ` · ${booking.tasks.length} ${taskWord(booking.tasks.length)}`
+                                    : ""}
+                            </dd>
+                        </dl>
+                        <dl className="cf-booking__row">
+                            <dt>Quién</dt>
+                            <dd>{booking.worker.name}</dd>
+                        </dl>
+                        <dl className="cf-booking__row cf-booking__row--days">
+                            <dt>Cuándo</dt>
+                            <dd>
+                                {booking.days.map((bookedDay) => (
+                                    <span key={bookedDay.booking_day_id}>{bookedDayText(bookedDay)}</span>
+                                ))}
+                            </dd>
+                        </dl>
+                        <dl className="cf-booking__row">
+                            <dt>Dónde</dt>
+                            <dd>{addressText(booking.address)}</dd>
+                        </dl>
+                        <dl className="cf-booking__row">
+                            <dt>Total</dt>
+                            <dd>
+                                <strong>{formatPrice(booking.total_price)}</strong>
+                                {` (${booking.hours} h × ${formatPrice(booking.hourly_rate)}/h)`}
+                            </dd>
+                        </dl>
+                    </div>
+
+                    <p className="cf-booking__cancel-note">Puedes cancelar hasta 1 hora antes</p>
+
+                    <div className="cf-booking__done-actions">
+                        <Link className="cf-dash-btn" to={BOOKINGS_PATH}>
+                            Ver mis servicios
+                        </Link>
+                        <button type="button" className="cf-dash-btn cf-dash-btn--ghost" onClick={bookAnother}>
+                            Contratar otro servicio
+                        </button>
+                    </div>
+                </div>
+            </section>
+        )
+    }
 
     return (
         <section className="cf-booking">
@@ -803,10 +953,31 @@ export const BookingPanel = () => {
                             )}
                         </section>
                     )}
+
+                    {/* ---- 7 · DESCRIPCIÓN ---- */}
+                    {service && (
+                        <section className="cf-booking__block">
+                            <BlockHead step={step.notes} title="Algo que debamos saber" note="Opcional" />
+
+                            <div className="cf-dash-field">
+                                <textarea
+                                    className="cf-dash-input"
+                                    rows={3}
+                                    value={notes}
+                                    maxLength={NOTES_MAX_LENGTH}
+                                    onChange={(event) => setNotes(event.target.value)}
+                                    placeholder="Portal azul, el timbre no funciona, hay un gato en casa..."
+                                    aria-label="Algo que debamos saber"
+                                />
+                                <p className="cf-dash-field__hint">
+                                    {notes.length} / {NOTES_MAX_LENGTH}
+                                </p>
+                            </div>
+                        </section>
+                    )}
                 </div>
 
-                {/* ---- RESUMEN ----
-                    Falta la descripción y el botón de reservar (paso 14). */}
+                {/* ---- RESUMEN ---- */}
                 <aside className="cf-booking__summary">
                     <h2 className="cf-booking__summary-title">Tu reserva</h2>
 
@@ -860,9 +1031,22 @@ export const BookingPanel = () => {
                         </div>
                     )}
 
-                    <button type="button" className="cf-dash-btn" disabled>
-                        Confirmar reserva
+                    {bookingError && (
+                        <p className="cf-dash-alert" role="alert">
+                            {bookingError}
+                        </p>
+                    )}
+
+                    <button type="button" className="cf-dash-btn" disabled={!canBook} onClick={book}>
+                        {saving ? "Reservando..." : "Confirmar reserva"}
                     </button>
+
+                    {/* Qué falta para poder reservar, en vez de un botón
+                        apagado sin explicación. */}
+                    {!canBook && !saving && (
+                        <p className="cf-booking__cancel-note">{missing}</p>
+                    )}
+
                     <p className="cf-booking__cancel-note">Puedes cancelar hasta 1 hora antes</p>
                 </aside>
             </div>
