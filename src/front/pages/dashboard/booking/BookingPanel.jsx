@@ -18,10 +18,11 @@ import { useSearchParams } from "react-router-dom"
 import useGlobalReducer from "../../../hooks/useGlobalReducer"
 import { getServices } from "../../../services/serviceService"
 import { getTasks } from "../../../services/taskService"
-import { getBookableWorkers } from "../../../services/availabilityService"
+import { getAvailability, getBookableWorkers } from "../../../services/availabilityService"
 import { Avatar } from "../../../components/dashboard/Avatar"
 import { formatPrice, taskWord } from "../../../components/dashboard/ServiceForm"
 import { hoursNeeded, hourOptions, spareTasks, totalPrice } from "./bookingRules"
+import { BookingCalendar } from "./BookingCalendar"
 import "../../../dashboard.css"
 
 // Nombre del parámetro con el que llega el servicio elegido. Es un CONTRATO
@@ -34,6 +35,33 @@ const ANY_WORKER = "any"
 
 // Bloques grises que se ven mientras carga.
 const SKELETON_BLOCKS = 3
+
+// Hasta dónde se puede reservar. El mismo valor que BOOKING_HORIZON en
+// availability.py: con él se calcula hasta qué mes llegan las flechas.
+const BOOKING_HORIZON_DAYS = 60
+
+/** Una fecha en "2026-10", el formato que pide la API. */
+const monthOf = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
+/** Suma meses a un "2026-10". */
+const shiftMonth = (month, step) => {
+    const [year, number] = month.split("-").map(Number)
+
+    return monthOf(new Date(year, number - 1 + step, 1))
+}
+
+/** "2026-10-05" -> "lun 5 oct", para el resumen. */
+const dayText = (key) => {
+    const [year, month, day] = key.split("-").map(Number)
+    const text = new Date(year, month - 1, day).toLocaleDateString("es-ES", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+    })
+
+    // El navegador devuelve "lun., 5 oct."; aquí se lee mejor sin puntuación.
+    return text.replace(/[.,]/g, "")
+}
 
 // Título y entradilla. También salen mientras carga y con error.
 const PageHeader = () => (
@@ -98,6 +126,14 @@ export const BookingPanel = () => {
     // añadir. Vacío = la primera de la lista.
     const [taskToAdd, setTaskToAdd] = useState("")
 
+    // Los huecos del mes que se está viendo: {"2026-10-05": [{start, options}]}.
+    const [month, setMonth] = useState(monthOf(new Date()))
+    const [slots, setSlots] = useState({})
+    const [slotsLoading, setSlotsLoading] = useState(false)
+    const [slotsError, setSlotsError] = useState("")
+    const [day, setDay] = useState("")
+    const [start, setStart] = useState("")
+
     const loadCatalog = async () => {
         setLoading(true)
         setLoadError("")
@@ -142,6 +178,59 @@ export const BookingPanel = () => {
     useEffect(() => {
         loadCatalog()
     }, [])
+
+    // Los huecos se recalculan cada vez que cambia algo que los afecta: las
+    // horas, el trabajador o el mes.
+    useEffect(() => {
+        if (!slug || !hours) {
+            setSlots({})
+            return
+        }
+
+        // Si el cliente cambia rápido, la respuesta vieja no debe pisar a la
+        // nueva: solo se hace caso a la última petición.
+        let current = true
+
+        const loadSlots = async () => {
+            setSlotsLoading(true)
+            setSlotsError("")
+
+            const result = await getAvailability({ hours, month, worker }, store.token)
+
+            if (!current) return
+
+            if (result.status === 401) {
+                dispatch({ type: "LOGOUT" })
+                return
+            }
+
+            if (result.ok) {
+                setSlots(result.data)
+            } else {
+                setSlots({})
+                setSlotsError(result.data.message)
+            }
+
+            setSlotsLoading(false)
+        }
+
+        loadSlots()
+
+        return () => {
+            current = false
+        }
+    }, [slug, hours, worker, month, store.token])
+
+    // El día y la hora elegidos pueden dejar de estar libres al cambiar las
+    // horas o el trabajador: entonces se desmarcan.
+    useEffect(() => {
+        if (day && !slots[day]) {
+            setDay("")
+            setStart("")
+        } else if (start && !slots[day]?.some((slot) => slot.start === start)) {
+            setStart("")
+        }
+    }, [slots, day, start])
 
     if (loading) {
         return (
@@ -203,9 +292,22 @@ export const BookingPanel = () => {
     const roomForTasks = chosenTasks.length < maxTasks
 
     // El número de cada paso: sin tareas, todos los de después suben uno.
-    const step = { service: 1, tasks: 2, hours: withTasks ? 3 : 2, worker: withTasks ? 4 : 3 }
+    const shift = withTasks ? 0 : -1
+    const step = { service: 1, tasks: 2, hours: 3 + shift, worker: 4 + shift, when: 5 + shift }
 
     const chosenWorker = workers.find((item) => String(item.worker_id) === worker) || null
+
+    // Hasta qué mes llegan las flechas: del actual al del último día que se
+    // puede reservar.
+    const today = new Date()
+    const firstMonth = monthOf(today)
+    const lastMonth = monthOf(new Date(today.getFullYear(), today.getMonth(), today.getDate() + BOOKING_HORIZON_DAYS))
+
+    // Los tramos de la hora elegida. Con "Cualquiera" todas las opciones
+    // ocupan los mismos días, así que vale con mirar la primera.
+    const chosenSlot = slots[day]?.find((slot) => slot.start === start)
+    const bookedDays = chosenSlot ? chosenSlot.options[0].days : []
+    const spillDays = bookedDays.slice(1)
 
     // ------------------------------------------------------------------
     // CAMBIOS DEL FORMULARIO
@@ -468,10 +570,80 @@ export const BookingPanel = () => {
                             </div>
                         </section>
                     )}
+
+                    {/* ---- 5 · DÍA Y HORA ----
+                        Los huecos los calcula la API: solo salen los días y
+                        las horas en las que la reserva entera cabe. */}
+                    {service && (
+                        <section className="cf-booking__block">
+                            <BlockHead
+                                step={step.when}
+                                title="Día y hora"
+                                note={`Hasta ${BOOKING_HORIZON_DAYS} días vista`}
+                            />
+
+                            {slotsError && (
+                                <p className="cf-dash-alert" role="alert">
+                                    {slotsError}
+                                </p>
+                            )}
+
+                            <BookingCalendar
+                                days={slots}
+                                month={month}
+                                chosen={day}
+                                spill={spillDays}
+                                loading={slotsLoading}
+                                canGoBack={month > firstMonth}
+                                canGoForward={month < lastMonth}
+                                onMonthChange={(offset) => setMonth(shiftMonth(month, offset))}
+                                onChoose={(key) => {
+                                    setDay(key)
+                                    setStart("")
+                                }}
+                            />
+
+                            {/* Solo al elegir día: antes no hay horas que enseñar. */}
+                            {day && (
+                                <div className="cf-booking__slots">
+                                    <p className="cf-booking__slots-title">
+                                        Horas libres del {dayText(day)}
+                                    </p>
+
+                                    {slots[day].map((slot) => (
+                                        <button
+                                            type="button"
+                                            className={`cf-booking__slot${slot.start === start ? " cf-booking__slot--chosen" : ""}`}
+                                            key={slot.start}
+                                            aria-pressed={slot.start === start}
+                                            onClick={() => setStart(slot.start)}
+                                        >
+                                            {slot.start}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Reserva de varios días: se avisa antes de reservar. */}
+                            {bookedDays.length > 1 && (
+                                <p className="cf-booking__hint cf-booking__hint--ok">
+                                    <i className="fa-solid fa-circle-info" aria-hidden="true" />
+                                    {` Una jornada son 8 h, así que esta reserva ocupará ${bookedDays.length} días con el mismo trabajador.`}
+                                </p>
+                            )}
+
+                            {!slotsLoading && !slotsError && Object.keys(slots).length === 0 && (
+                                <p className="cf-booking__hint">
+                                    <i className="fa-solid fa-circle-info" aria-hidden="true" />
+                                    {" Este mes no queda ningún hueco. Prueba con otro mes o con menos horas."}
+                                </p>
+                            )}
+                        </section>
+                    )}
                 </div>
 
                 {/* ---- RESUMEN ----
-                    Se irá llenando con cada paso: faltan día y dirección. */}
+                    Se irá llenando con cada paso: falta la dirección. */}
                 <aside className="cf-booking__summary">
                     <h2 className="cf-booking__summary-title">Tu reserva</h2>
 
@@ -493,6 +665,18 @@ export const BookingPanel = () => {
                         <dl className="cf-booking__row">
                             <dt>Quién</dt>
                             <dd>{chosenWorker ? chosenWorker.name : "Cualquiera"}</dd>
+                        </dl>
+                        <dl className="cf-booking__row cf-booking__row--days">
+                            <dt>Cuándo</dt>
+                            <dd>
+                                {bookedDays.length
+                                    ? bookedDays.map((key, index) => (
+                                        <span key={key}>
+                                            {`${dayText(key)} · ${index === 0 ? start : "desde " + start}`}
+                                        </span>
+                                    ))
+                                    : "Sin elegir"}
+                            </dd>
                         </dl>
                     </div>
 
