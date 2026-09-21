@@ -94,6 +94,7 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
+
 @api.route("/shifts", methods=["POST"])
 @role_required("manager")
 def create_shift():
@@ -149,6 +150,7 @@ def create_shift():
         }), 500
 
     return jsonify(shift.serialize()), 201
+
 
 @api.route("/shifts/<int:shift_id>", methods=["PUT"])
 @role_required("manager")
@@ -210,6 +212,7 @@ def update_shift(shift_id):
 
     return jsonify(shift.serialize()), 200
 
+
 @api.route("/shifts/<int:shift_id>", methods=["DELETE"])
 @role_required("manager")
 def delete_shift(shift_id):
@@ -248,6 +251,7 @@ def delete_shift(shift_id):
 #   GET    /api/workers        listar
 #   GET    /api/workers/<id>   ver uno
 #   PUT    /api/workers/<id>   editar
+
 
 @api.route("/workers", methods=["POST"])
 @role_required("manager")
@@ -667,7 +671,8 @@ def get_services():
     quien llama si ve también los desactivados.
     """
     services = db.session.execute(
-        db.select(Service).filter_by(is_active=True).order_by(Service.service_id)
+        db.select(Service).filter_by(
+            is_active=True).order_by(Service.service_id)
     ).scalars().all()
 
     return jsonify({"services": [service.serialize_public() for service in services]}), 200
@@ -986,7 +991,8 @@ def upload_account_avatar():
             invalidate=True,
             resource_type="image",
             # Cuadrada y centrada en la cara, que es lo que se ve en el avatar.
-            transformation=[{"width": 256, "height": 256, "crop": "fill", "gravity": "face"}],
+            transformation=[{"width": 256, "height": 256,
+                             "crop": "fill", "gravity": "face"}],
         )
     except Exception as error:
         # Cloudinary caído, sin internet o claves mal: no es culpa de quien sube.
@@ -1015,7 +1021,8 @@ def delete_account_avatar():
 
     if user.avatar_url and cloudinary_is_configured():
         try:
-            cloudinary.uploader.destroy(avatar_public_id(user), invalidate=True)
+            cloudinary.uploader.destroy(
+                avatar_public_id(user), invalidate=True)
         except Exception as error:
             # Si Cloudinary falla, la imagen se queda allí, pero el usuario
             # deja de verla igual: no se le bloquea por eso.
@@ -1056,7 +1063,8 @@ POSTAL_CODE_PATTERN = r"^[0-9]{5}$"
 def owned_address(user, address_id):
     """La dirección activa del cliente, o None si no es suya o ya no está."""
     return db.session.execute(
-        db.select(Address).filter_by(address_id=address_id, client_id=user.user_id, is_active=True)
+        db.select(Address).filter_by(address_id=address_id,
+                                     client_id=user.user_id, is_active=True)
     ).scalar_one_or_none()
 
 
@@ -1112,11 +1120,13 @@ def validate_address(data, current=None):
     fields["postal_code"] = postal_code.strip()
 
     # ---- opcionales: vacíos se guardan como NULL ----
-    fields["floor"], error = clean_optional_text(pick("floor"), "El piso", FLOOR_MAX_LENGTH)
+    fields["floor"], error = clean_optional_text(
+        pick("floor"), "El piso", FLOOR_MAX_LENGTH)
     if error:
         return None, error
 
-    fields["access_notes"], error = clean_optional_text(pick("access_notes"), "Las notas de acceso")
+    fields["access_notes"], error = clean_optional_text(
+        pick("access_notes"), "Las notas de acceso")
     if error:
         return None, error
 
@@ -1150,7 +1160,8 @@ def create_address():
         return jsonify({"message": error}), 400
 
     # is_default no se acepta del cuerpo: se marca con PATCH .../default.
-    address = Address(client_id=user.user_id, is_default=not active_addresses(user), **fields)
+    address = Address(client_id=user.user_id,
+                      is_default=not active_addresses(user), **fields)
 
     db.session.add(address)
     db.session.commit()
@@ -1505,11 +1516,13 @@ def validate_service(data, current=None):
     fields["description"] = description.strip()
 
     # ---- textos opcionales ----
-    fields["long_description"], error = clean_optional_text(pick("long_description"), "La descripción larga")
+    fields["long_description"], error = clean_optional_text(
+        pick("long_description"), "La descripción larga")
     if error:
         return None, error
 
-    fields["image_url"], error = clean_optional_text(pick("image_url"), "La URL de la imagen", IMAGE_URL_MAX_LENGTH)
+    fields["image_url"], error = clean_optional_text(
+        pick("image_url"), "La URL de la imagen", IMAGE_URL_MAX_LENGTH)
     if error:
         return None, error
 
@@ -1633,7 +1646,8 @@ def update_service(service_id):
         return jsonify({"message": "No se recibieron datos"}), 400
 
     # Sin is_active en el cuerpo, validate_service conserva el estado actual.
-    data = {field: value for field, value in data.items() if field != "is_active"}
+    data = {field: value for field, value in data.items() if field !=
+            "is_active"}
 
     fields, error = validate_service(data, current=service)
     if error:
@@ -1676,7 +1690,8 @@ def update_service_status(service_id):
     service.is_active = data["is_active"]
     db.session.commit()
 
-    return jsonify({"service": service.serialize()}), 200# PUBLIC FORMS - JOB APPLICATIONS
+    # PUBLIC FORMS - JOB APPLICATIONS
+    return jsonify({"service": service.serialize()}), 200
 # ==================================================================
 
 
@@ -1711,6 +1726,21 @@ def create_job_application():
         if not isinstance(value, str) or not value.strip():
             return jsonify({
                 "message": "Todos los campos son obligatorios"
+            }), 400
+
+
+    # Mismos topes que las columnas de JobApplication.
+    APPLICATION_MAX_LENGTHS = {
+        "name": 100,
+        "last_name": 150,
+        "email": 120,
+        "phone": 20
+    }
+
+    for field, max_length in APPLICATION_MAX_LENGTHS.items():
+        if len(data[field].strip()) > max_length:
+            return jsonify({
+                "message": f"El campo {field} no puede superar los {max_length} caracteres"
             }), 400
 
     email = data["email"].strip()
@@ -1770,6 +1800,19 @@ def create_contact_message():
                 "message": "Todos los campos obligatorios deben estar completos"
             }), 400
 
+    # Mismos topes que las columnas de ContactMessage.
+    CONTACT_MAX_LENGTHS = {
+        "name": 100,
+        "email": 120,
+        "subject": 150
+    }
+
+    for field, max_length in CONTACT_MAX_LENGTHS.items():
+        if len(data[field].strip()) > max_length:
+            return jsonify({
+                "message": f"El campo {field} no puede superar los {max_length} caracteres"
+            }), 400
+
     email = data["email"].strip()
 
     if not is_valid_email(email):
@@ -1783,6 +1826,11 @@ def create_contact_message():
         phone = phone.strip() or None
     else:
         phone = None
+
+    if phone and len(phone) > 20:
+        return jsonify({
+            "message": "El teléfono no puede superar los 20 caracteres"
+        }), 400
 
     contact_message = ContactMessage(
         name=data["name"].strip(),
