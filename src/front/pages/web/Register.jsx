@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { register } from "../../services/authService";
 
 
 export const Register = () => {
     const navigate = useNavigate();
+        // Lo que dejó ProtectedRoutes al mandar al login: el destino (from).
+    const location = useLocation();
 
 
     const [formData, setFormData] = useState({
@@ -179,8 +181,10 @@ export const Register = () => {
                 </button>
             </form>
 
+                        {/* El mismo destino de vuelta, por si se arrepiente y prefiere
+                entrar con una cuenta que ya tiene. */}
             <p className="auth-foot">
-                ¿Ya tienes una cuenta? <Link to="/login">Inicia sesión</Link>
+                ¿Ya tienes una cuenta? <Link to="/login" state={location.state}>Inicia sesión</Link>
             </p>
         </div>
     );
