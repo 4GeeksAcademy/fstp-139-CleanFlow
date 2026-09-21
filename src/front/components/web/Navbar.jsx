@@ -126,7 +126,9 @@ export const Navbar = () => {
                 <div className="cf-container">
                     <ul className="cf-utility-list">
                         {ACCESS_LINKS.map((link) => (
-                            <li key={link.to}>
+                            // key por el texto y no por el destino: mientras
+                            // no exista WEB-10, los dos van a /login.
+                            <li key={link.label}>
                                 <Link to={link.to}>{link.label}</Link>
                             </li>
                         ))}
