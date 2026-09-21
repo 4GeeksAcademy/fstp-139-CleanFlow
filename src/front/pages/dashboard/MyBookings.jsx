@@ -28,6 +28,22 @@ export const MyBookings = () => {
             {!rows.length && <p>Todavía no tienes reservas.</p>}
             {rows.map(booking => <article key={booking.booking_id} className="card p-4 mb-3">
                 <h2 className="h5">Reserva #{booking.booking_id}</h2>
+                <p>Servicio: {booking.service_name || "Servicio no disponible"}</p>
+                <p>
+                    Dirección: {booking.address
+                        ? [
+                            `${booking.address.street}, ${booking.address.number}`,
+                            booking.address.floor && `Piso ${booking.address.floor}`,
+                            `${booking.address.postal_code} ${booking.address.city}`,
+                        ].filter(Boolean).join(" · ")
+                        : "Dirección no disponible"}
+                </p>
+                <p>
+                    Precio total: {new Intl.NumberFormat("es-ES", {
+                        style: "currency",
+                        currency: "EUR",
+                    }).format(booking.total_price)}
+                </p>
                 <p>Trabajador: {booking.worker_name || "Sin asignar"}</p>
                 <ul>{booking.days.map(day => <li key={day.booking_day_id}>{formatInterval(day)}</li>)}</ul>
                 {booking.cancelled_by_company ? <div className="alert alert-warning mb-0">
