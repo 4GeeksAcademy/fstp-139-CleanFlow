@@ -14,7 +14,10 @@ from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
-from api.models import db, Absence, Booking, BookingStatus, Worker, User
+from api.models import (
+    db, Absence, Booking, BookingStatus, Worker, User,
+    BookingTask, BookingTaskStatus,
+)
 from api.availability import (
     can_work, is_free, load_busy, madrid_now, worker_unavailable_days,
 )
@@ -379,3 +382,58 @@ def my_bookings():
     return jsonify({
         "bookings": [booking.serialize() for booking in bookings]
     })
+
+
+@absence_api.route("/booking-tasks/<int:task_id>", methods=["PATCH"])
+@role_required("worker")
+@transaction
+def complete_booking_task(task_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or data.get("status") != "completed":
+        return jsonify({
+            "message": 'Debes enviar {"status": "completed"}.'
+        }), 400
+
+    user_id = int(get_jwt_identity())
+
+    booking_id = db.session.execute(
+        db.select(BookingTask.booking_id).where(
+            BookingTask.booking_task_id == task_id
+        )
+    ).scalar_one_or_none()
+
+    if booking_id is None:
+        return jsonify({"message": "Tarea no encontrada."}), 404
+
+    # Bloquea la reserva mientras se comprueba la asignación y se guarda.
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    worker = db.session.get(Worker, booking.worker_id)
+    if worker is None or worker.user_id != user_id:
+        return jsonify({
+            "message": "Solo puedes modificar tareas de tus reservas asignadas."
+        }), 403
+
+    if booking.status != BookingStatus.CONFIRMED:
+        return jsonify({
+            "message": "Solo puedes completar tareas de reservas confirmadas."
+        }), 409
+
+    task = db.session.get(BookingTask, task_id)
+
+    # Repetir la petición conserva la fecha original de finalización.
+    if task.status != BookingTaskStatus.COMPLETED:
+        task.status = BookingTaskStatus.COMPLETED
+        task.completed_at = madrid_now()
+        booking.updated_at = task.completed_at
+
+    db.session.commit()
+
+    return jsonify({"task": task.serialize()}), 200
