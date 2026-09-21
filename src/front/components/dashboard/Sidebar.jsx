@@ -36,6 +36,8 @@ import "../../dashboard.css"
 // Decide `roles`, no el orden: los comentarios por rol son solo para leer.
 // ¿Más datos por enlace (un icono)? Se añaden como otra propiedad.
 
+import { AffectedCount } from "./AffectedCount";
+
 const LINKS = [
     // --- Comunes a todos los roles ---
     { to: "/dashboard",                    label: "Inicio",        roles: ["client", "worker", "manager"], end: true },
@@ -48,6 +50,7 @@ const LINKS = [
     { to: "/dashboard/tasks",              label: "Mis tareas",    roles: ["worker"] },
 
     // --- Solo MANAGER ---
+    { to: "/dashboard/affected-bookings", label: "Reservas afectadas", roles: ["manager"], affected: true },
     { to: "/dashboard/workers",            label: "Trabajadores",  roles: ["manager"] },
     {
         label: "Administrar catálogo",
@@ -237,6 +240,7 @@ export const Sidebar = () => {
                                 <li className="nav-item" key={link.to}>
                                     <NavLink to={link.to} end={link.end} className={linkClass} onClick={closeMenu}>
                                         {link.label}
+                                        {link.affected && <AffectedCount token={store.token} pathname={pathname} />}
                                     </NavLink>
                                 </li>
                             )
