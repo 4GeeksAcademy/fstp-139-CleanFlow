@@ -315,18 +315,50 @@ def cancel_company(booking_id):
 # Vista mínima de integración con #16, ausente en el ZIP de partida.
 @absence_api.route("/bookings", methods=["GET"])
 @absence_api.route("/my/bookings", methods=["GET"])
-@role_required("client")
+@role_required("client", "worker")
 def my_bookings():
     user_id = int(get_jwt_identity())
-    requested_client_id = request.args.get("client_id")
+    user = db.session.get(User, user_id)
 
-    if requested_client_id is not None:
+    if user.role == "client":
+        if "worker_id" in request.args:
+            return jsonify({
+                "message": "El cliente solo puede consultar sus propias reservas."
+            }), 403
+
+        parameter = "client_id"
+        own_id = user_id
+        booking_filter = Booking.client_id == user_id
+    else:
+        if "client_id" in request.args:
+            return jsonify({
+                "message": "El trabajador solo puede consultar sus reservas asignadas."
+            }), 403
+
+        worker = db.session.execute(
+            db.select(Worker).where(Worker.user_id == user_id)
+        ).scalar_one_or_none()
+
+        if worker is None:
+            return jsonify({
+                "message": "No tienes un perfil de trabajador."
+            }), 403
+
+        parameter = "worker_id"
+        own_id = worker.worker_id
+        booking_filter = Booking.worker_id == worker.worker_id
+
+    requested_id = request.args.get(parameter)
+
+    if requested_id is not None:
         try:
-            requested_client_id = int(requested_client_id)
+            requested_id = int(requested_id)
         except ValueError:
-            return jsonify({"message": "client_id debe ser un entero."}), 400
+            return jsonify({
+                "message": f"{parameter} debe ser un entero."
+            }), 400
 
-        if requested_client_id != user_id:
+        if requested_id != own_id:
             return jsonify({
                 "message": "Solo puedes consultar tus propias reservas."
             }), 403
@@ -335,8 +367,9 @@ def my_bookings():
         booking_query().options(
             selectinload(Booking.service),
             selectinload(Booking.address),
+            selectinload(Booking.tasks),
         ).where(
-            Booking.client_id == user_id
+            booking_filter
         ).order_by(
             Booking.scheduled_start.desc(),
             Booking.booking_id.desc(),

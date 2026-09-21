@@ -665,19 +665,21 @@ class Booking(db.Model):
     )
     cancellation_reason: Mapped[str | None] = mapped_column(
         Text, nullable=True)
-
     # ---- RELACIONES ----
-    # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
     worker = db.relationship("Worker")
     service = db.relationship("Service")
     address = db.relationship("Address")
 
-    # Los tramos, en orden. Con booking.days.append(...) se guardan
-    # junto con la reserva.
     days = db.relationship(
         "BookingDay",
-        order_by="BookingDay.starts_at"
+        order_by="BookingDay.starts_at",
     )
+
+    tasks = db.relationship(
+        "BookingTask",
+        order_by="BookingTask.booking_task_id",
+    )
+
 
     def serialize(self):
         return {
@@ -716,6 +718,7 @@ class Booking(db.Model):
                 ) if self.worker and self.worker.user else None
             ),
             "days": [day.serialize() for day in self.days],
+            "tasks": [task.serialize() for task in self.tasks],
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at
