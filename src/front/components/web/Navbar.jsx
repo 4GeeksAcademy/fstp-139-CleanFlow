@@ -17,10 +17,12 @@ import { useActiveSection } from "../../hooks/useActiveSection";
 
 // Las dos puertas de acceso. Ambas llevan al mismo formulario: solo
 // cambia lo que se le ofrece a quien todavía no tiene cuenta.
-// Estas rutas aún no existen (WEB-10).
+//
+// Provisional: las dos van a /login hasta que existan /login-clients y
+// /login-workers (WEB-10, #44). Antes daban "Not found!".
 const ACCESS_LINKS = [
-    { label: "Área de clientes", to: "/login-clients" },
-    { label: "Área de empleados", to: "/login-workers" },
+    { label: "Área de clientes", to: "/login" },
+    { label: "Área de empleados", to: "/login" },
 ]
 
 
