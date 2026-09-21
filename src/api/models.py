@@ -180,12 +180,43 @@ class Shift(db.Model):
         nullable=False
     )
 
+
+    # Días de la semana en que se trabaja, como texto: "1,2,3,4,5".
+    # Lunes = 1 ... domingo = 7, igual que date.isoweekday(): se compara
+    # sin convertir nada. Se lee y se escribe con la propiedad `days`.
+    work_days: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="1,2,3,4,5"
+    )
+
+    # Desactivado: se conserva, pero no ofrece huecos para reservar.
+    # server_default: los turnos que ya existían quedan activos al migrar.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        default=True,
+        server_default="true"
+    )
+
+    @property
+    def days(self):
+        """Los días como lista de números: "1,3,5" -> [1, 3, 5]."""
+        return [int(day) for day in self.work_days.split(",") if day]
+
+    @days.setter
+    def days(self, values):
+        """Guarda la lista ordenada y sin repetidos: [5, 1, 1] -> "1,5"."""
+        self.work_days = ",".join(str(day) for day in sorted(set(values)))
+
     def serialize(self):
         return {
             "shift_id": self.shift_id,
             "name": self.name,
             "start_time": self.start_time.strftime("%H:%M"),
             "end_time": self.end_time.strftime("%H:%M"),
+            "work_days": self.days,
+            "is_active": self.is_active,
             "workers": [
                 {
                     "worker_id": worker.worker_id,
@@ -580,6 +611,13 @@ class Booking(db.Model):
         ForeignKey("addresses.address_id"),
         nullable=False
     )
+    # Quién hace la reserva: lo elige el cliente (o se asigna solo con
+    # "Cualquiera"). Por eso la reserva nace ya confirmada.
+    worker_id: Mapped[int] = mapped_column(
+        ForeignKey("workers.worker_id"),
+        nullable=False,
+        index=True
+    )
     scheduled_start: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False
@@ -621,12 +659,24 @@ class Booking(db.Model):
         nullable=True
     )
 
+    # ---- RELACIONES ----
+    # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
+    worker = db.relationship("Worker")
+
+    # Los tramos, en orden. Con booking.days.append(...) se guardan
+    # junto con la reserva.
+    days = db.relationship(
+        "BookingDay",
+        order_by="BookingDay.starts_at"
+    )
+
     def serialize(self):
         return {
             "booking_id": self.booking_id,
             "client_id": self.client_id,
             "service_id": self.service_id,
             "address_id": self.address_id,
+            "worker_id": self.worker_id,
             "scheduled_start": (
                 self.scheduled_start.isoformat()
                 if self.scheduled_start
@@ -656,6 +706,43 @@ class Booking(db.Model):
                 if self.updated_at
                 else None
             ),
+        }
+
+
+# ==================================================================
+# BOOKING DAY
+# ==================================================================
+# Los tramos de trabajo de una reserva: uno por día, de 8 h como mucho
+# (3 h = un tramo; 12 h = dos). La disponibilidad mira estos tramos y no
+# el inicio y fin de la reserva: entre dos puede caer un fin de semana.
+
+class BookingDay(db.Model):
+    __tablename__ = "booking_days"
+
+    booking_day_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+    booking_id: Mapped[int] = mapped_column(
+        ForeignKey("bookings.booking_id"),
+        nullable=False,
+        index=True
+    )
+    # Hora de Madrid sin zona. starts_at/ends_at y no start/end: END es
+    # palabra reservada de SQL.
+    starts_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+    ends_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+
+    def serialize(self):
+        return {
+            "booking_day_id": self.booking_day_id,
+            "starts_at": self.starts_at.isoformat(),
+            "ends_at": self.ends_at.isoformat(),
         }
 
 

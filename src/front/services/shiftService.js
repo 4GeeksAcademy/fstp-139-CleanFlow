@@ -1,117 +1,42 @@
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+/**
+ * TURNOS (ENCARGADO) · llamadas a la API.
+ *
+ * Devuelven { ok, status, data } y nunca lanzan errores.
+ *  - ok:    `data` ya es el turno o la lista.
+ *  - error: el mensaje está en data.message.
+ *
+ * El token va siempre el último, como en taskService y serviceService.
+ */
 
+import { apiRequest } from "./apiClient";
+
+// Todos los turnos, activos y desactivados, cada uno con sus trabajadores.
 export const getShifts = async (token) => {
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/shifts`, {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
-
-        const data = await response.json();
-
-        return {
-            ok: response.ok,
-            data,
-        };
-    } catch (error) {
-        console.error("Error al consultar los turnos:", error);
-
-        return {
-            ok: false,
-            data: {
-                message: "No se han podido cargar los turnos.",
-            },
-        };
-    }
+  const result = await apiRequest("/api/shifts", { token });
+  if (!result.ok) return result;
+  return { ...result, data: Array.isArray(result.data.shifts) ? result.data.shifts : [] };
 };
 
-export const createShift = async (token, shiftData) => {
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/shifts`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(shiftData),
-        });
-
-        const data = await response.json();
-
-        return {
-            ok: response.ok,
-            data,
-        };
-    } catch (error) {
-        console.error("Error al crear el turno:", error);
-
-        return {
-            ok: false,
-            data: {
-                message: "No se ha podido confirmar la creación del turno. Recarga la lista antes de volver a intentarlo.",
-            },
-        };
-    }
+export const createShift = async (shiftData, token) => {
+  const result = await apiRequest("/api/shifts", { method: "POST", token, body: shiftData });
+  return result.ok ? { ...result, data: result.data.shift } : result;
 };
-export const updateShift = async (token, shiftId, shiftData) => {
-    try {
-        const response = await fetch(
-            `${BACKEND_URL}/api/shifts/${shiftId}`,
-            {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(shiftData),
-            }
-        );
 
-        const data = await response.json();
-
-        return {
-            ok: response.ok,
-            data,
-        };
-    } catch (error) {
-        console.error("Error al actualizar el turno:", error);
-
-        return {
-            ok: false,
-            data: {
-                message: "No se ha podido confirmar la actualización del turno. Recarga la lista para comprobar su estado.",
-            },
-        };
-    }
+export const updateShift = async (shiftId, shiftData, token) => {
+  const result = await apiRequest(`/api/shifts/${shiftId}`, { method: "PUT", token, body: shiftData });
+  return result.ok ? { ...result, data: result.data.shift } : result;
 };
-export const deleteShift = async (token, shiftId) => {
-    try {
-        const response = await fetch(
-            `${BACKEND_URL}/api/shifts/${shiftId}`,
-            {
-                method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            }
-        );
 
-        const data = await response.json();
+export const toggleShiftStatus = async (shiftId, isActive, token) => {
+  const result = await apiRequest(`/api/shifts/${shiftId}/status`, {
+    method: "PATCH",
+    token,
+    body: { is_active: isActive },
+  });
+  return result.ok ? { ...result, data: result.data.shift } : result;
+};
 
-        return {
-            ok: response.ok,
-            data,
-        };
-    } catch (error) {
-        console.error("Error al eliminar el turno:", error);
-
-        return {
-            ok: false,
-            data: {
-                message: "No se ha podido confirmar la eliminación. Recarga la lista para comprobar si el turno sigue existiendo.",
-            },
-        };
-    }
+// Solo borra turnos sin trabajadores; si tiene alguno, la API da 409.
+export const deleteShift = async (shiftId, token) => {
+  return apiRequest(`/api/shifts/${shiftId}`, { method: "DELETE", token });
 };
