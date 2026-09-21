@@ -42,6 +42,12 @@ class MediaType(Enum):
     VIDEO = "video"
 
 
+class ApplicationStatus(Enum):
+    NEW = "new"
+    CONTACTED = "contacted"
+    DISCARDED = "discarded"
+
+
 # ==================================================================
 # USER
 # ==================================================================
@@ -881,6 +887,139 @@ class Media(db.Model):
             "uploaded_at": (
                 self.uploaded_at.isoformat()
                 if self.uploaded_at
+                else None
+            ),
+        }
+
+# ==================================================================
+# JOB APPLICATION
+# ==================================================================
+# Candidatura enviada desde el formulario público "Trabaja con nosotros".
+
+
+class JobApplication(db.Model):
+    __tablename__ = "job_applications"
+
+    application_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+    last_name: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False
+    )
+    email: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False
+    )
+    phone: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False
+    )
+    experience: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+    message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+    status: Mapped[ApplicationStatus] = mapped_column(
+        SQLEnum(
+            ApplicationStatus,
+            values_callable=lambda enum: [item.value for item in enum],
+            name="application_status"
+        ),
+        nullable=False,
+        default=ApplicationStatus.NEW,
+        server_default=ApplicationStatus.NEW.value
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now()
+    )
+
+    def serialize(self):
+        return {
+            "application_id": self.application_id,
+            "name": self.name,
+            "last_name": self.last_name,
+            "email": self.email,
+            "phone": self.phone,
+            "experience": self.experience,
+            "message": self.message,
+            "status": self.status.value if self.status else None,
+            "created_at": (
+                self.created_at.isoformat()
+                if self.created_at
+                else None
+            ),
+        }
+
+
+# ==================================================================
+# CONTACT MESSAGE
+# ==================================================================
+# Mensaje enviado desde el formulario público de contacto.
+
+class ContactMessage(db.Model):
+    __tablename__ = "contact_messages"
+
+    contact_message_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+    email: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False
+    )
+    phone: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True
+    )
+    subject: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False
+    )
+    message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+    status: Mapped[ApplicationStatus] = mapped_column(
+        SQLEnum(
+            ApplicationStatus,
+            values_callable=lambda enum: [item.value for item in enum],
+            name="application_status"
+        ),
+        nullable=False,
+        default=ApplicationStatus.NEW,
+        server_default=ApplicationStatus.NEW.value
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now()
+    )
+
+    def serialize(self):
+        return {
+            "contact_message_id": self.contact_message_id,
+            "name": self.name,
+            "email": self.email,
+            "phone": self.phone,
+            "subject": self.subject,
+            "message": self.message,
+            "status": self.status.value if self.status else None,
+            "created_at": (
+                self.created_at.isoformat()
+                if self.created_at
                 else None
             ),
         }

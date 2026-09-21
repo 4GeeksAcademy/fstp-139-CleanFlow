@@ -13,7 +13,7 @@ import re
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task, Service, Worker, Address, Shift
+from api.models import db, User, Task, Service, Worker, Address, Shift, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from flask_cors import CORS
 from datetime import datetime
@@ -57,6 +57,16 @@ def get_json_body():
     """
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else None
+
+
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
+def is_valid_email(email):
+    if not isinstance(email, str):
+        return False
+
+    return bool(re.fullmatch(EMAIL_PATTERN, email.strip()))
 
 
 def clean_optional_text(value, field_label, max_length=None):
@@ -1666,4 +1676,231 @@ def update_service_status(service_id):
     service.is_active = data["is_active"]
     db.session.commit()
 
-    return jsonify({"service": service.serialize()}), 200
+    return jsonify({"service": service.serialize()}), 200# PUBLIC FORMS - JOB APPLICATIONS
+# ==================================================================
+
+
+@api.route("/job-applications", methods=["POST"])
+def create_job_application():
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    # Honeypot antispam.
+    # Los usuarios reales dejan este campo vacío.
+    if data.get("website"):
+        return jsonify({
+            "message": "Candidatura recibida correctamente"
+        }), 201
+
+    required_fields = [
+        "name",
+        "last_name",
+        "email",
+        "phone",
+        "experience",
+        "message",
+    ]
+
+    for field in required_fields:
+        value = data.get(field)
+
+        if not isinstance(value, str) or not value.strip():
+            return jsonify({
+                "message": "Todos los campos son obligatorios"
+            }), 400
+
+    email = data["email"].strip()
+
+    if not is_valid_email(email):
+        return jsonify({
+            "message": "El correo electrónico no es válido"
+        }), 400
+
+    application = JobApplication(
+        name=data["name"].strip(),
+        last_name=data["last_name"].strip(),
+        email=email,
+        phone=data["phone"].strip(),
+        experience=data["experience"].strip(),
+        message=data["message"].strip(),
+        status=ApplicationStatus.NEW,
+    )
+
+    db.session.add(application)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Candidatura recibida correctamente"
+    }), 201
+
+
+@api.route("/contact-messages", methods=["POST"])
+def create_contact_message():
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    # Honeypot antispam.
+    # Si un bot rellena este campo, respondemos como si todo fuera correcto
+    # pero no guardamos el mensaje.
+    if data.get("website"):
+        return jsonify({
+            "message": "Mensaje recibido correctamente"
+        }), 201
+
+    required_fields = [
+        "name",
+        "email",
+        "subject",
+        "message",
+    ]
+
+    for field in required_fields:
+        value = data.get(field)
+
+        if not isinstance(value, str) or not value.strip():
+            return jsonify({
+                "message": "Todos los campos obligatorios deben estar completos"
+            }), 400
+
+    email = data["email"].strip()
+
+    if not is_valid_email(email):
+        return jsonify({
+            "message": "El correo electrónico no es válido"
+        }), 400
+
+    phone = data.get("phone")
+
+    if isinstance(phone, str):
+        phone = phone.strip() or None
+    else:
+        phone = None
+
+    contact_message = ContactMessage(
+        name=data["name"].strip(),
+        email=email,
+        phone=phone,
+        subject=data["subject"].strip(),
+        message=data["message"].strip(),
+        status=ApplicationStatus.NEW,
+    )
+
+    db.session.add(contact_message)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Mensaje recibido correctamente"
+    }), 201
+
+
+@api.route("/job-applications", methods=["GET"])
+@role_required("manager")
+def get_job_applications():
+    applications = JobApplication.query.order_by(
+        JobApplication.created_at.desc()
+    ).all()
+
+    return jsonify([
+        application.serialize()
+        for application in applications
+    ]), 200
+
+
+@api.route("/contact-messages", methods=["GET"])
+@role_required("manager")
+def get_contact_messages():
+    messages = ContactMessage.query.order_by(
+        ContactMessage.created_at.desc()
+    ).all()
+
+    return jsonify([
+        message.serialize()
+        for message in messages
+    ]), 200
+
+
+@api.route("/job-applications/<int:application_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_job_application_status(application_id):
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    status_value = data.get("status")
+
+    valid_statuses = {
+        status.value for status in ApplicationStatus
+    }
+
+    if status_value not in valid_statuses:
+        return jsonify({
+            "message": "El estado no es válido"
+        }), 400
+
+    application = db.session.get(JobApplication, application_id)
+
+    if application is None:
+        return jsonify({
+            "message": "Candidatura no encontrada"
+        }), 404
+
+    application.status = ApplicationStatus(status_value)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Estado actualizado correctamente",
+        "application": application.serialize()
+    }), 200
+
+
+@api.route("/contact-messages/<int:contact_message_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_contact_message_status(contact_message_id):
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    status_value = data.get("status")
+
+    valid_statuses = {
+        status.value for status in ApplicationStatus
+    }
+
+    if status_value not in valid_statuses:
+        return jsonify({
+            "message": "El estado no es válido"
+        }), 400
+
+    contact_message = db.session.get(
+        ContactMessage,
+        contact_message_id
+    )
+
+    if contact_message is None:
+        return jsonify({
+            "message": "Mensaje de contacto no encontrado"
+        }), 404
+
+    contact_message.status = ApplicationStatus(status_value)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Estado actualizado correctamente",
+        "contact_message": contact_message.serialize()
+    }), 200
