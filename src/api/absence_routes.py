@@ -312,7 +312,8 @@ def cancel_company(booking_id):
     return jsonify({"message": "Reserva cancelada por CleanFlow.", "booking": booking.serialize()})
 
 
-# Vista mínima de integración con #16, ausente en el ZIP de partida.
+# Vista mínima de "Mis reservas" para ver el resultado de esta issue.
+# La sustituirá la vista completa de la #16.
 @absence_api.route("/my/bookings", methods=["GET"])
 @role_required("client")
 def my_bookings():
