@@ -31,6 +31,9 @@ import { AccountSecurity } from "./pages/dashboard/account/AccountSecurity";
 import { AccountAddresses } from "./pages/dashboard/account/AccountAddresses";
 
 
+import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
+import { MyBookings } from "./pages/dashboard/MyBookings";
+
 export const router = createBrowserRouter(
   createRoutesFromElements(
     <>
@@ -72,7 +75,7 @@ export const router = createBrowserRouter(
               aquí. No confundir con services-catalog, la del encargado. */}
           <Route element={<RoleRoute allowed={["client"]} />}>
             <Route path="service-catalog" element={<ServiceCatalog />} />
-            <Route path="contracted-services" element={<h1>Mis servicios</h1>} />
+            <Route path="contracted-services" element={<MyBookings />} />
           </Route>
 
           {/* ---- SECCIONES DE WORKER ---- */}
@@ -85,6 +88,7 @@ export const router = createBrowserRouter(
               tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
             <Route path="workers" element={<ListadoTrabajadores />} />
+            <Route path="affected-bookings" element={<AffectedBookings />} />
             <Route
               path="workers/:workerId/edit"
               element={<EditarTrabajador />}

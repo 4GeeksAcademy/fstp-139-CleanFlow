@@ -73,12 +73,21 @@ def can_work(worker):
 
 
 def worker_unavailable_days(worker, first_day, last_day):
-    """Días del rango en que no puede trabajar aunque sean de su turno.
+    """Ausencias por días completos, con fechas inclusivas.
 
-    Hoy ninguno. ENGANCHE PARA LA #15: al rellenarla con vacaciones y
-    bajas, todo el cálculo las respeta sin tocar nada más.
+    Una ausencia abierta se recorta al rango consultado, no se expande
+    indefinidamente. Las ausencias se cargan con Worker.absences.
     """
-    return set()
+    unavailable = set()
+    for absence in worker.absences:
+        first = max(first_day, absence.starts_on)
+        last = min(last_day, absence.ends_on or last_day)
+        if first <= last:
+            unavailable.update(
+                first + timedelta(days=offset)
+                for offset in range((last - first).days + 1)
+            )
+    return unavailable
 
 
 def working_days(worker, first_day, count):
@@ -149,7 +158,7 @@ def is_free(intervals, busy):
 # 3. JUNTAR LAS PIEZAS
 # ----------------------------------------------------------------------
 
-def load_busy(workers, first_day, last_day):
+def load_busy(workers, first_day, last_day, exclude_booking_id=None):
     """Tramos ya reservados del periodo: {worker_id: [(inicio, fin), ...]}.
 
     UNA consulta para todos los trabajadores (una por franja serían
@@ -171,6 +180,7 @@ def load_busy(workers, first_day, last_day):
         .join(BookingDay, BookingDay.booking_id == Booking.booking_id)
         .where(
             Booking.worker_id.in_(worker_ids),
+            Booking.booking_id != exclude_booking_id if exclude_booking_id is not None else True,
             Booking.status != BookingStatus.CANCELLED,
             BookingDay.starts_at < window_end,
             BookingDay.ends_at > window_start,
@@ -208,7 +218,8 @@ def month_availability(workers, hours, month_first_day, now, busy):
     latest = now + BOOKING_HORIZON
 
     # Día 1 del mes siguiente: el mes acaba justo antes.
-    next_month = (month_first_day.replace(day=28) + timedelta(days=4)).replace(day=1)
+    next_month = (month_first_day.replace(day=28) +
+                  timedelta(days=4)).replace(day=1)
 
     days = {}
     day = month_first_day
@@ -257,5 +268,6 @@ def pick_worker(candidates, busy, day):
     el trabajo. Si empatan, el de id más bajo (nunca al azar)."""
     return min(
         candidates,
-        key=lambda worker: (booked_hours_on(busy.get(worker.worker_id, []), day), worker.worker_id),
+        key=lambda worker: (booked_hours_on(
+            busy.get(worker.worker_id, []), day), worker.worker_id),
     )
