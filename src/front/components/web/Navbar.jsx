@@ -58,11 +58,11 @@ const NAV_LINKS = [
 
 // El botón de acción va aparte y NO se añade al array de arriba: no es un
 // item de navegación, así que no se resalta con el scroll ni entra en
-// isActive. Es el mismo que el del hero.
+// isActive. Es el mismo que el del hero: si cambia uno, cambian los dos.
 //
-// Provisional: apunta al login porque reservar exige cuenta. WEB-15 lo
-// llevará al catálogo del cliente, y hay que cambiar los dos a la vez.
-const CTA = { label: "Reservar ahora", to: "/login" }
+// Apunta a la ruta protegida del catálogo, no al login: si no hay sesión,
+// ProtectedRoutes manda al login y después vuelve aquí (WEB-15).
+const CTA = { label: "Reservar ahora", to: "/dashboard/service-catalog" }
 
 
 // Los ids a vigilar salen de los propios enlaces: al añadir un item con
