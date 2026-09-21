@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task, Service, Worker, Address, Shift, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -43,6 +43,16 @@ def get_json_body():
     """
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else None
+
+
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
+def is_valid_email(email):
+    if not isinstance(email, str):
+        return False
+
+    return bool(re.fullmatch(EMAIL_PATTERN, email.strip()))
 
 
 def clean_optional_text(value, field_label, max_length=None):
@@ -169,6 +179,7 @@ def create_shift():
     return jsonify({"shift": shift.serialize()}), 201
 
 
+
 @api.route("/shifts/<int:shift_id>", methods=["PUT"])
 @role_required("manager")
 def update_shift(shift_id):
@@ -219,6 +230,7 @@ def update_shift_status(shift_id):
     return jsonify({"shift": shift.serialize()}), 200
 
 
+
 @api.route("/shifts/<int:shift_id>", methods=["DELETE"])
 @role_required("manager")
 def delete_shift(shift_id):
@@ -251,6 +263,7 @@ def delete_shift(shift_id):
 #   GET    /api/workers        listar
 #   GET    /api/workers/<id>   ver uno
 #   PUT    /api/workers/<id>   editar
+
 
 @api.route("/workers", methods=["POST"])
 @role_required("manager")
@@ -670,7 +683,8 @@ def get_services():
     quien llama si ve también los desactivados.
     """
     services = db.session.execute(
-        db.select(Service).filter_by(is_active=True).order_by(Service.service_id)
+        db.select(Service).filter_by(
+            is_active=True).order_by(Service.service_id)
     ).scalars().all()
 
     return jsonify({"services": [service.serialize_public() for service in services]}), 200
@@ -989,7 +1003,8 @@ def upload_account_avatar():
             invalidate=True,
             resource_type="image",
             # Cuadrada y centrada en la cara, que es lo que se ve en el avatar.
-            transformation=[{"width": 256, "height": 256, "crop": "fill", "gravity": "face"}],
+            transformation=[{"width": 256, "height": 256,
+                             "crop": "fill", "gravity": "face"}],
         )
     except Exception as error:
         # Cloudinary caído, sin internet o claves mal: no es culpa de quien sube.
@@ -1018,7 +1033,8 @@ def delete_account_avatar():
 
     if user.avatar_url and cloudinary_is_configured():
         try:
-            cloudinary.uploader.destroy(avatar_public_id(user), invalidate=True)
+            cloudinary.uploader.destroy(
+                avatar_public_id(user), invalidate=True)
         except Exception as error:
             # Si Cloudinary falla, la imagen se queda allí, pero el usuario
             # deja de verla igual: no se le bloquea por eso.
@@ -1059,7 +1075,8 @@ POSTAL_CODE_PATTERN = r"^[0-9]{5}$"
 def owned_address(user, address_id):
     """La dirección activa del cliente, o None si no es suya o ya no está."""
     return db.session.execute(
-        db.select(Address).filter_by(address_id=address_id, client_id=user.user_id, is_active=True)
+        db.select(Address).filter_by(address_id=address_id,
+                                     client_id=user.user_id, is_active=True)
     ).scalar_one_or_none()
 
 
@@ -1115,11 +1132,13 @@ def validate_address(data, current=None):
     fields["postal_code"] = postal_code.strip()
 
     # ---- opcionales: vacíos se guardan como NULL ----
-    fields["floor"], error = clean_optional_text(pick("floor"), "El piso", FLOOR_MAX_LENGTH)
+    fields["floor"], error = clean_optional_text(
+        pick("floor"), "El piso", FLOOR_MAX_LENGTH)
     if error:
         return None, error
 
-    fields["access_notes"], error = clean_optional_text(pick("access_notes"), "Las notas de acceso")
+    fields["access_notes"], error = clean_optional_text(
+        pick("access_notes"), "Las notas de acceso")
     if error:
         return None, error
 
@@ -1153,7 +1172,8 @@ def create_address():
         return jsonify({"message": error}), 400
 
     # is_default no se acepta del cuerpo: se marca con PATCH .../default.
-    address = Address(client_id=user.user_id, is_default=not active_addresses(user), **fields)
+    address = Address(client_id=user.user_id,
+                      is_default=not active_addresses(user), **fields)
 
     db.session.add(address)
     db.session.commit()
@@ -1508,11 +1528,13 @@ def validate_service(data, current=None):
     fields["description"] = description.strip()
 
     # ---- textos opcionales ----
-    fields["long_description"], error = clean_optional_text(pick("long_description"), "La descripción larga")
+    fields["long_description"], error = clean_optional_text(
+        pick("long_description"), "La descripción larga")
     if error:
         return None, error
 
-    fields["image_url"], error = clean_optional_text(pick("image_url"), "La URL de la imagen", IMAGE_URL_MAX_LENGTH)
+    fields["image_url"], error = clean_optional_text(
+        pick("image_url"), "La URL de la imagen", IMAGE_URL_MAX_LENGTH)
     if error:
         return None, error
 
@@ -1636,7 +1658,8 @@ def update_service(service_id):
         return jsonify({"message": "No se recibieron datos"}), 400
 
     # Sin is_active en el cuerpo, validate_service conserva el estado actual.
-    data = {field: value for field, value in data.items() if field != "is_active"}
+    data = {field: value for field, value in data.items() if field !=
+            "is_active"}
 
     fields, error = validate_service(data, current=service)
     if error:
@@ -2103,3 +2126,272 @@ def create_booking():
     return jsonify({
         "booking": {**booking.serialize_detail(), "worker": public_worker(worker)}
     }), 201
+
+
+# ----------------------------------------------------------------------
+# FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
+# ----------------------------------------------------------------------
+#   POST   /api/job-applications                público
+#   GET    /api/job-applications                encargado
+#   PATCH  /api/job-applications/<id>/status    encargado
+#   POST   /api/contact-messages                público
+#   GET    /api/contact-messages                encargado
+#   PATCH  /api/contact-messages/<id>/status    encargado
+
+@api.route("/job-applications", methods=["POST"])
+def create_job_application():
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    # Honeypot antispam.
+    # Los usuarios reales dejan este campo vacío.
+    if data.get("website"):
+        return jsonify({
+            "message": "Candidatura recibida correctamente"
+        }), 201
+
+    required_fields = [
+        "name",
+        "last_name",
+        "email",
+        "phone",
+        "experience",
+        "message",
+    ]
+
+    for field in required_fields:
+        value = data.get(field)
+
+        if not isinstance(value, str) or not value.strip():
+            return jsonify({
+                "message": "Todos los campos son obligatorios"
+            }), 400
+
+
+    # Mismos topes que las columnas de JobApplication.
+    APPLICATION_MAX_LENGTHS = {
+        "name": 100,
+        "last_name": 150,
+        "email": 120,
+        "phone": 20
+    }
+
+    for field, max_length in APPLICATION_MAX_LENGTHS.items():
+        if len(data[field].strip()) > max_length:
+            return jsonify({
+                "message": f"El campo {field} no puede superar los {max_length} caracteres"
+            }), 400
+
+    email = data["email"].strip()
+
+    if not is_valid_email(email):
+        return jsonify({
+            "message": "El correo electrónico no es válido"
+        }), 400
+
+    application = JobApplication(
+        name=data["name"].strip(),
+        last_name=data["last_name"].strip(),
+        email=email,
+        phone=data["phone"].strip(),
+        experience=data["experience"].strip(),
+        message=data["message"].strip(),
+        status=ApplicationStatus.NEW,
+    )
+
+    db.session.add(application)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Candidatura recibida correctamente"
+    }), 201
+
+
+@api.route("/contact-messages", methods=["POST"])
+def create_contact_message():
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    # Honeypot antispam.
+    # Si un bot rellena este campo, respondemos como si todo fuera correcto
+    # pero no guardamos el mensaje.
+    if data.get("website"):
+        return jsonify({
+            "message": "Mensaje recibido correctamente"
+        }), 201
+
+    required_fields = [
+        "name",
+        "email",
+        "subject",
+        "message",
+    ]
+
+    for field in required_fields:
+        value = data.get(field)
+
+        if not isinstance(value, str) or not value.strip():
+            return jsonify({
+                "message": "Todos los campos obligatorios deben estar completos"
+            }), 400
+
+    # Mismos topes que las columnas de ContactMessage.
+    CONTACT_MAX_LENGTHS = {
+        "name": 100,
+        "email": 120,
+        "subject": 150
+    }
+
+    for field, max_length in CONTACT_MAX_LENGTHS.items():
+        if len(data[field].strip()) > max_length:
+            return jsonify({
+                "message": f"El campo {field} no puede superar los {max_length} caracteres"
+            }), 400
+
+    email = data["email"].strip()
+
+    if not is_valid_email(email):
+        return jsonify({
+            "message": "El correo electrónico no es válido"
+        }), 400
+
+    phone = data.get("phone")
+
+    if isinstance(phone, str):
+        phone = phone.strip() or None
+    else:
+        phone = None
+
+    if phone and len(phone) > 20:
+        return jsonify({
+            "message": "El teléfono no puede superar los 20 caracteres"
+        }), 400
+
+    contact_message = ContactMessage(
+        name=data["name"].strip(),
+        email=email,
+        phone=phone,
+        subject=data["subject"].strip(),
+        message=data["message"].strip(),
+        status=ApplicationStatus.NEW,
+    )
+
+    db.session.add(contact_message)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Mensaje recibido correctamente"
+    }), 201
+
+
+@api.route("/job-applications", methods=["GET"])
+@role_required("manager")
+def get_job_applications():
+    applications = JobApplication.query.order_by(
+        JobApplication.created_at.desc()
+    ).all()
+
+    return jsonify([
+        application.serialize()
+        for application in applications
+    ]), 200
+
+
+@api.route("/contact-messages", methods=["GET"])
+@role_required("manager")
+def get_contact_messages():
+    messages = ContactMessage.query.order_by(
+        ContactMessage.created_at.desc()
+    ).all()
+
+    return jsonify([
+        message.serialize()
+        for message in messages
+    ]), 200
+
+
+@api.route("/job-applications/<int:application_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_job_application_status(application_id):
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    status_value = data.get("status")
+
+    valid_statuses = {
+        status.value for status in ApplicationStatus
+    }
+
+    if status_value not in valid_statuses:
+        return jsonify({
+            "message": "El estado no es válido"
+        }), 400
+
+    application = db.session.get(JobApplication, application_id)
+
+    if application is None:
+        return jsonify({
+            "message": "Candidatura no encontrada"
+        }), 404
+
+    application.status = ApplicationStatus(status_value)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Estado actualizado correctamente",
+        "application": application.serialize()
+    }), 200
+
+
+@api.route("/contact-messages/<int:contact_message_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_contact_message_status(contact_message_id):
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    status_value = data.get("status")
+
+    valid_statuses = {
+        status.value for status in ApplicationStatus
+    }
+
+    if status_value not in valid_statuses:
+        return jsonify({
+            "message": "El estado no es válido"
+        }), 400
+
+    contact_message = db.session.get(
+        ContactMessage,
+        contact_message_id
+    )
+
+    if contact_message is None:
+        return jsonify({
+            "message": "Mensaje de contacto no encontrado"
+        }), 404
+
+    contact_message.status = ApplicationStatus(status_value)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Estado actualizado correctamente",
+        "contact_message": contact_message.serialize()
+    }), 200
