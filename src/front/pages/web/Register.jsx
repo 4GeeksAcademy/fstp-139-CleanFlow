@@ -57,10 +57,11 @@ export const Register = () => {
 
         if (!session.ok) {
             // La cuenta existe, pero la sesión no se pudo abrir: al login,
-            // con el destino y el aviso de que solo le falta entrar.
+            // con el destino, el correo ya escrito y el aviso de que solo le
+            // falta entrar. La contraseña no viaja: la vuelve a escribir.
             navigate("/login", {
                 replace: true,
-                state: { from: location.state?.from, registered: true },
+                state: { from: location.state?.from, registered: true, email: formData.email },
             });
             return;
         }
