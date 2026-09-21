@@ -70,7 +70,8 @@ class User(db.Model):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(150), nullable=False)
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
-    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(
+        String(120), unique=True, nullable=False)
 
     # El hash, nunca la contraseña en claro (ver set_password).
     password_hash: Mapped[str] = mapped_column(nullable=False)
@@ -186,12 +187,42 @@ class Shift(db.Model):
         nullable=False
     )
 
+    # Días de la semana en que se trabaja, como texto: "1,2,3,4,5".
+    # Lunes = 1 ... domingo = 7, igual que date.isoweekday(): se compara
+    # sin convertir nada. Se lee y se escribe con la propiedad `days`.
+    work_days: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="1,2,3,4,5"
+    )
+
+    # Desactivado: se conserva, pero no ofrece huecos para reservar.
+    # server_default: los turnos que ya existían quedan activos al migrar.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        default=True,
+        server_default="true"
+    )
+
+    @property
+    def days(self):
+        """Los días como lista de números: "1,3,5" -> [1, 3, 5]."""
+        return [int(day) for day in self.work_days.split(",") if day]
+
+    @days.setter
+    def days(self, values):
+        """Guarda la lista ordenada y sin repetidos: [5, 1, 1] -> "1,5"."""
+        self.work_days = ",".join(str(day) for day in sorted(set(values)))
+
     def serialize(self):
         return {
             "shift_id": self.shift_id,
             "name": self.name,
             "start_time": self.start_time.strftime("%H:%M"),
             "end_time": self.end_time.strftime("%H:%M"),
+            "work_days": self.days,
+            "is_active": self.is_active,
             "workers": [
                 {
                     "worker_id": worker.worker_id,
@@ -244,11 +275,11 @@ class Worker(db.Model):
     )
 
     user = db.relationship(
-    "User",
-    foreign_keys=[user_id],
-    backref="worker",
-    lazy=True
-)
+        "User",
+        foreign_keys=[user_id],
+        backref="worker",
+        lazy=True
+    )
 
     shift = db.relationship(
         "Shift",
@@ -586,6 +617,15 @@ class Booking(db.Model):
         ForeignKey("addresses.address_id"),
         nullable=False
     )
+    # Quién hace la reserva: lo elige el cliente (o se asigna solo con
+    # "Cualquiera"). Por eso la reserva nace ya confirmada.
+    worker_id: Mapped[int] = mapped_column(
+        ForeignKey("workers.worker_id"),
+        nullable=False,
+        index=True
+    )
+    # Hora de Madrid, sin zona: inicio del primer tramo y fin del último.
+    # Las horas contratadas no se guardan: salen de los tramos (hours).
     scheduled_start: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False
@@ -594,7 +634,6 @@ class Booking(db.Model):
         DateTime,
         nullable=False
     )
-
     # Congelados al reservar (tarifa, minutos y total): si el servicio cambia
     # después, esta reserva conserva los suyos. El histórico no se reescribe.
     hourly_rate: Mapped[float] = mapped_column(
@@ -609,7 +648,6 @@ class Booking(db.Model):
         Float,
         nullable=False
     )
-
     status: Mapped[BookingStatus] = mapped_column(
         SQLEnum(BookingStatus),
         nullable=False
@@ -627,12 +665,55 @@ class Booking(db.Model):
         nullable=True
     )
 
+    # Cancelación empresarial: visible al cliente, sin exponer ausencias.
+    cancelled_by_company: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    cancellation_reason: Mapped[str | None] = mapped_column(
+        Text, nullable=True)
+
+    # ---- RELACIONES ----
+    # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
+    # Así se lee booking.service en vez de buscarlo.
+    worker = db.relationship("Worker")
+    service = db.relationship("Service")
+    address = db.relationship("Address")
+
+    # Los tramos, en orden. Con booking.days.append(...) se guardan
+    # junto con la reserva.
+    days = db.relationship(
+        "BookingDay",
+        order_by="BookingDay.starts_at"
+    )
+
+    # Las tareas en el orden en que se añadieron. Con
+    # booking.tasks.append(...) se guardan junto con la reserva.
+    tasks = db.relationship(
+        "BookingTask",
+        order_by="BookingTask.booking_task_id"
+    )
+
+    # ---- DATOS CALCULADOS ----
+
+    @property
+    def hours(self):
+        """Horas contratadas: la suma de sus tramos.
+
+        Fin menos inicio no vale: una reserva de viernes a lunes contaría
+        también las noches y el fin de semana.
+        """
+        seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
+        return int(seconds // 3600)
+
+    # ---- SERIALIZADORES ----
+
     def serialize(self):
         return {
             "booking_id": self.booking_id,
             "client_id": self.client_id,
             "service_id": self.service_id,
             "address_id": self.address_id,
+            "worker_id": self.worker_id,
             "scheduled_start": (
                 self.scheduled_start.isoformat()
                 if self.scheduled_start
@@ -652,6 +733,15 @@ class Booking(db.Model):
                 else None
             ),
             "client_notes": self.client_notes,
+            "cancelled_by_company": self.cancelled_by_company,
+            "cancellation_reason": self.cancellation_reason,
+            "worker_name": (
+                self.worker.user.name + (
+                    " " + self.worker.user.last_name.strip()[0] + "."
+                    if self.worker.user.last_name.strip() else ""
+                ) if self.worker and self.worker.user else None
+            ),
+            "days": [day.serialize() for day in self.days],
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at
@@ -662,6 +752,58 @@ class Booking(db.Model):
                 if self.updated_at
                 else None
             ),
+        }
+
+    def serialize_detail(self):
+        """La reserva completa: servicio, dirección, tramos y tareas. La
+        usa la confirmación del panel, y la usará "Mis reservas" (#16)."""
+        return {
+            **self.serialize(),
+            "hours": self.hours,
+            "service": {
+                "name": self.service.name,
+                "slug": self.service.slug,
+            },
+            "address": self.address.serialize(),
+            "days": [day.serialize() for day in self.days],
+            "tasks": [task.serialize() for task in self.tasks],
+        }
+
+
+# ==================================================================
+# BOOKING DAY
+# ==================================================================
+# Los tramos de trabajo de una reserva: uno por día, de 8 h como mucho
+# (3 h = un tramo; 12 h = dos). La disponibilidad mira estos tramos y no
+# el inicio y fin de la reserva: entre dos puede caer un fin de semana.
+
+class BookingDay(db.Model):
+    __tablename__ = "booking_days"
+
+    booking_day_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+    booking_id: Mapped[int] = mapped_column(
+        ForeignKey("bookings.booking_id"),
+        nullable=False,
+        index=True
+    )
+    # Hora de Madrid sin zona. starts_at/ends_at y no start/end: END es
+    # palabra reservada de SQL.
+    starts_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+    ends_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+
+    def serialize(self):
+        return {
+            "booking_day_id": self.booking_day_id,
+            "starts_at": self.starts_at.isoformat(),
+            "ends_at": self.ends_at.isoformat(),
         }
 
 
@@ -890,6 +1032,43 @@ class Media(db.Model):
                 else None
             ),
         }
+
+# Ausencias por días completos de Madrid; ambos extremos son inclusivos.
+
+
+class Absence(db.Model):
+    __tablename__ = "absences"
+    __table_args__ = (
+        db.CheckConstraint(
+            "ends_on IS NULL OR ends_on >= starts_on", name="ck_absence_dates"),
+        db.CheckConstraint(
+            "reason IN ('vacaciones', 'baja', 'otro')", name="ck_absence_reason"),
+    )
+
+    absence_id: Mapped[int] = mapped_column(primary_key=True)
+    worker_id: Mapped[int] = mapped_column(
+        ForeignKey("workers.worker_id"), nullable=False, index=True
+    )
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reason: Mapped[str] = mapped_column(String(20), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Una carga por grupo de trabajadores, no una consulta por hueco.
+    worker = db.relationship(
+        "Worker", backref=db.backref("absences", lazy="selectin")
+    )
+
+    def serialize(self):
+        return {
+            "absence_id": self.absence_id,
+            "worker_id": self.worker_id,
+            "starts_on": self.starts_on.isoformat(),
+            "ends_on": self.ends_on.isoformat() if self.ends_on else None,
+            "reason": self.reason,
+            "notes": self.notes,
+        }
+
 
 # ==================================================================
 # JOB APPLICATION

@@ -8,6 +8,8 @@ import {
 } from "../../services/workerService";
 import { getShifts } from "../../services/shiftService";
 
+import { WorkerAbsences } from "../../components/dashboard/WorkerAbsences";
+
 export const EditarTrabajador = () => {
     const { store } = useGlobalReducer();
     const { workerId } = useParams();
@@ -289,6 +291,8 @@ export const EditarTrabajador = () => {
                                         value={shift.shift_id}
                                     >
                                         {shift.name} ({shift.start_time} – {shift.end_time})
+                                        {/* Aviso: un turno desactivado no ofrece huecos */}
+                                        {shift.is_active ? "" : " · desactivado"}
                                     </option>
                                 ))}
                             </select>
@@ -335,6 +339,7 @@ export const EditarTrabajador = () => {
                     </div>
                 </fieldset>
             </form>
+            {isEditing && <WorkerAbsences key={workerId} workerId={workerId} token={store.token} />}
         </div>
     );
 };
