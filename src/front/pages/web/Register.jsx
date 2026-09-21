@@ -38,6 +38,10 @@ export const Register = () => {
     // Evita el doble envío y cambia el texto del botón mientras se guarda.
     const [loading, setLoading] = useState(false);
 
+    // Solo controla si la contraseña se ve o no (el botón del ojo), igual
+    // que en el login.
+    const [showPassword, setShowPassword] = useState(false);
+
     // Un solo manejador para todos los campos: cada input lleva su `name`.
     const handleChange = (event) => {
         setFormData({
@@ -182,18 +186,34 @@ export const Register = () => {
                     <label htmlFor="password" className="auth-label">
                         Contraseña
                     </label>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        className="auth-input"
-                        placeholder="Mínimo 6 caracteres"
-                        autoComplete="new-password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required
-                        minLength={6}
-                    />
+
+                    {/* Mismo ojo que el login: auth-group agrupa el campo y
+                        el botón para que el borde y el foco rodeen a los dos. */}
+                    <div className="auth-group">
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            id="password"
+                            name="password"
+                            className="auth-input"
+                            placeholder="Mínimo 6 caracteres"
+                            autoComplete="new-password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
+                            minLength={6}
+                        />
+                        {/* type="button": dentro del <form>, sin él enviaría
+                            el registro. aria-label porque solo lleva un icono. */}
+                        <button
+                            type="button"
+                            className="auth-eye"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            aria-pressed={showPassword}
+                        >
+                            <i className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                        </button>
+                    </div>
                 </div>
 
                 <button type="submit" className="auth-btn" disabled={loading}>
