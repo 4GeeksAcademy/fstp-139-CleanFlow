@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { register } from "../../services/authService";
+import { login, register } from "../../services/authService";
+import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
 
 
 export const Register = () => {
     const navigate = useNavigate();
-        // Lo que dejó ProtectedRoutes al mandar al login: el destino (from).
-    const location = useLocation();
+    const { dispatch } = useGlobalReducer();
 
+    // Lo que dejó ProtectedRoutes al mandar al login: el destino. Entrando
+    // al registro por su cuenta no hay, y se va a /dashboard.
+    const location = useLocation();
+    const from = location.state?.from?.pathname || "/dashboard";
 
     const [formData, setFormData] = useState({
         name: "",
@@ -17,7 +21,6 @@ export const Register = () => {
         password: ""
     });
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
     const handleChange = (event) => {
         setFormData({
@@ -32,43 +35,48 @@ export const Register = () => {
         if (loading) return;
 
         setError("");
-        setSuccess("");
         setLoading(true);
 
-        try {
-            const { ok, data, networkError } = await register(formData);
+        // register() y login() nunca lanzan: devuelven { ok, data }.
+        const created = await register(formData);
 
-            if (!ok) {
-                setError(
-                    networkError
-                        ? data.error
-                        : data.message || data.error || "No se pudo completar el registro"
-                );
-                return;
-            }
-
-            setSuccess("¡Tu cuenta se ha creado correctamente!");
-            setFormData({
-                name: "",
-                last_name: "",
-                email: "",
-                phone: "",
-                password: "",
-
-            });
-
-            setTimeout(() => {
-                navigate("/login");
-            }, 1500);
-
-        } catch {
+        if (!created.ok) {
+            // Los campos no se borran: así se puede corregir y reintentar.
             setError(
-                "No se pudo completar la solicitud. Comprueba tu conexión e inténtalo de nuevo."
+                created.networkError
+                    ? created.data.error
+                    : created.data.message || created.data.error || "No se pudo completar el registro"
             );
-        } finally {
             setLoading(false);
+            return;
         }
+
+        // Cuenta creada: se abre la sesión con los mismos datos, igual que
+        // hace Login.jsx, en vez de mandarle a escribirlos otra vez.
+        const session = await login(formData.email, formData.password);
+
+        if (!session.ok) {
+            // La cuenta existe, pero la sesión no se pudo abrir: al login,
+            // con el destino y el aviso de que solo le falta entrar.
+            navigate("/login", {
+                replace: true,
+                state: { from: location.state?.from, registered: true },
+            });
+            return;
+        }
+
+        dispatch({
+            type: "LOGIN",
+            payload: {
+                token: session.data.token,
+                user: session.data.user,
+            },
+        });
+
+        // replace: "atrás" no vuelve al formulario con la sesión ya abierta.
+        navigate(from, { replace: true });
     };
+
     return (
         <div className="auth-card">
             <h1 className="auth-title">Crear cuenta</h1>
@@ -80,12 +88,6 @@ export const Register = () => {
             {error && (
                 <div className="auth-alert" role="alert">
                     {error}
-                </div>
-            )}
-
-            {success && (
-                <div className="auth-notice" role="status">
-                    {success}
                 </div>
             )}
 
