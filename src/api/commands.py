@@ -87,8 +87,8 @@ SERVICES = [
         "description": "Retirada de polvo y restos tras una reforma.",
         "base_hourly_rate": 90,
         "minutes_per_task": None,   # sin tareas: se contratan horas
-        "min_hours": 8,             # 8, 11, 14... 56
-        "hour_step": 3,
+        "min_hours": 8,             # 8, 12, 16... 56: jornadas y medias jornadas
+        "hour_step": 4,
         "max_hours": 56,            # 7 jornadas: la obra sí se parte en días
         "is_active": True,
     },

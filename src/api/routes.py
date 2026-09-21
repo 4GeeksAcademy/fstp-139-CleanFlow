@@ -1839,7 +1839,7 @@ def hours_needed(service, task_count):
 
         tareas × minutos  →  a horas, redondeando hacia arriba
                           →  nunca menos que el mínimo del servicio
-                          →  subido hasta respetar el salto (8, 11, 14...)
+                          →  subido hasta respetar el salto (8, 12, 16...)
 
     Fin de obra (sin minutos por tarea) necesita solo su mínimo.
     """
