@@ -618,6 +618,8 @@ class Booking(db.Model):
         nullable=False,
         index=True
     )
+    # Hora de Madrid, sin zona: inicio del primer tramo y fin del último.
+    # Las horas contratadas no se guardan: salen de los tramos (hours).
     scheduled_start: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False
@@ -626,7 +628,6 @@ class Booking(db.Model):
         DateTime,
         nullable=False
     )
-
     # Congelados al reservar (tarifa, minutos y total): si el servicio cambia
     # después, esta reserva conserva los suyos. El histórico no se reescribe.
     hourly_rate: Mapped[float] = mapped_column(
@@ -641,7 +642,6 @@ class Booking(db.Model):
         Float,
         nullable=False
     )
-
     status: Mapped[BookingStatus] = mapped_column(
         SQLEnum(BookingStatus),
         nullable=False
@@ -668,7 +668,10 @@ class Booking(db.Model):
 
     # ---- RELACIONES ----
     # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
+    # Así se lee booking.service en vez de buscarlo.
     worker = db.relationship("Worker")
+    service = db.relationship("Service")
+    address = db.relationship("Address")
 
     # Los tramos, en orden. Con booking.days.append(...) se guardan
     # junto con la reserva.
@@ -676,6 +679,27 @@ class Booking(db.Model):
         "BookingDay",
         order_by="BookingDay.starts_at"
     )
+
+    # Las tareas en el orden en que se añadieron. Con
+    # booking.tasks.append(...) se guardan junto con la reserva.
+    tasks = db.relationship(
+        "BookingTask",
+        order_by="BookingTask.booking_task_id"
+    )
+
+    # ---- DATOS CALCULADOS ----
+
+    @property
+    def hours(self):
+        """Horas contratadas: la suma de sus tramos.
+
+        Fin menos inicio no vale: una reserva de viernes a lunes contaría
+        también las noches y el fin de semana.
+        """
+        seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
+        return int(seconds // 3600)
+
+    # ---- SERIALIZADORES ----
 
     def serialize(self):
         return {
@@ -722,6 +746,21 @@ class Booking(db.Model):
                 if self.updated_at
                 else None
             ),
+        }
+
+    def serialize_detail(self):
+        """La reserva completa: servicio, dirección, tramos y tareas. La
+        usa la confirmación del panel, y la usará "Mis reservas" (#16)."""
+        return {
+            **self.serialize(),
+            "hours": self.hours,
+            "service": {
+                "name": self.service.name,
+                "slug": self.service.slug,
+            },
+            "address": self.address.serialize(),
+            "days": [day.serialize() for day in self.days],
+            "tasks": [task.serialize() for task in self.tasks],
         }
 
 
