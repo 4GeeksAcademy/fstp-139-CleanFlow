@@ -313,14 +313,36 @@ def cancel_company(booking_id):
 
 
 # Vista mínima de integración con #16, ausente en el ZIP de partida.
+@absence_api.route("/bookings", methods=["GET"])
 @absence_api.route("/my/bookings", methods=["GET"])
 @role_required("client")
 def my_bookings():
-    bookings = db.session.execute(booking_query().where(
-        Booking.client_id == int(get_jwt_identity())
-    ).order_by(Booking.scheduled_start.desc())).scalars().all()
-    # No expone motivos médicos ni notas de las ausencias.
-    return jsonify({"bookings": [booking.serialize() for booking in bookings]})
+    user_id = int(get_jwt_identity())
+    requested_client_id = request.args.get("client_id")
 
+    if requested_client_id is not None:
+        try:
+            requested_client_id = int(requested_client_id)
+        except ValueError:
+            return jsonify({"message": "client_id debe ser un entero."}), 400
 
+        if requested_client_id != user_id:
+            return jsonify({
+                "message": "Solo puedes consultar tus propias reservas."
+            }), 403
 
+    bookings = db.session.execute(
+        booking_query().options(
+            selectinload(Booking.service),
+            selectinload(Booking.address),
+        ).where(
+            Booking.client_id == user_id
+        ).order_by(
+            Booking.scheduled_start.desc(),
+            Booking.booking_id.desc(),
+        )
+    ).scalars().all()
+
+    return jsonify({
+        "bookings": [booking.serialize() for booking in bookings]
+    })

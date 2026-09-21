@@ -669,6 +669,8 @@ class Booking(db.Model):
     # ---- RELACIONES ----
     # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
     worker = db.relationship("Worker")
+    service = db.relationship("Service")
+    address = db.relationship("Address")
 
     # Los tramos, en orden. Con booking.days.append(...) se guardan
     # junto con la reserva.
@@ -683,6 +685,8 @@ class Booking(db.Model):
             "client_id": self.client_id,
             "service_id": self.service_id,
             "address_id": self.address_id,
+            "service_name": self.service.name if self.service else None,
+            "address": self.address.serialize() if self.address else None,
             "worker_id": self.worker_id,
             "scheduled_start": (
                 self.scheduled_start.isoformat()
