@@ -1,3 +1,13 @@
+/**
+ * Pantalla de registro de clientes.
+ *
+ * Como el login, solo el contenido de la tarjeta: el marco lo pone
+ * AuthLayout. Tras el alta abre la sesión sola y vuelve a donde iba el
+ * usuario: el catálogo si venía de "Reservar ahora" y, si no, /dashboard.
+ *
+ * Los estilos son las clases auth-* de auth.css.
+ */
+
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { login, register } from "../../services/authService";
@@ -13,6 +23,7 @@ export const Register = () => {
     const location = useLocation();
     const from = location.state?.from?.pathname || "/dashboard";
 
+    // Inputs controlados, como en el login: el estado manda, no el DOM.
     const [formData, setFormData] = useState({
         name: "",
         last_name: "",
@@ -20,8 +31,14 @@ export const Register = () => {
         phone: "",
         password: ""
     });
+
+    // Error del backend (correo repetido, datos que faltan...) o de conexión.
     const [error, setError] = useState("");
+
+    // Evita el doble envío y cambia el texto del botón mientras se guarda.
     const [loading, setLoading] = useState(false);
+
+    // Un solo manejador para todos los campos: cada input lleva su `name`.
     const handleChange = (event) => {
         setFormData({
             ...formData,
@@ -184,7 +201,7 @@ export const Register = () => {
                 </button>
             </form>
 
-                        {/* El mismo destino de vuelta, por si se arrepiente y prefiere
+            {/* El mismo destino de vuelta, por si se arrepiente y prefiere
                 entrar con una cuenta que ya tiene. */}
             <p className="auth-foot">
                 ¿Ya tienes una cuenta? <Link to="/login" state={location.state}>Inicia sesión</Link>

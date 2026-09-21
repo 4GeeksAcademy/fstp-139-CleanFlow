@@ -182,7 +182,7 @@ export const Login = () => {
                 <button type="submit" className="auth-btn">Iniciar sesión</button>
             </form>
 
-                    {/* state={location.state}: el destino viaja al registro, y tras
+            {/* state={location.state}: el destino viaja al registro, y tras
                 el alta se vuelve a donde quería ir (WEB-15). */}
             <p className="auth-foot">
                 ¿No tienes una cuenta? <Link to="/register" state={location.state}>Regístrate</Link>
