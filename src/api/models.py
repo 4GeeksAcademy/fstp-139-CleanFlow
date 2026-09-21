@@ -64,7 +64,8 @@ class User(db.Model):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(150), nullable=False)
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
-    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(
+        String(120), unique=True, nullable=False)
 
     # El hash, nunca la contraseña en claro (ver set_password).
     password_hash: Mapped[str] = mapped_column(nullable=False)
@@ -180,7 +181,6 @@ class Shift(db.Model):
         nullable=False
     )
 
-
     # Días de la semana en que se trabaja, como texto: "1,2,3,4,5".
     # Lunes = 1 ... domingo = 7, igual que date.isoweekday(): se compara
     # sin convertir nada. Se lee y se escribe con la propiedad `days`.
@@ -269,11 +269,11 @@ class Worker(db.Model):
     )
 
     user = db.relationship(
-    "User",
-    foreign_keys=[user_id],
-    backref="worker",
-    lazy=True
-)
+        "User",
+        foreign_keys=[user_id],
+        backref="worker",
+        lazy=True
+    )
 
     shift = db.relationship(
         "Shift",
@@ -659,6 +659,13 @@ class Booking(db.Model):
         nullable=True
     )
 
+    # Cancelación empresarial: visible al cliente, sin exponer ausencias.
+    cancelled_by_company: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    cancellation_reason: Mapped[str | None] = mapped_column(
+        Text, nullable=True)
+
     # ---- RELACIONES ----
     # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
     worker = db.relationship("Worker")
@@ -696,6 +703,15 @@ class Booking(db.Model):
                 else None
             ),
             "client_notes": self.client_notes,
+            "cancelled_by_company": self.cancelled_by_company,
+            "cancellation_reason": self.cancellation_reason,
+            "worker_name": (
+                self.worker.user.name + (
+                    " " + self.worker.user.last_name.strip()[0] + "."
+                    if self.worker.user.last_name.strip() else ""
+                ) if self.worker and self.worker.user else None
+            ),
+            "days": [day.serialize() for day in self.days],
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at
@@ -970,4 +986,40 @@ class Media(db.Model):
                 if self.uploaded_at
                 else None
             ),
+        }
+
+# Ausencias por días completos de Madrid; ambos extremos son inclusivos.
+
+
+class Absence(db.Model):
+    __tablename__ = "absences"
+    __table_args__ = (
+        db.CheckConstraint(
+            "ends_on IS NULL OR ends_on >= starts_on", name="ck_absence_dates"),
+        db.CheckConstraint(
+            "reason IN ('vacaciones', 'baja', 'otro')", name="ck_absence_reason"),
+    )
+
+    absence_id: Mapped[int] = mapped_column(primary_key=True)
+    worker_id: Mapped[int] = mapped_column(
+        ForeignKey("workers.worker_id"), nullable=False, index=True
+    )
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reason: Mapped[str] = mapped_column(String(20), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Una carga por grupo de trabajadores, no una consulta por hueco.
+    worker = db.relationship(
+        "Worker", backref=db.backref("absences", lazy="selectin")
+    )
+
+    def serialize(self):
+        return {
+            "absence_id": self.absence_id,
+            "worker_id": self.worker_id,
+            "starts_on": self.starts_on.isoformat(),
+            "ends_on": self.ends_on.isoformat() if self.ends_on else None,
+            "reason": self.reason,
+            "notes": self.notes,
         }
