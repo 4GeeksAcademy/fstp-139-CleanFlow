@@ -680,6 +680,8 @@ class Booking(db.Model):
         order_by="BookingTask.booking_task_id"
     )
 
+    # ---- DATOS CALCULADOS ----
+
     @property
     def hours(self):
         """Horas contratadas: la suma de sus tramos.
@@ -689,6 +691,8 @@ class Booking(db.Model):
         """
         seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
         return int(seconds // 3600)
+
+    # ---- SERIALIZADORES ----
 
     def serialize(self):
         return {
@@ -729,9 +733,8 @@ class Booking(db.Model):
         }
 
     def serialize_detail(self):
-        """La reserva con lo que enseña la confirmación del panel (y, más
-        adelante, "Mis reservas" de la #16): servicio, dirección, tramos
-        y tareas."""
+        """La reserva completa: servicio, dirección, tramos y tareas. La
+        usa la confirmación del panel, y la usará "Mis reservas" (#16)."""
         return {
             **self.serialize(),
             "hours": self.hours,

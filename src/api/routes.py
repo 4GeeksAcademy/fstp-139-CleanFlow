@@ -1817,9 +1817,10 @@ def get_availability():
 # ----------------------------------------------------------------------
 #   POST   /api/bookings   crear una reserva
 #
-# Las cuentas de esta sección están repetidas en el frontend, en
-# bookingRules.js, para enseñarlas en directo. Si cambia una, cambian
-# las dos: si no, el panel enseña un precio y el servidor lo rechaza.
+# De arriba abajo: las reglas, validate_booking() y create_booking().
+#
+# ⚠️ Las cuentas están repetidas en bookingRules.js (frontend): si cambia
+# una, cambian las dos, o el panel enseñará un precio que aquí se rechaza.
 
 # La ventana de reserva y la hora de Madrid vienen de api/availability.py:
 # cada regla vive en un solo sitio.
@@ -1838,7 +1839,7 @@ def hours_needed(service, task_count):
 
         tareas × minutos  →  a horas, redondeando hacia arriba
                           →  nunca menos que el mínimo del servicio
-                          →  subido hasta respetar el salto (6, 9, 12...)
+                          →  subido hasta respetar el salto (8, 11, 14...)
 
     Fin de obra (sin minutos por tarea) necesita solo su mínimo.
     """

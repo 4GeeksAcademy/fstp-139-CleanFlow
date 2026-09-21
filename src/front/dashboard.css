@@ -3181,6 +3181,8 @@ textarea.cf-dash-input {
 
 .cf-booking__worker { cursor: pointer; }
 
+/* El radio no se ve, pero sigue ahí: con él funcionan el teclado y el
+   lector de pantalla. Lo que se pinta es la tarjeta de al lado. */
 .cf-booking__worker input {
   position: absolute;
   opacity: 0;
@@ -3321,7 +3323,7 @@ textarea.cf-dash-input {
   font-weight: 600;
 }
 
-/* El segundo día de una reserva larga: se marca, pero no se elige. */
+/* Los días extra de una reserva larga: se marcan, pero no se eligen. */
 .cf-booking__day--spill {
   border-style: dashed;
   border-color: var(--cf-accent);
@@ -3393,6 +3395,7 @@ textarea.cf-dash-input {
 
 /* ---------- RESUMEN ---------- */
 
+/* Pegado arriba al hacer scroll: el total siempre a la vista. */
 .cf-booking__summary {
   position: sticky;
   top: var(--cf-space-4);
@@ -3496,7 +3499,9 @@ textarea.cf-dash-input {
   gap: var(--cf-space-3);
 }
 
-/* ---------- PANTALLAS ESTRECHAS ---------- */
+/* ---------- PANTALLAS ESTRECHAS ----------
+   900px: el resumen baja debajo de los pasos. 560px: todo a una columna
+   y tarjetas más compactas. */
 
 @container (max-width: 900px) {
   .cf-booking__layout { grid-template-columns: minmax(0, 1fr); }

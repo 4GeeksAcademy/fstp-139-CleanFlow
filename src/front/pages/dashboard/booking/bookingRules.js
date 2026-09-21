@@ -1,13 +1,16 @@
 /**
  * LAS CUENTAS DE UNA RESERVA (#14).
  *
- * Las mismas que hace el backend en routes.py (hours_needed y
- * validate_booking). Aquí solo sirven para enseñarlas en directo mientras
- * el cliente elige: quien decide es siempre el servidor.
+ * Las mismas que hace el backend (hours_needed y validate_booking en
+ * routes.py), para enseñarlas en directo. Quien decide es el servidor.
  *
- * ⚠️ Si cambia una regla, hay que cambiarla en los dos sitios. Si no, el
- * panel enseña un precio y el servidor rechaza la reserva.
+ * ⚠️ Si cambia una regla, cambia en los dos sitios: si no, el panel
+ * enseña un precio que el servidor rechaza.
  */
+
+// ----------------------------------------------------------------------
+// REGLAS
+// ----------------------------------------------------------------------
 
 // Jornada máxima de un trabajador, la duración de un turno: una reserva más
 // larga se reparte en varios días (12 h = 8 + 4). Igual que
@@ -18,12 +21,16 @@ export const MAX_HOURS_PER_DAY = 8;
 // MAX_REQUEST_HOURS en routes.py, que es lo que acepta la disponibilidad.
 export const MAX_HOURS = 60;
 
+// ----------------------------------------------------------------------
+// CUENTAS
+// ----------------------------------------------------------------------
+
 /**
  * Horas mínimas que exigen las tareas:
  *
  *   tareas × minutos  →  a horas, redondeando hacia arriba
  *                     →  nunca menos que el mínimo del servicio
- *                     →  subido hasta respetar el salto (6, 9, 12...)
+ *                     →  subido hasta respetar el salto (8, 11, 14...)
  *
  * Fin de obra (sin minutos por tarea) necesita solo su mínimo.
  */

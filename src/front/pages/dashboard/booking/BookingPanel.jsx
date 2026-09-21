@@ -8,9 +8,10 @@
  * Se llega desde "Contratar" en el catálogo, que trae ?servicio=<slug>. Sin
  * ese parámetro, o con un servicio que ya no existe, se pide elegir uno.
  *
- * Cuentas:  booking/bookingRules.js, las mismas que hace el backend.
- * API:      services/bookingService.js y services/availabilityService.js.
- * Estilos:  dashboard.css (cf-dash-* y cf-booking__*).
+ * Cuentas:      booking/bookingRules.js, las mismas que hace el backend.
+ * Componentes:  components/dashboard/booking/ (calendario y trabajador).
+ * API:          services/bookingService.js y services/availabilityService.js.
+ * Estilos:      dashboard.css (cf-dash-* y cf-booking__*).
  */
 
 import { useEffect, useState } from "react"
@@ -28,6 +29,10 @@ import { BookingCalendar } from "../../../components/dashboard/booking/BookingCa
 import { ANY_WORKER, WorkerPicker } from "../../../components/dashboard/booking/WorkerPicker"
 import "../../../dashboard.css"
 
+// ----------------------------------------------------------------------
+// CONSTANTES
+// ----------------------------------------------------------------------
+
 // Nombre del parámetro con el que llega el servicio elegido. Es un CONTRATO
 // con ServiceCatalog.jsx: si cambia aquí, cambia allí.
 const SERVICE_PARAM = "servicio"
@@ -39,16 +44,6 @@ const SKELETON_BLOCKS = 3
 // availability.py: con él se calcula hasta qué mes llegan las flechas.
 const BOOKING_HORIZON_DAYS = 60
 
-/** Una fecha en "2026-10", el formato que pide la API. */
-const monthOf = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
-
-/** Suma meses a un "2026-10". */
-const shiftMonth = (month, step) => {
-    const [year, number] = month.split("-").map(Number)
-
-    return monthOf(new Date(year, number - 1 + step, 1))
-}
-
 // Las direcciones del cliente se gestionan en sus ajustes (#13).
 const ADDRESSES_PATH = "/dashboard/profile/addresses"
 
@@ -58,11 +53,18 @@ const BOOKINGS_PATH = "/dashboard/contracted-services"
 // El mismo tope que client_notes en la API.
 const NOTES_MAX_LENGTH = 1000
 
-/** "Calle de Alcalá 42, 3º B · 28014 Madrid". */
-const addressText = (address) => {
-    const floor = address.floor ? `, ${address.floor}` : ""
+// ----------------------------------------------------------------------
+// TEXTOS Y FECHAS
+// ----------------------------------------------------------------------
 
-    return `${address.street} ${address.number}${floor} · ${address.postal_code} ${address.city}`
+/** Una fecha en "2026-10", el formato que pide la API. */
+const monthOf = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
+/** Suma meses a un "2026-10". */
+const shiftMonth = (month, step) => {
+    const [year, number] = month.split("-").map(Number)
+
+    return monthOf(new Date(year, number - 1 + step, 1))
 }
 
 /** "2026-10-05" -> "lun 5 oct", para el resumen. */
@@ -85,6 +87,27 @@ const bookedDayText = (bookedDay) => {
     return `${dayText(date)} · ${time.slice(0, 5)} a ${bookedDay.ends_at.split("T")[1].slice(0, 5)}`
 }
 
+/** "Calle de Alcalá 42, 3º B · 28014 Madrid". */
+const addressText = (address) => {
+    const floor = address.floor ? `, ${address.floor}` : ""
+
+    return `${address.street} ${address.number}${floor} · ${address.postal_code} ${address.city}`
+}
+
+/** "1 h" · "1 h 30 min": lo que suman las tareas elegidas. */
+const taskTimeText = (minutes) => {
+    const hours = Math.floor(minutes / 60)
+    const rest = minutes % 60
+
+    if (!hours) return `${rest} min`
+
+    return rest ? `${hours} h ${rest} min` : `${hours} h`
+}
+
+// ----------------------------------------------------------------------
+// PIEZAS DE LA PANTALLA
+// ----------------------------------------------------------------------
+
 // Título y entradilla. También salen mientras carga y con error.
 const PageHeader = () => (
     <div className="cf-booking__header">
@@ -106,16 +129,6 @@ const BlockHead = ({ step, title, note }) => (
     </div>
 )
 
-/** "1 h" · "1 h 30 min": lo que suman las tareas elegidas. */
-const taskTimeText = (minutes) => {
-    const hours = Math.floor(minutes / 60)
-    const rest = minutes % 60
-
-    if (!hours) return `${rest} min`
-
-    return rest ? `${hours} h ${rest} min` : `${hours} h`
-}
-
 // ----------------------------------------------------------------------
 // COMPONENTE
 // ----------------------------------------------------------------------
@@ -124,6 +137,11 @@ export const BookingPanel = () => {
     const { store, dispatch } = useGlobalReducer()
     const [searchParams] = useSearchParams()
 
+    // ------------------------------------------------------------------
+    // ESTADO
+    // ------------------------------------------------------------------
+
+    // Lo que se carga al entrar.
     const [services, setServices] = useState([])
     const [tasks, setTasks] = useState([])
     const [workers, setWorkers] = useState([])
@@ -164,6 +182,10 @@ export const BookingPanel = () => {
 
     // Sube de uno en uno para volver a pedir los huecos tras un 409.
     const [slotsReload, setSlotsReload] = useState(0)
+
+    // ------------------------------------------------------------------
+    // CARGA Y EFECTOS
+    // ------------------------------------------------------------------
 
     const loadCatalog = async () => {
         setLoading(true)
@@ -299,6 +321,10 @@ export const BookingPanel = () => {
         }
     }, [slots, day, start])
 
+    // ------------------------------------------------------------------
+    // MIENTRAS CARGA O SI FALLA
+    // ------------------------------------------------------------------
+
     if (loading) {
         return (
             <section className="cf-booking" aria-busy="true">
@@ -339,6 +365,10 @@ export const BookingPanel = () => {
             </section>
         )
     }
+
+    // ------------------------------------------------------------------
+    // LO QUE SE DEDUCE DE LO ELEGIDO
+    // ------------------------------------------------------------------
 
     // null mientras no hay servicio elegido: los pasos que dependen de él
     // (tareas, horas y precio) no se pintan hasta entonces.
@@ -507,7 +537,10 @@ export const BookingPanel = () => {
     const [firstTask] = tasks
     const nextTaskId = Number(taskToAdd) || firstTask?.task_id
 
-    // ---- CONFIRMACIÓN ----
+    // ------------------------------------------------------------------
+    // CONFIRMACIÓN
+    // ------------------------------------------------------------------
+
     // Reservado: en lugar del formulario se enseña lo contratado, con lo que
     // devuelve la API (no lo que eligió el cliente: manda el servidor).
     if (booking) {
@@ -572,6 +605,10 @@ export const BookingPanel = () => {
             </section>
         )
     }
+
+    // ------------------------------------------------------------------
+    // PANEL
+    // ------------------------------------------------------------------
 
     return (
         <section className="cf-booking">
