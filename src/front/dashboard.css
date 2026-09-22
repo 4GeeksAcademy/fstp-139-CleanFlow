@@ -1491,6 +1491,18 @@ textarea.cf-dash-input {
   outline-offset: 1px;
 }
 
+/* En oscuro el menú baja un punto de luz. El resto del panel todavía no
+   cambia: eso es la issue del modo oscuro completo.
+   ⚠️ Verdes a mano, como el degradado claro. */
+.cf-side[data-theme="dark"] {
+  background: linear-gradient(180deg, #2a3623, #1d271a);
+}
+
+/* Plegado el texto no cabe: quedan el sol y la luna, uno debajo del otro. */
+.cf-side--rail .cf-side__theme button {
+  position: relative;
+}
+
 /* ---------- PLEGADO: SOLO ICONOS ---------- */
 
 .cf-side--rail .cf-side__name,

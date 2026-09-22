@@ -81,6 +81,12 @@ const PANEL_LABEL = {
     manager: "Panel del encargado",
 }
 
+// Los dos temas del interruptor del pie.
+const THEMES = [
+    { value: "light", label: "Claro", icon: "fa-sun" },
+    { value: "dark", label: "Oscuro", icon: "fa-moon" },
+]
+
 // Dónde se guarda si el menú quedó plegado. Es una preferencia de este
 // navegador, no del usuario: no tiene sentido llevarla al servidor.
 const COLLAPSED_KEY = "cleanflow:sidebar-collapsed"
@@ -102,6 +108,18 @@ const readCollapsed = () => {
         return saved === "true"
     } catch {
         return false
+    }
+}
+
+// El tema elegido, guardado en este navegador. Cuando exista el modo
+// oscuro de todo el panel, esta misma clave la leerá el marco.
+const THEME_KEY = "cleanflow:theme"
+
+const readTheme = () => {
+    try {
+        return window.localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"
+    } catch {
+        return "light"
     }
 }
 
@@ -154,6 +172,24 @@ export const Sidebar = () => {
             // Sin guardado: el menú funciona igual, solo que no se recuerda.
         }
     }, [collapsed])
+
+    // ----------------------------------------------------------------------
+    // TEMA CLARO U OSCURO
+    // ----------------------------------------------------------------------
+    // De momento solo cambia el menú: llevarlo a todas las pantallas del
+    // panel es su propia issue. El interruptor se deja puesto y funcionando
+    // para no tener que rehacer el pie después.
+
+    // Sin paréntesis: se lee una vez, al montar.
+    const [theme, setTheme] = useState(readTheme)
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(THEME_KEY, theme)
+        } catch {
+            // Sin guardado: el interruptor funciona, solo que no se recuerda.
+        }
+    }, [theme])
 
     // ----------------------------------------------------------------------
     // MENÚ DE MÓVIL
@@ -279,6 +315,7 @@ export const Sidebar = () => {
             <aside
                 id="dashboard-sidebar"
                 className={"cf-side" + (collapsed ? " cf-side--rail" : "") + (menuOpen ? " cf-side--open" : "")}
+                data-theme={theme}
                 aria-label="Menú del panel"
             >
                 {/* Plegar y desplegar. aria-expanded dice si el menú está
@@ -381,6 +418,23 @@ export const Sidebar = () => {
                     solos al guardar en Ajustes, porque esas pantallas
                     despachan SET_USER. */}
                 <div className="cf-side__foot">
+                    {/* role="group" y aria-pressed: son dos botones que
+                        comparten una elección, no un menú de navegación. */}
+                    <div className="cf-side__theme" role="group" aria-label="Tema del panel">
+                        {THEMES.map(option => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setTheme(option.value)}
+                                aria-pressed={theme === option.value}
+                            >
+                                <i className={`fa-solid ${option.icon}`} aria-hidden="true" />
+                                <span>{option.label}</span>
+                                <span className="cf-side__tip">{option.label}</span>
+                            </button>
+                        ))}
+                    </div>
+
                     <p className="cf-side__paneltag">{PANEL_LABEL[role]}</p>
 
                     <div className="cf-side__user">
