@@ -85,11 +85,21 @@ const PANEL_LABEL = {
 // navegador, no del usuario: no tiene sentido llevarla al servidor.
 const COLLAPSED_KEY = "cleanflow:sidebar-collapsed"
 
+// Por debajo de 1024px el menú desplegado se come la página: si nunca se
+// ha elegido nada en este navegador, arranca plegado.
+const TABLET_QUERY = "(max-width: 1023.98px)"
+
 // localStorage puede fallar (ventana privada, permisos) y no vale la pena
 // romper el menú por eso: ante la duda, desplegado.
 const readCollapsed = () => {
     try {
-        return window.localStorage.getItem(COLLAPSED_KEY) === "true"
+        const saved = window.localStorage.getItem(COLLAPSED_KEY)
+
+        // Sin nada guardado manda el tamaño de la pantalla; si el usuario ya
+        // eligió, se respeta su elección.
+        if (saved === null) return window.matchMedia(TABLET_QUERY).matches
+
+        return saved === "true"
     } catch {
         return false
     }
@@ -240,7 +250,13 @@ export const Sidebar = () => {
                 En tablet y escritorio, dashboard.css la oculta. */}
             <header className="cf-side-topbar">
                 <Link to="/dashboard" className="cf-side-topbar__brand" onClick={closeMenu}>
-                    Mi App
+                    <span className="cf-side__logo">
+                        <Logo size={28} />
+                    </span>
+                    <span className="cf-side__name">
+                        <b>CLEAN</b>
+                        <span>FLOW</span>
+                    </span>
                 </Link>
 
                 {/* aria-controls dice QUÉ abre y aria-expanded si está abierto. */}
