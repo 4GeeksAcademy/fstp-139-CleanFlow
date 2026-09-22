@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { Avatar } from "./Avatar"
+import { AffectedCount } from "./absences/AffectedCount"
 // Estilos del grupo desplegable y del menú de móvil (cf-side-*).
 import "../../dashboard.css"
 
@@ -35,8 +36,6 @@ import "../../dashboard.css"
 //
 // Decide `roles`, no el orden: los comentarios por rol son solo para leer.
 // ¿Más datos por enlace (un icono)? Se añaden como otra propiedad.
-
-import { AffectedCount } from "./AffectedCount";
 
 const LINKS = [
     // --- Comunes a todos los roles ---

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAffected } from "../../services/absenceService";
+import { getAffected } from "../../../services/absenceService";
 
 export const AffectedCount = ({ token, pathname }) => {
     const [count, setCount] = useState(null);
@@ -22,7 +22,14 @@ export const AffectedCount = ({ token, pathname }) => {
             window.removeEventListener("focus", refresh);
         };
     }, [token, pathname]);
-    return <span className="badge bg-warning text-dark ms-2" aria-label={count == null ? "Contador no disponible" : `${count} reservas afectadas`}>
-        {count == null ? "…" : count}
-    </span>;
+    // Solo se pinta cuando hay alguna: un 0 o un "…" en el menú son ruido.
+    // El texto oculto completa lo que oye el lector: "Reservas afectadas, 3 pendientes".
+    if (!count) return null;
+
+    return (
+        <span className="cf-side-count">
+            {count}
+            <span className="sr-only"> pendientes</span>
+        </span>
+    );
 };
