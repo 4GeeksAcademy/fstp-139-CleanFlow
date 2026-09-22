@@ -437,3 +437,51 @@ def complete_booking_task(task_id):
     db.session.commit()
 
     return jsonify({"task": task.serialize()}), 200
+
+
+@absence_api.route("/bookings/<int:booking_id>/complete", methods=["PATCH"])
+@role_required("worker")
+@transaction
+def complete_booking(booking_id):
+    user_id = int(get_jwt_identity())
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    worker = db.session.get(Worker, booking.worker_id)
+    if worker is None or worker.user_id != user_id:
+        return jsonify({
+            "message": "Solo puedes completar tus reservas asignadas."
+        }), 403
+
+    # Repetir la petición no modifica una reserva ya completada.
+    if booking.status == BookingStatus.COMPLETED:
+        return jsonify({"booking": booking.serialize()}), 200
+
+    if booking.status != BookingStatus.CONFIRMED:
+        return jsonify({
+            "message": "Solo puedes completar reservas confirmadas."
+        }), 409
+
+    tasks = db.session.execute(
+        db.select(BookingTask).where(
+            BookingTask.booking_id == booking_id
+        )
+    ).scalars().all()
+
+    if any(task.status != BookingTaskStatus.COMPLETED for task in tasks):
+        return jsonify({
+            "message": "Debes completar todas las tareas antes de finalizar la reserva."
+        }), 409
+
+    booking.status = BookingStatus.COMPLETED
+    booking.updated_at = madrid_now()
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize()}), 200
