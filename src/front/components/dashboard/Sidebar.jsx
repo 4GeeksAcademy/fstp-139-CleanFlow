@@ -27,6 +27,8 @@ import "../../dashboard.css"
 //
 //   roles: ["manager"] / ["worker"] / ["client"]  -> solo ese rol
 //   roles: ["client", "worker", "manager"]         -> común a todos
+//   icon: "fa-users"                -> icono de Font Awesome, al lado del nombre
+//   group: "Equipo"                 -> título bajo el que se agrupa; sin él, va suelto arriba
 //   children: [...] en vez de `to`  -> grupo desplegable; sus `roles` valen para los hijos
 //   end: true (solo Inicio)         -> sin él, saldría activo en todo /dashboard
 //
@@ -34,33 +36,36 @@ import "../../dashboard.css"
 // usuario de abajo.
 //
 // Decide `roles`, no el orden: los comentarios por rol son solo para leer.
-// ¿Más datos por enlace (un icono)? Se añaden como otra propiedad.
+// El orden de arriba abajo es el de la lista: los enlaces de un mismo
+// grupo tienen que ir seguidos.
 
 import { AffectedCount } from "./AffectedCount";
 
 const LINKS = [
-    // --- Comunes a todos los roles ---
-    { to: "/dashboard",                    label: "Inicio",        roles: ["client", "worker", "manager"], end: true },
+    // --- Comunes a todos los roles (sin grupo: van sueltos arriba) ---
+    { to: "/dashboard", label: "Inicio", icon: "fa-house", roles: ["client", "worker", "manager"], end: true },
 
     // --- Solo CLIENT ---
-    { to: "/dashboard/service-catalog",    label: "Catálogo de servicios", roles: ["client"] },
-    { to: "/dashboard/contracted-services", label: "Mis servicios", roles: ["client"] },
+    { to: "/dashboard/service-catalog", label: "Catálogo de servicios", icon: "fa-list", group: "Servicios", roles: ["client"] },
+    { to: "/dashboard/contracted-services", label: "Mis servicios", icon: "fa-calendar-check", group: "Servicios", roles: ["client"] },
 
     // --- Solo WORKER ---
-    { to: "/dashboard/tasks",              label: "Mis tareas",    roles: ["worker"] },
+    { to: "/dashboard/tasks", label: "Mis tareas", icon: "fa-clipboard-check", group: "Mi trabajo", roles: ["worker"] },
 
     // --- Solo MANAGER ---
-    { to: "/dashboard/affected-bookings", label: "Reservas afectadas", roles: ["manager"], affected: true },
-    { to: "/dashboard/workers",            label: "Trabajadores",  roles: ["manager"] },
+    { to: "/dashboard/affected-bookings", label: "Reservas afectadas", icon: "fa-triangle-exclamation", group: "Operativa", roles: ["manager"], affected: true },
+    { to: "/dashboard/workers", label: "Trabajadores", icon: "fa-users", group: "Equipo", roles: ["manager"] },
+    { to: "/dashboard/shifts", label: "Turnos", icon: "fa-clock", group: "Equipo", roles: ["manager"] },
     {
         label: "Administrar catálogo",
+        icon: "fa-broom",
+        group: "Catálogo",
         roles: ["manager"],
         children: [
-            { to: "/dashboard/services-catalog",       label: "Servicios" },
-            { to: "/dashboard/tasks-catalog",   label: "Tareas de servicios" },
+            { to: "/dashboard/services-catalog", label: "Servicios" },
+            { to: "/dashboard/tasks-catalog", label: "Tareas de servicios" },
         ],
     },
-    { to: "/dashboard/shifts",             label: "Turnos",        roles: ["manager"] },
 ]
 
 // Mismo corte que el bloque "SIDEBAR EN MÓVIL" de dashboard.css.
