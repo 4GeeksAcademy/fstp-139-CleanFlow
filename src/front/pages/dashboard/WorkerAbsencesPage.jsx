@@ -26,6 +26,9 @@ import "../../dashboard.css"
 const formatRating = (rating) =>
     rating.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
+// Filas grises que se ven mientras carga.
+const SKELETON_ROWS = 3
+
 // Volver al listado: va arriba en todas las variantes de la página.
 const BackLink = () => (
     <Link to="/dashboard/workers" className="cf-absences__back">
@@ -195,8 +198,32 @@ export const WorkerAbsencesPage = () => {
     if (loading) {
         return (
             <section className="cf-absences" aria-busy="true">
-                <BackLink />
-                <p className="cf-dash-state__text">Cargando ausencias...</p>
+                {/* Aún no se sabe el nombre: barras en lugar del título y del resumen. */}
+                <div className="cf-absences__header">
+                    <div className="cf-absences__skel-head">
+                        <BackLink />
+                        <p className="cf-dash-eyebrow">Equipo</p>
+                        <span className="cf-dash-skel cf-absences__skel-title" />
+                        <span className="cf-dash-skel cf-absences__skel-who" />
+                    </div>
+                </div>
+
+                <p className="sr-only">Cargando ausencias...</p>
+
+                <ul className="cf-absences__list" aria-hidden="true">
+                    {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                        <li className="cf-absences__row" key={index}>
+                            <div>
+                                <span className="cf-dash-skel cf-absences__skel-dates" />
+                                <span className="cf-dash-skel cf-absences__skel-notes" />
+                            </div>
+                            <span className="cf-dash-skel cf-absences__skel-pill" />
+                            <div className="cf-absences__row-actions">
+                                <span className="cf-dash-skel cf-absences__skel-btn" />
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             </section>
         )
     }

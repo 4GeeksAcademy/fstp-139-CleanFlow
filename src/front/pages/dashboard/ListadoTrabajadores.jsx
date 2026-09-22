@@ -26,6 +26,9 @@ const FILTERS = [
     { value: "inactive", label: "Desactivados" },
 ]
 
+// Filas grises que se ven mientras carga.
+const SKELETON_ROWS = 5
+
 // Título, frase y botón de crear. Sin onCreate, el botón no se pinta.
 const PageHeader = ({ onCreate }) => (
     <div className="cf-workers__header">
@@ -172,7 +175,46 @@ export const ListadoTrabajadores = () => {
         return (
             <section className="cf-workers" aria-busy="true">
                 <PageHeader />
-                <p className="cf-dash-state__text">Cargando trabajadores...</p>
+
+                {/* Las barras grises no dicen nada a un lector de pantalla:
+                    este texto sí, y no se ve. */}
+                <p className="sr-only">Cargando trabajadores...</p>
+
+                <ul className="cf-workers__list" aria-hidden="true">
+                    <li className="cf-workers__head">
+                        <span>Nombre</span>
+                        <span>Puesto y turno</span>
+                        <span>Valoración</span>
+                        <span>Estado</span>
+                        <span />
+                    </li>
+
+                    {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                        <li className="cf-workers__row" key={index}>
+                            <div className="cf-workers__person">
+                                <span className="cf-dash-skel cf-skel-avatar" />
+                                <div className="cf-workers__who">
+                                    <span className="cf-dash-skel cf-workers__skel-name" />
+                                    <span className="cf-dash-skel cf-workers__skel-sub" />
+                                </div>
+                            </div>
+                            <div>
+                                <span className="cf-dash-skel cf-workers__skel-fact" />
+                                <span className="cf-dash-skel cf-workers__skel-sub" />
+                            </div>
+                            <div>
+                                <span className="cf-dash-skel cf-workers__skel-fact" />
+                            </div>
+                            <div>
+                                <span className="cf-dash-skel cf-workers__skel-switch" />
+                            </div>
+                            <div className="cf-workers__actions">
+                                <span className="cf-dash-skel cf-workers__skel-btn" />
+                                <span className="cf-dash-skel cf-workers__skel-btn" />
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             </section>
         )
     }

@@ -77,7 +77,7 @@ const formatDuration = (minutes) => {
 }
 
 // Los días en una frase corta: "Lun a sáb", "Sáb y dom", "Lun, mié y vie".
-const summarizeDays = (days) => {
+export const summarizeDays = (days) => {
     const sorted = [...days].sort((a, b) => a - b)
     const names = sorted.map((day) => WEEKDAYS[day - 1].short.toLowerCase())
 

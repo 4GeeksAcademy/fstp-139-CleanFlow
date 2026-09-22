@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import {
     getWorker,
@@ -7,6 +7,18 @@ import {
     createWorker,
 } from "../../services/workerService";
 import { getShifts } from "../../services/shiftService";
+import { summarizeDays } from "./ListadoTurnos";
+import { WorkerSummary } from "../../components/dashboard/workers/WorkerSummary";
+import "../../dashboard.css";
+
+// Los dos roles del equipo, en chips.
+const ROLES = [
+    { value: "worker", label: "Trabajador" },
+    { value: "manager", label: "Encargado" },
+];
+
+// Campos grises de cada sección mientras carga.
+const SKELETON_SECTIONS = [3, 1, 3];
 
 export const EditarTrabajador = () => {
     const { store } = useGlobalReducer();
@@ -20,6 +32,9 @@ export const EditarTrabajador = () => {
     const [loadError, setLoadError] = useState("");
     const [formError, setFormError] = useState("");
     const [saving, setSaving] = useState(false);
+
+    // El ojo de la contraseña (solo al crear).
+    const [showPassword, setShowPassword] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -167,176 +182,325 @@ export const EditarTrabajador = () => {
         setSaving(false);
     };
 
+    // ------------------------------------------------------------------
+    // PANTALLA
+    // ------------------------------------------------------------------
+
+    const backLink = (
+        <Link to="/dashboard/workers" className="cf-worker-form__back">
+            <i className="fa-solid fa-arrow-left" aria-hidden="true" />
+            Trabajadores
+        </Link>
+    );
+
+    const lede = isEditing
+        ? "Sus datos, su puesto y su turno. Las ausencias se gestionan en su propia página."
+        : "Crea su cuenta y asígnale un turno para que pueda recibir reservas.";
+
     if (loading) {
-        return <p>Cargando datos del trabajador...</p>;
+        return (
+            <section className="cf-worker-form" aria-busy="true">
+                <div className="cf-worker-form__header">
+                    {backLink}
+                    <p className="cf-dash-eyebrow">Equipo</p>
+                    <h1 className="cf-worker-form__title">
+                        {isEditing ? "Editar trabajador" : "Nuevo trabajador"}
+                    </h1>
+                    <p className="cf-worker-form__lede">{lede}</p>
+                </div>
+
+                <p className="sr-only">Cargando datos del trabajador...</p>
+
+                {/* La misma forma que el formulario: tres secciones y el resumen. */}
+                <div className="cf-worker-form__editor" aria-hidden="true">
+                    <div className="cf-worker-form__form">
+                        {SKELETON_SECTIONS.map((fields, index) => (
+                            <div className="cf-worker-form__section" key={index}>
+                                <span className="cf-dash-skel cf-worker-form__skel-legend" />
+                                <div className="cf-worker-form__grid">
+                                    {Array.from({ length: fields }, (_, field) => (
+                                        <div key={field}>
+                                            <span className="cf-dash-skel cf-worker-form__skel-label" />
+                                            <span className="cf-dash-skel cf-worker-form__skel-input" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="cf-worker-form__aside">
+                        <span className="cf-dash-skel cf-worker-form__skel-legend" />
+                        <div className="cf-worker-form__who">
+                            <span className="cf-dash-skel cf-skel-avatar" />
+                            <div className="cf-workers__who cf-worker-form__skel-head">
+                                <span className="cf-dash-skel cf-worker-form__skel-name" />
+                                <span className="cf-dash-skel cf-worker-form__skel-sub" />
+                            </div>
+                        </div>
+                        <div className="cf-worker-form__facts">
+                            <div>
+                                <span className="cf-dash-skel cf-worker-form__skel-sub" />
+                                <span className="cf-dash-skel cf-worker-form__skel-fact" />
+                            </div>
+                            <div>
+                                <span className="cf-dash-skel cf-worker-form__skel-sub" />
+                                <span className="cf-dash-skel cf-worker-form__skel-fact" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
     }
 
     if (loadError) {
         return (
-            <div>
-                <div className="alert alert-danger" role="alert">
-                    {loadError}
+            <section className="cf-worker-form">
+                <div className="cf-worker-form__header">{backLink}</div>
+
+                <div className="cf-dash-state cf-dash-state--error" role="alert">
+                    <span className="cf-dash-state__icon">
+                        <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                    </span>
+                    <p className="cf-dash-state__title">No se han podido cargar los datos</p>
+                    <p className="cf-dash-state__text">{loadError}</p>
+                    <button
+                        type="button"
+                        className="cf-dash-btn"
+                        onClick={() => navigate("/dashboard/workers")}
+                    >
+                        Volver a trabajadores
+                    </button>
                 </div>
-                <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => navigate("/dashboard/workers")}
-                >
-                    Volver a trabajadores
-                </button>
-            </div>
+            </section>
         );
     }
 
-    const fields = [
-        { name: "name", label: "Nombre", type: "text", required: true },
-        { name: "last_name", label: "Apellidos", type: "text", required: true },
-        {
-            name: "phone",
-            label: "Teléfono",
-            type: "tel",
-            required: !isEditing,
-        },
-        { name: "email", label: "Email", type: "email", required: true },
-        { name: "position", label: "Puesto", type: "text" },
-        { name: "hire_date", label: "Fecha de contratación", type: "date" },
-    ];
+    // El turno elegido, para el resumen de la derecha.
+    const selectedShift = shifts.find(
+        (shift) => String(shift.shift_id) === formData.shift_id
+    ) || null;
+
+    // Lo que se escribe, más la foto y la valoración que ya tenía.
+    const summary = {
+        ...formData,
+        avatar_url: profile?.avatar_url,
+        rating: profile?.rating,
+        reviews_count: profile?.reviews_count,
+    };
 
     return (
-        <div className="container mt-4 mb-5">
-            <h1 className="mb-4">
-                {isEditing ? "Editar trabajador" : "Añadir nuevo trabajador"}
-            </h1>
+        <section className="cf-worker-form">
+            <div className="cf-worker-form__header">
+                {backLink}
+                <p className="cf-dash-eyebrow">Equipo</p>
+                {/* El nombre de la carga, no el del formulario: así el título
+                    no cambia mientras se escribe. */}
+                <h1 className="cf-worker-form__title">
+                    {!isEditing
+                        ? "Nuevo trabajador"
+                        : profile
+                            ? `Editar a ${profile.name} ${profile.last_name}`
+                            : "Editar trabajador"}
+                </h1>
+                <p className="cf-worker-form__lede">{lede}</p>
+            </div>
 
-            <form onSubmit={handleSubmit} className="card p-4">
-                {formError && (
-                    <div className="alert alert-danger" role="alert">
-                        {formError}
-                    </div>
-                )}
+            <div className="cf-worker-form__editor">
+                <form onSubmit={handleSubmit} className="cf-worker-form__form">
+                    {formError && (
+                        <p className="cf-dash-alert" role="alert">
+                            {formError}
+                        </p>
+                    )}
 
-                <fieldset disabled={saving}>
-                    <div className="row">
-                        {!isEditing && (
-                            <div className="col-md-6 mb-3">
-                                <label htmlFor="worker-password" className="form-label">
-                                    Contraseña
-                                </label>
-                                <input
-                                    id="worker-password"
-                                    className="form-control"
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    minLength={6}
-                                    autoComplete="new-password"
-                                    required
-                                />
+                    {/* ---------- DATOS PERSONALES ---------- */}
+                    <fieldset className="cf-worker-form__section" disabled={saving}>
+                        <legend className="cf-worker-form__legend">Datos personales</legend>
+                        <div className="cf-worker-form__grid">
+                            <div className="cf-dash-field">
+                                <label className="cf-dash-field__label" htmlFor="worker-name">Nombre</label>
+                                <input id="worker-name" className="cf-dash-input" type="text" name="name"
+                                    value={formData.name} onChange={handleChange} required autoComplete="off" />
                             </div>
-                        )}
-                        {fields.map((field) => (
-                            <div className="col-md-6 mb-3" key={field.name}>
-                                <label
-                                    htmlFor={`worker-${field.name}`}
-                                    className="form-label"
-                                >
-                                    {field.label}
-                                </label>
-                                <input
-                                    id={`worker-${field.name}`}
-                                    className="form-control"
-                                    type={field.type}
-                                    name={field.name}
-                                    value={formData[field.name]}
-                                    onChange={handleChange}
-                                    required={field.required}
-                                />
+                            <div className="cf-dash-field">
+                                <label className="cf-dash-field__label" htmlFor="worker-last_name">Apellidos</label>
+                                <input id="worker-last_name" className="cf-dash-input" type="text" name="last_name"
+                                    value={formData.last_name} onChange={handleChange} required autoComplete="off" />
                             </div>
-                        ))}
-
-                        <div className="col-md-6 mb-3">
-                            <label htmlFor="worker-role" className="form-label">
-                                Rol
-                            </label>
-                            <select
-                                id="worker-role"
-                                className="form-select"
-                                name="role"
-                                value={formData.role}
-                                onChange={handleChange}
-                            >
-                                <option value="worker">Trabajador</option>
-                                <option value="manager">Encargado</option>
-                            </select>
+                            <div className="cf-dash-field">
+                                <label className="cf-dash-field__label" htmlFor="worker-phone">
+                                    Teléfono
+                                    {isEditing && <span className="cf-dash-field__optional"> (opcional)</span>}
+                                </label>
+                                <input id="worker-phone" className="cf-dash-input" type="tel" name="phone"
+                                    value={formData.phone} onChange={handleChange} required={!isEditing} autoComplete="off" />
+                            </div>
                         </div>
+                    </fieldset>
 
-                        <div className="col-md-6 mb-3">
-                            <label htmlFor="worker-shift" className="form-label">
-                                Turno
-                            </label>
-                            <select
-                                id="worker-shift"
-                                className="form-select"
-                                name="shift_id"
-                                value={formData.shift_id}
-                                onChange={handleChange}
-                            >
-                                <option value="">Sin turno</option>
-                                {shifts.map((shift) => (
-                                    <option
-                                        key={shift.shift_id}
-                                        value={shift.shift_id}
-                                    >
-                                        {shift.name} ({shift.start_time} – {shift.end_time})
-                                        {/* Aviso: un turno desactivado no ofrece huecos */}
-                                        {shift.is_active ? "" : " · desactivado"}
-                                    </option>
-                                ))}
-                            </select>
-                            {shifts.length === 0 && (
-                                <p className="text-muted mt-2 mb-0">
-                                    Todavía no hay turnos creados.
+                    {/* ---------- ACCESO ---------- */}
+                    <fieldset className="cf-worker-form__section" disabled={saving}>
+                        <legend className="cf-worker-form__legend">Acceso</legend>
+                        <div className="cf-worker-form__grid">
+                            <div className="cf-dash-field">
+                                <label className="cf-dash-field__label" htmlFor="worker-email">Correo</label>
+                                <input id="worker-email" className="cf-dash-input" type="email" name="email"
+                                    value={formData.email} onChange={handleChange} required autoComplete="off"
+                                    aria-describedby="worker-email-note" />
+                                <p className="cf-dash-field__note" id="worker-email-note">
+                                    {isEditing
+                                        ? "Con él entra en la aplicación. La contraseña la cambia la propia persona en Ajustes."
+                                        : "Con él entrará en la aplicación."}
                                 </p>
+                            </div>
+
+                            {/* Solo al crear: después, la contraseña es cosa de cada uno. */}
+                            {!isEditing && (
+                                <div className="cf-dash-field">
+                                    <label className="cf-dash-field__label" htmlFor="worker-password">
+                                        Contraseña inicial
+                                    </label>
+                                    <div className="cf-account__password">
+                                        <input id="worker-password" className="cf-dash-input"
+                                            type={showPassword ? "text" : "password"} name="password"
+                                            value={formData.password} onChange={handleChange}
+                                            minLength={6} autoComplete="new-password" required
+                                            aria-describedby="worker-password-note" />
+                                        <button type="button" className="cf-account__eye"
+                                            onClick={() => setShowPassword((shown) => !shown)}
+                                            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                            aria-pressed={showPassword}>
+                                            <i className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"}`} aria-hidden="true" />
+                                        </button>
+                                    </div>
+                                    <p className="cf-dash-field__note" id="worker-password-note">
+                                        Mínimo 6 caracteres. Compártela con la persona: podrá cambiarla en Ajustes.
+                                    </p>
+                                </div>
                             )}
                         </div>
+                    </fieldset>
 
-                        <div className="col-md-6 mb-3">
-                            <label htmlFor="worker-status" className="form-label">
-                                Estado
-                            </label>
-                            <select
-                                id="worker-status"
-                                className="form-select"
-                                name="is_active"
-                                value={String(formData.is_active)}
-                                onChange={handleChange}
-                                disabled={!isEditing}
-                            >
-                                <option value="true">Activo</option>
-                                <option value="false">Inactivo</option>
-                            </select>
+                    {/* ---------- TRABAJO ---------- */}
+                    <fieldset className="cf-worker-form__section" disabled={saving}>
+                        <legend className="cf-worker-form__legend">Trabajo</legend>
+                        <div className="cf-worker-form__grid">
+                            {/* Chips y no un select: son dos opciones y se ven de golpe. */}
+                            <div className="cf-dash-field cf-worker-form__wide">
+                                <span className="cf-dash-field__label" id="worker-role-label">Rol</span>
+                                <div className="cf-dash-chips" role="radiogroup" aria-labelledby="worker-role-label">
+                                    {ROLES.map((role) => (
+                                        <label className="cf-dash-chip" key={role.value}>
+                                            <input type="radio" name="role" value={role.value}
+                                                checked={formData.role === role.value} onChange={handleChange} />
+                                            <span>{role.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="cf-dash-field__note">
+                                    El encargado entra al panel de gestión: equipo, turnos y catálogo.
+                                </p>
+                            </div>
+
+                            <div className="cf-dash-field">
+                                <label className="cf-dash-field__label" htmlFor="worker-position">
+                                    Puesto <span className="cf-dash-field__optional">(opcional)</span>
+                                </label>
+                                <input id="worker-position" className="cf-dash-input" type="text" name="position"
+                                    value={formData.position} onChange={handleChange} placeholder="Limpiadora, cristalero..." />
+                            </div>
+                            <div className="cf-dash-field">
+                                <label className="cf-dash-field__label" htmlFor="worker-hire_date">
+                                    En el equipo desde <span className="cf-dash-field__optional">(opcional)</span>
+                                </label>
+                                <input id="worker-hire_date" className="cf-dash-input" type="date" name="hire_date"
+                                    value={formData.hire_date} onChange={handleChange} />
+                            </div>
+
+                            {/* Tarjetas y no un select: el horario y los días se ven sin ir a Turnos. */}
+                            <div className="cf-dash-field cf-worker-form__wide">
+                                <span className="cf-dash-field__label" id="worker-shift-label">Turno</span>
+                                <div className="cf-worker-form__shifts" role="radiogroup" aria-labelledby="worker-shift-label">
+                                    {shifts.map((shift) => (
+                                        <label className="cf-worker-form__shift" key={shift.shift_id}>
+                                            <input type="radio" name="shift_id" value={String(shift.shift_id)}
+                                                checked={formData.shift_id === String(shift.shift_id)} onChange={handleChange} />
+                                            <span className="cf-worker-form__shift-name">
+                                                {shift.name}
+                                                <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                                            </span>
+                                            <span className="cf-worker-form__shift-hours">
+                                                {shift.start_time}–{shift.end_time} · {summarizeDays(shift.work_days)}
+                                                {/* Un turno desactivado no ofrece huecos. */}
+                                                {shift.is_active ? "" : " · desactivado"}
+                                            </span>
+                                        </label>
+                                    ))}
+
+                                    <label className="cf-worker-form__shift">
+                                        <input type="radio" name="shift_id" value=""
+                                            checked={formData.shift_id === ""} onChange={handleChange} />
+                                        <span className="cf-worker-form__shift-name">
+                                            Sin turno
+                                            <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                                        </span>
+                                        <span className="cf-worker-form__shift-hours">No recibirá reservas</span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </fieldset>
 
-                    <div className="d-flex gap-2">
-                        <button type="submit" className="btn btn-primary">
-                            {saving
-                                ? "Guardando..."
-                                : isEditing
-                                    ? "Guardar cambios"
-                                    : "Crear trabajador"}
+                    {/* ---------- ESTADO (solo al editar: se nace activo) ---------- */}
+                    {isEditing && (
+                        <fieldset className="cf-worker-form__section" disabled={saving}>
+                            <legend className="cf-worker-form__legend">Estado</legend>
+                            <div className="cf-worker-form__status">
+                                <p>
+                                    <strong>{formData.is_active ? "Activo" : "Desactivado"}</strong>
+                                    {formData.is_active
+                                        ? "Si lo desactivas, no podrá entrar ni recibir reservas, y sus reservas pendientes pasarán a Reservas afectadas."
+                                        : "No puede entrar ni recibir reservas. Actívalo para que vuelva a salir libre."}
+                                </p>
+                                <label className="cf-dash-switch" htmlFor="worker-status">
+                                    <input id="worker-status" type="checkbox" role="switch" name="is_active"
+                                        checked={formData.is_active} onChange={handleChange} />
+                                    <span className="cf-dash-switch__text">
+                                        {formData.is_active ? "Activo" : "Desactivado"}
+                                    </span>
+                                </label>
+                            </div>
+                        </fieldset>
+                    )}
+
+                    <div className="cf-worker-form__actions">
+                        <button type="submit" className="cf-dash-btn" disabled={saving}>
+                            {!isEditing && <i className="fa-solid fa-user-plus" aria-hidden="true" />}
+                            {saving ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear trabajador"}
                         </button>
                         <button
                             type="button"
-                            className="btn btn-secondary"
+                            className="cf-dash-btn cf-dash-btn--ghost"
                             onClick={() => navigate("/dashboard/workers")}
                         >
                             Cancelar
                         </button>
                     </div>
-                </fieldset>
-            </form>
-        </div>
+                </form>
+
+                <WorkerSummary
+                    worker={summary}
+                    shift={selectedShift}
+                    isEditing={isEditing}
+                    onAbsences={
+                        isEditing && formData.role === "worker"
+                            ? () => navigate(`/dashboard/workers/${workerId}/absences`)
+                            : null
+                    }
+                />
+            </div>
+        </section>
     );
 };

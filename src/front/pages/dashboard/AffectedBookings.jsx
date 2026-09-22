@@ -38,6 +38,9 @@ const PageHeader = ({ onRefresh }) => (
     </div>
 )
 
+// Tarjetas grises que se ven mientras carga.
+const SKELETON_CARDS = 2
+
 // "1 reserva necesita atención" · "3 reservas necesitan atención"
 const countText = (count) =>
     count === 1 ? "1 reserva necesita atención" : `${count} reservas necesitan atención`
@@ -131,7 +134,34 @@ export const AffectedBookings = () => {
         return (
             <section className="cf-affected" aria-busy="true">
                 <PageHeader />
-                <p className="cf-dash-state__text">Cargando reservas...</p>
+
+                <p className="sr-only">Cargando reservas...</p>
+                <span className="cf-dash-skel cf-affected__skel-count" aria-hidden="true" />
+
+                <ul className="cf-affected__list" aria-hidden="true">
+                    {Array.from({ length: SKELETON_CARDS }, (_, index) => (
+                        <li className="cf-affected__card" key={index}>
+                            <div className="cf-affected__top">
+                                <div className="cf-affected__skel-head">
+                                    <span className="cf-dash-skel cf-affected__skel-id" />
+                                    <span className="cf-dash-skel cf-affected__skel-client" />
+                                </div>
+                                <span className="cf-dash-skel cf-affected__skel-pill" />
+                            </div>
+                            <div className="cf-affected__worker">
+                                <span className="cf-dash-skel cf-skel-avatar cf-skel-avatar--sm" />
+                                <span className="cf-dash-skel cf-affected__skel-line" />
+                            </div>
+                            <ul className="cf-affected__days">
+                                <li><span className="cf-dash-skel cf-affected__skel-day" /></li>
+                                <li><span className="cf-dash-skel cf-affected__skel-day" /></li>
+                            </ul>
+                            <div className="cf-affected__resolve">
+                                <span className="cf-dash-skel cf-affected__skel-btn" />
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             </section>
         )
     }
