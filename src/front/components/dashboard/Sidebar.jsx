@@ -1,20 +1,23 @@
 /**
  * SIDEBAR DEL DASHBOARD.
  *
- * DISEÑO PROVISIONAL: lo que va tras el `return` se puede rehacer entero
- * (colores, iconos...). Lo que NO debe cambiar: el array LINKS y el filtro
+ * Tarjeta verde con la marca arriba, las secciones del rol en medio
+ * (agrupadas y con icono) y abajo quién ha entrado, sus ajustes y salir.
+ *
+ * Lo que NO debe cambiar al tocar el diseño: el array LINKS y el filtro
  * por rol, que hacen que cada usuario vea solo sus secciones.
  *
  * En móvil (menos de 768px) se esconde tras una barra con hamburguesa y se
- * abre como panel lateral. En tablet y escritorio se ve fijo, como siempre.
- * Estilos de móvil: dashboard.css, bloque "SIDEBAR EN MÓVIL".
+ * abre como panel lateral. En tablet y escritorio se ve fijo.
+ * Estilos: dashboard.css, bloques "SIDEBAR REDISEÑADO" y "SIDEBAR EN MÓVIL".
  */
 
 import { useEffect, useRef, useState } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { Avatar } from "./Avatar"
-// Estilos del grupo desplegable y del menú de móvil (cf-side-*).
+import { Logo } from "../Logo"
+// Estilos del menú (cf-side__*).
 import "../../dashboard.css"
 
 
@@ -70,6 +73,13 @@ const LINKS = [
 
 // Mismo corte que el bloque "SIDEBAR EN MÓVIL" de dashboard.css.
 const MOBILE_QUERY = "(max-width: 767.98px)"
+
+// En qué panel estás, bajo el bloque de usuario.
+const PANEL_LABEL = {
+    client: "Panel del cliente",
+    worker: "Panel del trabajador",
+    manager: "Panel del encargado",
+}
 
 export const Sidebar = () => {
 
@@ -174,15 +184,22 @@ export const Sidebar = () => {
     }
 
     // ----------------------------------------------------------------------
-    // DISEÑO (PROVISIONAL: ESTO ES LO QUE HAY QUE REHACER)
+    // PANTALLA
     // ----------------------------------------------------------------------
-    // Clases de Bootstrap. Se puede cambiar entero respetando tres cosas:
+    // Tres reglas al tocar el diseño:
     //   1. Recorrer `visibleLinks`, nunca LINKS.
-    //   2. Usar <NavLink> (no <a>): navega sin recargar y marca el activo.
+    //   2. Usar <NavLink> (no <a>): navega sin recargar y pone aria-current
+    //      en la página actual, que es de lo que tira el CSS.
     //   3. Mantener la lógica de cerrar sesión.
 
-    // NavLink pasa isActive a className: marca el enlace de la página actual.
-    const linkClass = ({ isActive }) => "nav-link text-white" + (isActive ? " active" : "")
+    // Título del grupo, solo cuando cambia respecto al enlace anterior.
+    const groupTitle = (link, index) => {
+        const previous = visibleLinks[index - 1]
+
+        if (!link.group || link.group === previous?.group) return null
+
+        return <p className="cf-side__eyebrow">{link.group}</p>
+    }
 
     return (
         <>
@@ -210,18 +227,21 @@ export const Sidebar = () => {
             {/* Solo en móvil: el fondo oscuro. Pulsarlo cierra el menú. */}
             <div className="cf-side-backdrop" hidden={!menuOpen} onClick={closeMenu} />
 
-            {/* cf-side: en móvil, panel que entra por la derecha. En tablet y
-                escritorio esas clases no hacen nada. */}
-            <div
+            <aside
                 id="dashboard-sidebar"
-                className={"cf-side d-flex flex-column flex-shrink-0 p-3 text-bg-dark" + (menuOpen ? " cf-side--open" : "")}
-                style={{ width: "280px" }}
+                className={"cf-side" + (menuOpen ? " cf-side--open" : "")}
+                aria-label="Menú del panel"
             >
-                {/* Marca provisional. Al rehacerla, cambiar este <a> por un
-                    <Link>: un <a> recarga la aplicación entera. */}
-                <a href="/dashboard" className="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
-                    <span className="fs-4">Mi App</span>
-                </a>
+                {/* Marca: el isotipo y el logotipo de la web. */}
+                <Link to="/dashboard" className="cf-side__brand" onClick={closeMenu}>
+                    <span className="cf-side__logo">
+                        <Logo size={34} />
+                    </span>
+                    <span className="cf-side__name">
+                        <b>CLEAN</b>
+                        <span>FLOW</span>
+                    </span>
+                </Link>
 
                 {/* Solo en móvil: cerrar el panel. */}
                 <button
@@ -234,20 +254,23 @@ export const Sidebar = () => {
                     <i className="fa-solid fa-xmark" aria-hidden="true" />
                 </button>
 
-                <hr />
-
-                <ul className="nav nav-pills flex-column mb-auto">
+                <nav className="cf-side__nav" aria-label="Secciones">
                     {/* key: la URL, o el nombre en los grupos (no tienen URL).
                         onClick={closeMenu}: en móvil, elegir un enlace cierra el panel. */}
                     {visibleLinks.map((link, index) => {
                         if (!link.children) {
                             return (
-                                <li className="nav-item" key={link.to}>
-                                    <NavLink to={link.to} end={link.end} className={linkClass} onClick={closeMenu}>
-                                        {link.label}
+                                <div key={link.to}>
+                                    {groupTitle(link, index)}
+
+                                    <NavLink to={link.to} end={link.end} className="cf-side__link" onClick={closeMenu}>
+                                        <i className={`fa-solid ${link.icon}`} aria-hidden="true" />
+                                        <span>{link.label}</span>
                                         {link.affected && <AffectedCount token={store.token} pathname={pathname} />}
+                                        {/* Plegado, el nombre sale al pasar por encima. */}
+                                        <span className="cf-side__tip">{link.label}</span>
                                     </NavLink>
-                                </li>
+                                </div>
                             )
                         }
 
@@ -256,68 +279,81 @@ export const Sidebar = () => {
                         const groupId = `sidebar-group-${index}`
 
                         return (
-                            <li className="nav-item" key={link.label}>
+                            <div key={link.label}>
+                                {groupTitle(link, index)}
+
                                 <button
                                     type="button"
-                                    // --current: cerrado con la página actual dentro.
-                                    className={
-                                        "nav-link text-white cf-side-group" +
-                                        (!open && isGroupCurrent(link) ? " cf-side-group--current" : "")
-                                    }
+                                    className="cf-side__link"
                                     onClick={() => toggleGroup(link)}
                                     aria-expanded={open}
                                     aria-controls={groupId}
+                                    // Cerrado con la página actual dentro: se marca igual que una sección activa.
+                                    aria-current={!open && isGroupCurrent(link) ? "page" : undefined}
                                 >
+                                    <i className={`fa-solid ${link.icon}`} aria-hidden="true" />
                                     <span>{link.label}</span>
-                                    <i className="fa-solid fa-chevron-down" aria-hidden="true" />
+                                    <i className="fa-solid fa-chevron-down cf-side__chevron" aria-hidden="true" />
+                                    <span className="cf-side__tip">{link.label}</span>
                                 </button>
 
-                                <ul id={groupId} className="nav nav-pills flex-column cf-side-sub" hidden={!open}>
+                                <div id={groupId} className="cf-side__sub" hidden={!open}>
                                     {link.children.map(child => (
-                                        <li className="nav-item" key={child.to}>
-                                            <NavLink to={child.to} className={linkClass} onClick={closeMenu}>
-                                                {child.label}
-                                            </NavLink>
-                                        </li>
+                                        <NavLink
+                                            key={child.to}
+                                            to={child.to}
+                                            className="cf-side__link"
+                                            onClick={closeMenu}
+                                        >
+                                            <span>{child.label}</span>
+                                        </NavLink>
                                     ))}
-                                </ul>
-                            </li>
+                                </div>
+                            </div>
                         )
                     })}
-                </ul>
+                </nav>
 
-                <hr />
+                {/* BLOQUE DE USUARIO (#13): en qué panel estás, quién ha
+                    entrado, sus ajustes y salir. El avatar y el nombre cambian
+                    solos al guardar en Ajustes, porque esas pantallas
+                    despachan SET_USER. */}
+                <div className="cf-side__foot">
+                    <p className="cf-side__paneltag">{PANEL_LABEL[role]}</p>
 
-                {/* BLOQUE DE USUARIO (#13): quién ha entrado, sus ajustes y
-                    salir. Con utilidades de Bootstrap, como el resto del
-                    sidebar: vestirlo es de otra issue.
-                    El avatar y el nombre cambian solos al guardar en Ajustes,
-                    porque esas pantallas despachan SET_USER. */}
-                <div className="cf-side-user">
-                    <div className="d-flex align-items-center gap-2 mb-2">
-                        <Avatar user={store.user} size="sm" />
+                    <div className="cf-side__user">
+                        <Avatar user={store.user} size="md" />
 
-                        {/* text-truncate: un correo largo no debe ensanchar el panel. */}
-                        <div className="text-truncate">
-                            <div className="text-white text-truncate">{fullName}</div>
-                            <div className="text-white-50 small text-truncate">{store.user?.email}</div>
+                        {/* Cada línea se recorta: el bloque mide igual con
+                            cualquier nombre y con cualquier correo. */}
+                        <div className="cf-side__who">
+                            <span className="cf-side__username">{fullName}</span>
+                            <span className="cf-side__mail">{store.user?.email}</span>
                         </div>
+
+                        <span className="cf-side__tip">{fullName}</span>
                     </div>
 
-                    <NavLink to="/dashboard/profile" className={linkClass} onClick={closeMenu}>
-                        Ajustes
-                    </NavLink>
+                    <div className="cf-side__actions">
+                        <NavLink to="/dashboard/profile" className="cf-side__action" onClick={closeMenu}>
+                            <i className="fa-solid fa-gear" aria-hidden="true" />
+                            <span>Ajustes</span>
+                            <span className="cf-side__tip">Ajustes</span>
+                        </NavLink>
 
-                    {/* <button> y no <a href="#">: cerrar sesión es una acción, no una navegación. */}
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="btn btn-link nav-link text-white p-0 text-start"
-                    >
-                        Cerrar sesión
-                    </button>
+                        {/* <button> y no <a href="#">: cerrar sesión es una acción, no una navegación. */}
+                        <button
+                            type="button"
+                            className="cf-side__action cf-side__action--exit"
+                            onClick={handleLogout}
+                        >
+                            <i className="fa-solid fa-right-from-bracket" aria-hidden="true" />
+                            <span>Salir</span>
+                            <span className="cf-side__tip">Cerrar sesión</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </aside>
         </>
     )
 };

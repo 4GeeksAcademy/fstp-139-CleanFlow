@@ -1310,7 +1310,7 @@ textarea.cf-dash-input {
    cualquier nombre y con cualquier rol. */
 .cf-side__user {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   padding: 12px;

@@ -22,7 +22,14 @@ export const AffectedCount = ({ token, pathname }) => {
             window.removeEventListener("focus", refresh);
         };
     }, [token, pathname]);
-    return <span className="badge bg-warning text-dark ms-2" aria-label={count == null ? "Contador no disponible" : `${count} reservas afectadas`}>
-        {count == null ? "…" : count}
-    </span>;
+    // Solo se pinta cuando hay alguna: un 0 o un "…" en el menú son ruido.
+    if (!count) return null;
+
+    // El texto oculto completa lo que oye el lector: "Reservas afectadas, 3 pendientes".
+    return (
+        <span className="cf-side__count">
+            {count}
+            <span className="sr-only"> pendientes</span>
+        </span>
+    );
 };
