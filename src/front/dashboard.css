@@ -5,7 +5,7 @@
    Sidebar.jsx y las pantallas de account/ (Vite lo carga una sola vez).
    Valores de index.css, salvo los marcados con ⚠️.
 
-     1. Componentes compartidos (cf-dash-*) y sidebar (cf-side-*)
+     1. Componentes compartidos (cf-dash-*) y sidebar (cf-side__*)
      2. Página de tareas (cf-tasks__*)
      3. Página de servicios del encargado (cf-services__*)
      4. Página del catálogo del cliente (cf-catalog__*)
@@ -991,6 +991,508 @@ textarea.cf-dash-input {
   .cf-services__tabs::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* ---------- SIDEBAR REDISEÑADO (Sidebar.jsx) ----------
+   El menú del panel: tarjeta verde con la marca arriba, las secciones en
+   medio y el usuario abajo. Se pliega a una barra de iconos (--rail).
+
+   Sus medidas y sus blancos viven aquí, no en index.css: solo los usa
+   el menú, y los blancos son para su fondo verde. */
+
+.cf-side {
+  --side-w: 268px;
+  --side-rail: 80px;
+  --side-text: rgba(255, 255, 255, 0.82);
+  --side-muted: rgba(255, 255, 255, 0.5);
+  --side-hover: rgba(255, 255, 255, 0.09);
+  --side-line: rgba(255, 255, 255, 0.12);
+  --side-card: rgba(255, 255, 255, 0.07);
+  --side-active-bg: #f4f1e4;
+  --side-active-text: #26301f;
+
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-space-4);
+  width: var(--side-w);
+  margin: var(--cf-space-3);
+  padding: var(--cf-space-4) 14px;
+  border-radius: var(--cf-radius-lg);
+  /* ⚠️ Verdes a mano: el degradado del panel no está en los tokens. */
+  background: linear-gradient(180deg, #33422a, #232e1c);
+  color: var(--side-text);
+  box-shadow: 0 10px 30px rgba(35, 46, 28, 0.18);
+  transition: width 0.24s ease;
+}
+
+/* Plegado: solo los iconos, y el nombre sale al pasar por encima. */
+.cf-side--rail {
+  width: var(--side-rail);
+  padding: var(--cf-space-4) 10px;
+}
+
+/* ---------- MARCA ---------- */
+
+.cf-side__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 6px 0;
+  text-decoration: none;
+}
+
+/* El isotipo del kit de marca (Logo.jsx), en terracota sobre el verde. */
+.cf-side__logo {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--cf-accent);
+}
+
+.cf-side__logo svg {
+  width: 34px;
+  height: 34px;
+}
+
+/* El logotipo, igual que en la web: Montserrat, CLEAN en negrita. */
+.cf-side__name {
+  font-family: var(--cf-font-brand);
+  font-size: 1.05rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.cf-side__name b {
+  font-weight: 700;
+}
+
+.cf-side__name span {
+  font-weight: 400;
+  margin-left: 0.22em;
+}
+
+/* ---------- BOTÓN DE PLEGAR ----------
+   A caballo sobre el borde del panel: se ve sin ocupar sitio dentro. */
+
+.cf-side__collapse {
+  position: absolute;
+  top: 34px;
+  right: -13px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-primary);
+  font-size: 0.7rem;
+  cursor: pointer;
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-side__collapse:hover {
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-side__collapse:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+}
+
+/* La flecha gira: abierta señala a la izquierda ("ciérrame") y plegada a
+   la derecha ("ábreme"). ⚠️ i y svg: Font Awesome cambia el <i> por un
+   <svg> al cargar, y una regla solo para <i> se quedaría sin efecto. */
+.cf-side__collapse i,
+.cf-side__collapse svg {
+  transition: transform 0.22s ease;
+}
+
+.cf-side--rail .cf-side__collapse i,
+.cf-side--rail .cf-side__collapse svg {
+  transform: rotate(180deg);
+}
+
+/* ---------- SECCIONES ---------- */
+
+.cf-side__nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+/* Título de cada grupo de secciones (Operativa, Equipo...). */
+.cf-side__eyebrow {
+  margin: var(--cf-space-3) 0 4px;
+  padding: 0 10px;
+  color: var(--side-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cf-side__link {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--cf-radius-md);
+  background: none;
+  color: var(--side-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--cf-transition),
+    color var(--cf-transition),
+    transform var(--cf-transition);
+}
+
+.cf-side__link i,
+.cf-side__link svg {
+  justify-self: center;
+  font-size: 1rem;
+  opacity: 0.9;
+  transition: transform var(--cf-transition);
+}
+
+.cf-side__link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-side__link:hover {
+  background-color: var(--side-hover);
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+.cf-side__link:hover i,
+.cf-side__link:hover svg {
+  transform: scale(1.08);
+}
+
+.cf-side__link:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* La página actual: pastilla crema con una marca terracota al canto. */
+.cf-side__link[aria-current="page"] {
+  background-color: var(--side-active-bg);
+  color: var(--side-active-text);
+  font-weight: 600;
+  transform: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+}
+
+.cf-side__link[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  border-radius: 999px;
+  background-color: var(--cf-accent);
+  transform: translateY(-50%);
+}
+
+.cf-side__link[aria-current="page"] i,
+.cf-side__link[aria-current="page"] svg {
+  opacity: 1;
+  color: var(--cf-primary);
+}
+
+/* Contador de reservas afectadas. */
+.cf-side__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background-color: var(--cf-accent);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- GRUPO DESPLEGABLE ---------- */
+
+.cf-side__sub {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 2px 26px;
+  padding-left: 10px;
+  border-left: 1px solid var(--side-line);
+  list-style: none;
+}
+
+.cf-side__sub .cf-side__link {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 7px 10px;
+  font-size: 0.85rem;
+}
+
+.cf-side__chevron {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+/* Abierto, la flecha mira hacia arriba. El :hover general agranda los
+   iconos, pero a esta flecha la dejaría torcida: se le quita. */
+.cf-side__link[aria-expanded="true"] .cf-side__chevron {
+  transform: rotate(180deg);
+}
+
+.cf-side__link:hover .cf-side__chevron {
+  transform: none;
+}
+
+.cf-side__link[aria-expanded="true"]:hover .cf-side__chevron {
+  transform: rotate(180deg);
+}
+
+/* ---------- PIE: PANEL, USUARIO Y ACCIONES ---------- */
+
+.cf-side__foot {
+  display: grid;
+  gap: 10px;
+  padding-top: var(--cf-space-3);
+  border-top: 1px solid var(--side-line);
+}
+
+/* En qué panel estás. Mismo ancho y mismo fondo que la tarjeta de abajo:
+   las dos se leen como un bloque. */
+.cf-side__paneltag {
+  display: block;
+  padding: 7px 10px;
+  border-radius: var(--cf-radius-md);
+  background-color: var(--side-card);
+  /* ⚠️ Terracota claro a mano: el del token no se lee sobre el verde. */
+  color: #f3d3bd;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quién eres. Tres líneas que se recortan: el bloque mide lo mismo con
+   cualquier nombre y con cualquier rol. */
+.cf-side__user {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background-color: var(--side-card);
+}
+
+.cf-side__who {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cf-side__username {
+  display: block;
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-side__mail {
+  display: block;
+  color: var(--side-muted);
+  font-size: 0.73rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-side__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cf-side__action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--side-line);
+  border-radius: 10px;
+  background: none;
+  color: var(--side-text);
+  font-family: var(--cf-font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--cf-transition),
+    border-color var(--cf-transition),
+    color var(--cf-transition);
+}
+
+.cf-side__action:hover {
+  background-color: var(--side-hover);
+  color: #ffffff;
+}
+
+/* Cerrar sesión se tiñe de terracota: no se pulsa por error. */
+.cf-side__action--exit:hover {
+  border-color: rgba(201, 123, 74, 0.5);
+  background-color: rgba(201, 123, 74, 0.22);
+  color: #f7ded0;
+}
+
+.cf-side__action:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* Claro u oscuro. De momento solo cambia el menú: el modo oscuro de todo
+   el panel va en su propia issue. */
+.cf-side__theme {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background-color: rgba(0, 0, 0, 0.22);
+}
+
+.cf-side__theme button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--side-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cf-side__theme button[aria-pressed="true"] {
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.cf-side__theme button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+}
+
+/* ---------- PLEGADO: SOLO ICONOS ---------- */
+
+.cf-side--rail .cf-side__name,
+.cf-side--rail .cf-side__eyebrow,
+.cf-side--rail .cf-side__link span,
+.cf-side--rail .cf-side__chevron,
+.cf-side--rail .cf-side__sub,
+.cf-side--rail .cf-side__paneltag,
+.cf-side--rail .cf-side__who,
+.cf-side--rail .cf-side__action span,
+.cf-side--rail .cf-side__theme button span {
+  display: none;
+}
+
+.cf-side--rail .cf-side__link {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  padding: 11px 0;
+}
+
+.cf-side--rail .cf-side__user {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  padding: 8px;
+}
+
+.cf-side--rail .cf-side__actions,
+.cf-side--rail .cf-side__theme {
+  grid-template-columns: 1fr;
+}
+
+/* El contador no cabe al lado: se pone sobre el icono. */
+.cf-side--rail .cf-side__count {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 0.62rem;
+}
+
+/* El nombre de la sección, al pasar por encima o al llegar con el
+   tabulador. Solo plegado: desplegado ya se lee. */
+.cf-side__tip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  z-index: 10;
+  display: none;
+  padding: 6px 10px;
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-text);
+  color: #ffffff;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  box-shadow: var(--cf-shadow-md);
+  transform: translateY(-50%);
+}
+
+.cf-side--rail .cf-side__link:hover .cf-side__tip,
+.cf-side--rail .cf-side__link:focus-visible .cf-side__tip,
+.cf-side--rail .cf-side__action:hover .cf-side__tip,
+.cf-side--rail .cf-side__action:focus-visible .cf-side__tip,
+.cf-side--rail .cf-side__user:hover .cf-side__tip {
+  display: block;
 }
 
 /* ======================================================================
