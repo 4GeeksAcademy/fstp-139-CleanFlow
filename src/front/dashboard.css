@@ -976,6 +976,14 @@ textarea.cf-dash-input {
     grid-template-columns: 1fr 1fr;
   }
 
+  .cf-side--rail .cf-side__theme {
+    display: grid;
+  }
+
+  .cf-side--rail .cf-side__theme-switch {
+    display: none;
+  }
+
   .cf-side--rail .cf-side__count {
     position: static;
     min-width: 22px;
@@ -1425,14 +1433,18 @@ textarea.cf-dash-input {
   outline-offset: 2px;
 }
 
-/* Claro u oscuro. De momento solo cambia el menú: el modo oscuro de todo
-   el panel va en su propia issue. */
+/* Claro u oscuro. Dos controles para el mismo dato: desplegado, las dos
+   opciones a la vista; plegado, un interruptor. El CSS enseña uno u otro.
+   De momento solo cambia el menú: el modo oscuro de todo el panel va en
+   su propia issue. */
+
 .cf-side__theme {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
   padding: 4px;
   border-radius: 999px;
+  /* ⚠️ Negro translúcido a mano: hunde el control sobre el verde. */
   background-color: rgba(0, 0, 0, 0.22);
 }
 
@@ -1462,16 +1474,77 @@ textarea.cf-dash-input {
   outline-offset: 1px;
 }
 
+/* ---------- INTERRUPTOR (SOLO PLEGADO) ---------- */
+
+.cf-side__theme-switch {
+  position: relative;
+  display: none;
+  justify-content: center;
+  padding: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+}
+
+.cf-side__theme-switch:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* El carril: sol a la izquierda, luna a la derecha y la bolita sobre el
+   que está elegido. */
+.cf-side__theme-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 46px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.cf-side__theme-track i,
+.cf-side__theme-track svg {
+  position: relative;
+  z-index: 1;
+  color: var(--side-muted);
+  font-size: 0.6rem;
+}
+
+.cf-side__theme-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background-color: #f4f1e4;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.22s ease;
+}
+
+.cf-side__theme-switch[aria-checked="true"] .cf-side__theme-knob {
+  transform: translateX(22px);
+}
+
+/* Plegado se cambian los papeles: fuera las dos opciones, dentro el
+   interruptor. */
+.cf-side--rail .cf-side__theme {
+  display: none;
+}
+
+.cf-side--rail .cf-side__theme-switch {
+  display: flex;
+}
+
 /* En oscuro el menú baja un punto de luz. El resto del panel todavía no
    cambia: eso es la issue del modo oscuro completo.
    ⚠️ Verdes a mano, como el degradado claro. */
 .cf-side[data-theme="dark"] {
   background: linear-gradient(180deg, #2a3623, #1d271a);
-}
-
-/* Plegado el texto no cabe: quedan el sol y la luna, uno debajo del otro. */
-.cf-side--rail .cf-side__theme button {
-  position: relative;
 }
 
 /* ---------- PLEGADO: SOLO ICONOS ---------- */
@@ -1483,8 +1556,7 @@ textarea.cf-dash-input {
 .cf-side--rail .cf-side__sub,
 .cf-side--rail .cf-side__paneltag,
 .cf-side--rail .cf-side__who,
-.cf-side--rail .cf-side__action span,
-.cf-side--rail .cf-side__theme button span {
+.cf-side--rail .cf-side__action span {
   display: none;
 }
 
@@ -1507,8 +1579,7 @@ textarea.cf-dash-input {
   padding: 8px;
 }
 
-.cf-side--rail .cf-side__actions,
-.cf-side--rail .cf-side__theme {
+.cf-side--rail .cf-side__actions {
   grid-template-columns: 1fr;
 }
 
@@ -4118,7 +4189,8 @@ textarea.cf-dash-input {
   .cf-side__link svg,
   .cf-side__chevron,
   .cf-side__collapse i,
-  .cf-side__collapse svg {
+  .cf-side__collapse svg,
+  .cf-side__theme-knob {
     transition: none;
   }
 }

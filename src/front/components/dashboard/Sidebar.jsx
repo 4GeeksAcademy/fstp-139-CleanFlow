@@ -81,7 +81,7 @@ const PANEL_LABEL = {
     manager: "Panel del encargado",
 }
 
-// Los dos temas del interruptor del pie.
+// Las dos opciones del tema, para el menú desplegado.
 const THEMES = [
     { value: "light", label: "Claro", icon: "fa-sun" },
     { value: "dark", label: "Oscuro", icon: "fa-moon" },
@@ -182,6 +182,7 @@ export const Sidebar = () => {
 
     // Sin paréntesis: se lee una vez, al montar.
     const [theme, setTheme] = useState(readTheme)
+    const dark = theme === "dark"
 
     useEffect(() => {
         try {
@@ -418,8 +419,8 @@ export const Sidebar = () => {
                     solos al guardar en Ajustes, porque esas pantallas
                     despachan SET_USER. */}
                 <div className="cf-side__foot">
-                    {/* role="group" y aria-pressed: son dos botones que
-                        comparten una elección, no un menú de navegación. */}
+                    {/* Desplegado: las dos opciones a la vista. role="group"
+                        y aria-pressed: comparten una elección, no navegan. */}
                     <div className="cf-side__theme" role="group" aria-label="Tema del panel">
                         {THEMES.map(option => (
                             <button
@@ -430,10 +431,30 @@ export const Sidebar = () => {
                             >
                                 <i className={`fa-solid ${option.icon}`} aria-hidden="true" />
                                 <span>{option.label}</span>
-                                <span className="cf-side__tip">{option.label}</span>
                             </button>
                         ))}
                     </div>
+
+                    {/* Plegado: el mismo tema, en un interruptor. Se pulse
+                        donde se pulse, cambia. role="switch" + aria-checked
+                        es lo que anuncia un interruptor a un lector de
+                        pantalla. El CSS enseña uno u otro, nunca los dos. */}
+                    <button
+                        type="button"
+                        className="cf-side__theme-switch"
+                        onClick={() => setTheme(dark ? "light" : "dark")}
+                        role="switch"
+                        aria-checked={dark}
+                        aria-label="Modo oscuro"
+                    >
+                        <span className="cf-side__theme-track" aria-hidden="true">
+                            <i className="fa-solid fa-sun" />
+                            <i className="fa-solid fa-moon" />
+                            <span className="cf-side__theme-knob" />
+                        </span>
+
+                        <span className="cf-side__tip">{dark ? "Modo claro" : "Modo oscuro"}</span>
+                    </button>
 
                     <p className="cf-side__paneltag">{PANEL_LABEL[role]}</p>
 
