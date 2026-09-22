@@ -8,6 +8,7 @@
  *   query:   lo buscado, para resaltarlo en el nombre
  *   isSelf:  true si es la cuenta de quien mira (no puede desactivarse)
  *   busy:    true mientras se guarda su estado
+ *   onSwitch(worker): al tocar el interruptor (la página decide si confirma)
  *
  * Estilos: dashboard.css (cf-workers__*).
  */

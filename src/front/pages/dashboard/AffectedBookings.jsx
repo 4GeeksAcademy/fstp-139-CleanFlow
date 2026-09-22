@@ -57,11 +57,8 @@ export const AffectedBookings = () => {
     const [message, setMessage] = useState("")
 
     // ------------------------------------------------------------------
-    // LÓGICA · PASO 9 (la escribes tú)
+    // CARGA Y ACCIONES
     // ------------------------------------------------------------------
-    // Aquí van: sessionExpired, loadBookings + su useEffect, handleFind,
-    // handleReassign y handleCancel.
-
 
     // 401 = token caducado: se cierra la sesión y ProtectedRoutes manda al
     // login. Devuelve true para que quien llama no siga.

@@ -3684,17 +3684,15 @@ textarea.cf-dash-input {
   white-space: nowrap;
 }
 
-/* "Baja en curso": lo único que hay que ver de un vistazo en la lista. */
+/* Etiqueta junto al nombre. La forma aquí; el color, en cada variante. */
 .cf-workers__tag {
   padding: 2px 8px;
   border-radius: 999px;
-  background-color: var(--cf-accent-soft);
-  color: var(--cf-accent-dark);
   font-size: 0.6875rem;
   font-weight: 600;
 }
 
-/* Variante explícita para la baja, por si mañana hay más etiquetas. */
+/* "Baja en curso": lo único que hay que ver de un vistazo en la lista. */
 .cf-workers__tag--away {
   background-color: var(--cf-accent-soft);
   color: var(--cf-accent-dark);

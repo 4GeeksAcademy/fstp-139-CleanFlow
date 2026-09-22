@@ -1,18 +1,15 @@
 /**
  * AUSENCIAS DE UN TRABAJADOR (ENCARGADO) · #75.
  *
- * Página propia, a la que se llega desde el botón "Ausencias" del listado.
- * Antes vivían al final de Editar trabajador, mezcladas con sus datos.
+ * Se llega desde el botón "Ausencias" del listado. Arriba, quién es
+ * (puesto, turno y valoración); debajo, el formulario (si se abre) y la
+ * lista en dos grupos. Quitar pide confirmación.
  *
- * Cabecera: volver, nombre y un resumen (puesto, turno y valoración).
- * Debajo, el formulario (solo si se abre) y la lista en dos grupos.
- * Quitar una ausencia pide confirmación.
+ * Guardar o quitar avisa al contador del menú (refreshAffected): cambia
+ * qué reservas quedan afectadas.
  *
- * Guardar o quitar avisa al contador de Reservas afectadas del menú
- * (refreshAffected), porque cambia qué reservas se pueden atender.
- *
- * API: services/absenceService.js · Componentes: components/dashboard/absences/
- * Ruta: /dashboard/workers/:workerId/absences · Estilos: dashboard.css (cf-absences__*).
+ * Ruta: /dashboard/workers/:workerId/absences · API: services/absenceService.js
+ * Componentes: components/dashboard/absences/ · Estilos: dashboard.css (cf-absences__*).
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -65,7 +62,7 @@ export const WorkerAbsencesPage = () => {
     const [status, setStatus] = useState("")
 
     // ------------------------------------------------------------------
-    // CARGA
+    // CARGA Y EFECTOS
     // ------------------------------------------------------------------
 
     // 401 = token caducado: se cierra la sesión y ProtectedRoutes manda al

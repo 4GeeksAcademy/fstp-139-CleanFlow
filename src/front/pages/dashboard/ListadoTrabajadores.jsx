@@ -71,7 +71,7 @@ export const ListadoTrabajadores = () => {
     const dialogRef = useRef(null)
 
     // ------------------------------------------------------------------
-    // CARGA
+    // CARGA Y EFECTOS
     // ------------------------------------------------------------------
 
     const loadWorkers = async () => {

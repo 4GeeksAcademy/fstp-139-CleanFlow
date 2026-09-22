@@ -601,7 +601,7 @@ def update_worker(worker_id):
         return jsonify({
             "message": "Error al actualizar el worker"
         }), 500
-    
+
 
 @api.route("/workers/<int:worker_id>/status", methods=["PATCH"])
 @role_required("manager")

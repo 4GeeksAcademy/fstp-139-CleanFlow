@@ -43,7 +43,7 @@ const formatDay = (value) => {
         .replace(".", "")
 }
 
-/** "3 sep" · "12 oct → 16 oct" · "Desde el 5 oct · sin fecha de vuelta". */
+/** "3 sept" · "12 oct → 16 oct" · "Desde el 5 oct · sin fecha de vuelta". */
 export const absenceDates = (absence) => {
     if (!absence.ends_on) return `Desde el ${formatDay(absence.starts_on)} · sin fecha de vuelta`
     if (absence.ends_on === absence.starts_on) return formatDay(absence.starts_on)

@@ -7,6 +7,7 @@
  *   absence:  la ausencia a editar, o null si es nueva
  *   saving:   true mientras se guarda (bloquea el formulario)
  *   error:    el mensaje de la API, si lo hay
+ *   onSubmit(datos) · onClose()
  *
  * Estilos: dashboard.css (cf-absences__form*, cf-dash-field, cf-dash-chips).
  */
