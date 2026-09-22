@@ -14,6 +14,7 @@ import { PublicLayout } from "./pages/web/PublicLayout";
 import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
+import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
 import { Login } from "./pages/web/Login";
 import { WorkWithUs } from "./pages/web/WorkWithUs";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
@@ -80,7 +81,7 @@ export const router = createBrowserRouter(
 
           {/* ---- SECCIONES DE WORKER ---- */}
           <Route element={<RoleRoute allowed={["worker"]} />}>
-            <Route path="tasks" element={<h1>Mis tareas</h1>} />
+            <Route path="tasks" element={<MisReservasTrabajador />} />
           </Route>
 
           {/* ---- SECCIONES DE MANAGER ----
