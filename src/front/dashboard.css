@@ -825,48 +825,6 @@ textarea.cf-dash-input {
   color: var(--cf-accent-dark);
 }
 
-/* ---------- SIDEBAR: GRUPO DESPLEGABLE (Sidebar.jsx) ----------
-   Solo lo mínimo sobre el sidebar provisional de Bootstrap. Los blancos
-   transparentes son para su fondo oscuro. */
-
-.cf-side-group {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  text-align: left;
-}
-
-.cf-side-group:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-}
-
-/* Cerrado, pero con la página actual dentro. */
-.cf-side-group--current {
-  background-color: rgba(255, 255, 255, 0.1);
-  font-weight: 600;
-}
-
-.cf-side-group i {
-  font-size: 0.75rem;
-  transition: transform 0.2s ease;
-}
-
-.cf-side-group[aria-expanded="true"] i {
-  transform: rotate(180deg);
-}
-
-.cf-side-sub {
-  margin: 2px 0 6px 14px;
-  padding-left: 10px;
-  border-left: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.cf-side-sub .nav-link {
-  padding-top: 6px;
-  padding-bottom: 6px;
-}
-
 /* ---------- SIDEBAR EN MÓVIL (Sidebar.jsx y DashboardLayout.jsx) ----------
    Por debajo de 768px: barra superior con la marca y la hamburguesa, y el
    menú como cajón que entra por la IZQUIERDA, el mismo lado en el que está
@@ -1009,7 +967,7 @@ textarea.cf-dash-input {
   }
 
   .cf-side--rail .cf-side__user {
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr);
     justify-items: stretch;
     padding: 12px;
   }
@@ -1345,10 +1303,12 @@ textarea.cf-dash-input {
 
 /* ---------- PIE: PANEL, USUARIO Y ACCIONES ---------- */
 
+/* Los cuatro bloques del pie se separan por igual (10px), como en la
+   maqueta aprobada. ⚠️ 14px a mano: entre dos tokens (12 y 16). */
 .cf-side__foot {
   display: grid;
   gap: 10px;
-  padding-top: var(--cf-space-3);
+  padding-top: 14px;
   border-top: 1px solid var(--side-line);
 }
 
@@ -1356,6 +1316,9 @@ textarea.cf-dash-input {
    las dos se leen como un bloque. */
 .cf-side__paneltag {
   display: block;
+  /* margin: 0 porque es un <p> y el reset de Bootstrap le pone 1rem
+     abajo, que se sumaba al hueco del pie y lo descuadraba. */
+  margin: 0;
   padding: 7px 10px;
   border-radius: var(--cf-radius-md);
   background-color: var(--side-card);
@@ -1375,12 +1338,20 @@ textarea.cf-dash-input {
    cualquier nombre y con cualquier rol. */
 .cf-side__user {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   padding: 12px;
   border-radius: 14px;
   background-color: var(--side-card);
+}
+
+/* El avatar mediano mide 48px y estiraba la tarjeta: aquí se queda en los
+   44px de la maqueta. */
+.cf-side__user .cf-dash-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 0.9rem;
 }
 
 .cf-side__who {
@@ -4140,9 +4111,14 @@ textarea.cf-dash-input {
     animation: none;
   }
 
-  .cf-side-group i,
   .cf-side,
-  .cf-side--open {
+  .cf-side--open,
+  .cf-side__link,
+  .cf-side__link i,
+  .cf-side__link svg,
+  .cf-side__chevron,
+  .cf-side__collapse i,
+  .cf-side__collapse svg {
     transition: none;
   }
 }

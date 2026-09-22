@@ -1,3 +1,14 @@
+/**
+ * CONTADOR DE RESERVAS AFECTADAS DEL MENÚ (#15).
+ *
+ * La pastilla junto a "Reservas afectadas". Pide solo el número
+ * (count_only) y lo mantiene al día sin recargar la página: cada 30
+ * segundos, al volver a la pestaña, al cambiar de página y cuando otra
+ * pantalla avisa con refreshAffected().
+ *
+ * Estilos: dashboard.css (cf-side__count).
+ */
+
 import { useEffect, useState } from "react";
 import { getAffected } from "../../services/absenceService";
 
