@@ -8,8 +8,6 @@ import {
 } from "../../services/workerService";
 import { getShifts } from "../../services/shiftService";
 
-import { WorkerAbsences } from "../../components/dashboard/WorkerAbsences";
-
 export const EditarTrabajador = () => {
     const { store } = useGlobalReducer();
     const { workerId } = useParams();
@@ -339,7 +337,6 @@ export const EditarTrabajador = () => {
                     </div>
                 </fieldset>
             </form>
-            {isEditing && <WorkerAbsences key={workerId} workerId={workerId} token={store.token} />}
         </div>
     );
 };
