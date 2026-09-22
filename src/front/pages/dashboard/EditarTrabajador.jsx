@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import {
     getWorker,
+    getWorkers,
     updateWorker,
     createWorker,
 } from "../../services/workerService";
@@ -27,6 +28,11 @@ export const EditarTrabajador = () => {
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState(null);
+
+    // El trabajador tal y como sale en el listado: foto, valoración y el
+    // nombre del título. null al crear, o si no se ha podido cargar.
+    const [profile, setProfile] = useState(null);
+
     const [shifts, setShifts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState("");
@@ -50,11 +56,14 @@ export const EditarTrabajador = () => {
                 return;
             }
 
-            const [workerResult, shiftsResult] = await Promise.all([
+            const [workerResult, shiftsResult, workersResult] = await Promise.all([
                 isEditing
                     ? getWorker(store.token, workerId)
                     : Promise.resolve({ ok: true, data: null }),
                 getShifts(store.token),
+                isEditing
+                    ? getWorkers(store.token)
+                    : Promise.resolve({ ok: false }),
             ]);
 
             if (!active) return;
@@ -93,6 +102,17 @@ export const EditarTrabajador = () => {
             });
 
             setShifts(shiftsResult.data);
+
+            // Si el listado falla, el formulario sigue: el resumen se queda
+            // sin foto ni valoración.
+            if (workersResult.ok) {
+                setProfile(
+                    workersResult.data.workers.find(
+                        (item) => String(item.worker_id) === workerId
+                    ) || null
+                );
+            }
+
             setLoading(false);
         };
 
@@ -104,13 +124,12 @@ export const EditarTrabajador = () => {
     }, [store.token, workerId, isEditing]);
 
     const handleChange = (event) => {
-        const { name, value } = event.target;
+        const { name, value, type, checked } = event.target;
 
+        // El interruptor de estado es un checkbox: vale su checked, no su value.
         setFormData((previous) => ({
             ...previous,
-            [name]: name === "is_active"
-                ? value === "true"
-                : value,
+            [name]: type === "checkbox" ? checked : value,
         }));
 
         setFormError("");
