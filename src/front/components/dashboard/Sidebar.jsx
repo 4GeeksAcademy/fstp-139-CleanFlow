@@ -81,6 +81,20 @@ const PANEL_LABEL = {
     manager: "Panel del encargado",
 }
 
+// Dónde se guarda si el menú quedó plegado. Es una preferencia de este
+// navegador, no del usuario: no tiene sentido llevarla al servidor.
+const COLLAPSED_KEY = "cleanflow:sidebar-collapsed"
+
+// localStorage puede fallar (ventana privada, permisos) y no vale la pena
+// romper el menú por eso: ante la duda, desplegado.
+const readCollapsed = () => {
+    try {
+        return window.localStorage.getItem(COLLAPSED_KEY) === "true"
+    } catch {
+        return false
+    }
+}
+
 export const Sidebar = () => {
 
     // ----------------------------------------------------------------------
@@ -111,6 +125,25 @@ export const Sidebar = () => {
     const toggleGroup = (group) => {
         setToggled({ pathname, groups: { ...manualGroups, [group.label]: !isGroupOpen(group) } })
     }
+
+    // ----------------------------------------------------------------------
+    // PLEGAR EL MENÚ (ESCRITORIO Y TABLET)
+    // ----------------------------------------------------------------------
+    // Plegado se queda en una barra de iconos: se sigue viendo dónde estás y
+    // se llega a cualquier sección en un clic. En móvil no actúa: allí el
+    // menú es un cajón que se abre y se cierra entero.
+
+    // La función va sin paréntesis: así localStorage se lee una vez, al
+    // montar, y no en cada render.
+    const [collapsed, setCollapsed] = useState(readCollapsed)
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(COLLAPSED_KEY, String(collapsed))
+        } catch {
+            // Sin guardado: el menú funciona igual, solo que no se recuerda.
+        }
+    }, [collapsed])
 
     // ----------------------------------------------------------------------
     // MENÚ DE MÓVIL
@@ -229,9 +262,22 @@ export const Sidebar = () => {
 
             <aside
                 id="dashboard-sidebar"
-                className={"cf-side" + (menuOpen ? " cf-side--open" : "")}
+                className={"cf-side" + (collapsed ? " cf-side--rail" : "") + (menuOpen ? " cf-side--open" : "")}
                 aria-label="Menú del panel"
             >
+                {/* Plegar y desplegar. aria-expanded dice si el menú está
+                    abierto; la flecha gira con CSS. */}
+                <button
+                    type="button"
+                    className="cf-side__collapse"
+                    onClick={() => setCollapsed(!collapsed)}
+                    aria-controls="dashboard-sidebar"
+                    aria-expanded={!collapsed}
+                    aria-label={collapsed ? "Desplegar el menú" : "Plegar el menú"}
+                >
+                    <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                </button>
+
                 {/* Marca: el isotipo y el logotipo de la web. */}
                 <Link to="/dashboard" className="cf-side__brand" onClick={closeMenu}>
                     <span className="cf-side__logo">

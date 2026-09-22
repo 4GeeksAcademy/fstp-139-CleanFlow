@@ -1469,6 +1469,13 @@ textarea.cf-dash-input {
   font-size: 0.62rem;
 }
 
+/* En móvil el menú es un cajón entero: plegarlo no tiene sentido. */
+@media (max-width: 767.98px) {
+  .cf-side__collapse {
+    display: none;
+  }
+}
+
 /* El nombre de la sección, al pasar por encima o al llegar con el
    tabulador. Solo plegado: desplegado ya se lee. */
 .cf-side__tip {
