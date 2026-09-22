@@ -1511,6 +1511,12 @@ textarea.cf-dash-input {
   padding: 11px 0;
 }
 
+/* Sin scroll en la barra de iconos: cortaría las etiquetas emergentes,
+   que salen por fuera del panel. Con solo iconos, siempre caben. */
+.cf-side--rail .cf-side__nav {
+  overflow: visible;
+}
+
 .cf-side--rail .cf-side__user {
   position: relative;
   grid-template-columns: minmax(0, 1fr);
@@ -1532,6 +1538,21 @@ textarea.cf-dash-input {
   height: 18px;
   padding: 0 5px;
   font-size: 0.62rem;
+}
+
+/* ---------- MENÚ FIJO (TABLET Y ESCRITORIO) ----------
+   sticky y no fixed: sigue dentro del marco, así que no hay que reservarle
+   sitio. align-self: sin él, el flex lo estira a lo alto de la página y el
+   sticky no tendría margen donde pegarse. Las secciones hacen scroll dentro
+   (.cf-side__nav), así que el bloque de usuario siempre se ve. */
+
+@media (min-width: 768px) {
+  .cf-side {
+    position: sticky;
+    top: var(--cf-space-3);
+    align-self: flex-start;
+    height: calc(100vh - var(--cf-space-3) * 2);
+  }
 }
 
 /* En móvil el menú es un cajón entero: plegarlo no tiene sentido. */
