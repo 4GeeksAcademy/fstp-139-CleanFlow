@@ -5,16 +5,24 @@
  * Antes vivían al final de Editar trabajador, mezcladas con sus datos.
  *
  * Cabecera: volver, nombre y un resumen (puesto, turno y valoración).
- * Debajo, la lista y el formulario de ausencias (WorkerAbsences.jsx).
+ * Debajo, el formulario (solo si se abre) y la lista en dos grupos.
+ * Quitar una ausencia pide confirmación.
  *
+ * Guardar o quitar avisa al contador de Reservas afectadas del menú
+ * (refreshAffected), porque cambia qué reservas se pueden atender.
+ *
+ * API: services/absenceService.js · Componentes: components/dashboard/absences/
  * Ruta: /dashboard/workers/:workerId/absences · Estilos: dashboard.css (cf-absences__*).
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { getWorkers } from "../../services/workerService"
-import { WorkerAbsences } from "../../components/dashboard/WorkerAbsences"
+import { getAbsences, saveAbsence, removeAbsence, refreshAffected } from "../../services/absenceService"
+import { AbsenceForm } from "../../components/dashboard/absences/AbsenceForm"
+import { AbsenceList } from "../../components/dashboard/absences/AbsenceList"
+import { absenceDates, reasonLabel, todayInMadrid } from "../../components/dashboard/absences/AbsenceRow"
 import "../../dashboard.css"
 
 // "4.8" -> "4,8"
@@ -30,39 +38,162 @@ const BackLink = () => (
 )
 
 export const WorkerAbsencesPage = () => {
-    const { store } = useGlobalReducer()
+    const { store, dispatch } = useGlobalReducer()
     const { workerId } = useParams()
 
+    // ------------------------------------------------------------------
+    // ESTADO
+    // ------------------------------------------------------------------
+
+    // El trabajador (para la cabecera) y sus ausencias
     const [worker, setWorker] = useState(null)
+    const [absences, setAbsences] = useState([])
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState("")
 
-    // Se usa el listado y no GET /workers/<id>: solo el listado trae el
-    // horario del turno y la valoración que van en la cabecera.
-    const loadWorker = async () => {
+    // Formulario. editing: null = cerrado · { absence: null } = nueva · { absence } = editando
+    const [editing, setEditing] = useState(null)
+    const [saving, setSaving] = useState(false)
+    const [formError, setFormError] = useState("")
+
+    // Confirmación de quitar: la ausencia, o null.
+    const [removing, setRemoving] = useState(null)
+    const [removeError, setRemoveError] = useState("")
+    const dialogRef = useRef(null)
+
+    // Aviso para lectores de pantalla tras guardar o quitar.
+    const [status, setStatus] = useState("")
+
+    // ------------------------------------------------------------------
+    // CARGA
+    // ------------------------------------------------------------------
+
+    // 401 = token caducado: se cierra la sesión y ProtectedRoutes manda al
+    // login. Devuelve true para que quien llama no siga.
+    const sessionExpired = (result) => {
+        if (result.status === 401) {
+            dispatch({ type: "LOGOUT" })
+            return true
+        }
+        return false
+    }
+
+    // Las dos peticiones a la vez. Se usa el listado y no GET /workers/<id>:
+    // solo el listado trae el horario del turno y la valoración.
+    const loadPage = async () => {
         setLoading(true)
         setLoadError("")
 
-        const result = await getWorkers(store.token)
+        const [workersResult, absencesResult] = await Promise.all([
+            getWorkers(store.token),
+            getAbsences(workerId, store.token),
+        ])
 
-        if (result.ok) {
-            const found = result.data.workers.find((item) => String(item.worker_id) === workerId)
+        if (sessionExpired(absencesResult)) return
+
+        if (!workersResult.ok) {
+            setLoadError(workersResult.data.error || workersResult.data.msg || "No se han podido cargar los datos del trabajador.")
+        } else if (!absencesResult.ok) {
+            setLoadError(absencesResult.data.message)
+        } else {
+            const found = workersResult.data.workers.find((item) => String(item.worker_id) === workerId)
 
             if (found) {
                 setWorker(found)
+                setAbsences(absencesResult.data.absences)
             } else {
                 setLoadError("Ese trabajador no existe o ya no forma parte del equipo.")
             }
-        } else {
-            setLoadError(result.data.error || result.data.msg || "No se han podido cargar los datos del trabajador.")
         }
 
         setLoading(false)
     }
 
     useEffect(() => {
-        if (store.token) loadWorker()
+        if (store.token) loadPage()
     }, [store.token, workerId])
+
+    // showModal(): bloquea el resto de la página, cierra con Escape y
+    // devuelve el foco a la papelera al cerrar.
+    useEffect(() => {
+        if (removing) dialogRef.current?.showModal()
+    }, [removing])
+
+    // ------------------------------------------------------------------
+    // FORMULARIO
+    // ------------------------------------------------------------------
+
+    const openForm = (absence) => {
+        setEditing({ absence })
+        setFormError("")
+        setStatus("")
+    }
+
+    const closeForm = () => setEditing(null)
+
+    const submitForm = async (data) => {
+        setSaving(true)
+        setFormError("")
+
+        const id = editing.absence?.absence_id ?? null
+        const result = await saveAbsence(workerId, id, data, store.token)
+
+        if (sessionExpired(result)) return
+
+        setSaving(false)
+
+        if (!result.ok) {
+            setFormError(result.data.message)
+            return
+        }
+
+        // Se recarga la lista entera: la API puede ajustar la ausencia.
+        const reload = await getAbsences(workerId, store.token)
+        if (reload.ok) setAbsences(reload.data.absences)
+
+        refreshAffected()
+        closeForm()
+        setStatus(id ? "Ausencia actualizada." : "Ausencia guardada.")
+    }
+
+    // ------------------------------------------------------------------
+    // QUITAR
+    // ------------------------------------------------------------------
+
+    const askRemove = (absence) => {
+        setRemoveError("")
+        setStatus("")
+        setRemoving(absence)
+    }
+
+    // Cancelar, Escape y pulsar fuera pasan por close(): su onClose es el
+    // único sitio que limpia `removing`.
+    const closeDialog = () => dialogRef.current?.close()
+
+    const confirmRemove = async () => {
+        const absence = removing
+        closeDialog()
+
+        const result = await removeAbsence(workerId, absence.absence_id, store.token)
+
+        if (sessionExpired(result)) return
+
+        if (!result.ok) {
+            setRemoveError(result.data.message)
+            return
+        }
+
+        // Si se estaba editando justo esa, el formulario ya no tiene sentido.
+        if (editing?.absence?.absence_id === absence.absence_id) closeForm()
+
+        setAbsences((current) => current.filter((item) => item.absence_id !== absence.absence_id))
+        refreshAffected()
+        setStatus("Ausencia quitada.")
+    }
+
+    // ------------------------------------------------------------------
+    // PANTALLA
+    // ------------------------------------------------------------------
 
     if (loading) {
         return (
@@ -84,13 +215,15 @@ export const WorkerAbsencesPage = () => {
                     </span>
                     <p className="cf-dash-state__title">No se han podido cargar las ausencias</p>
                     <p className="cf-dash-state__text">{loadError}</p>
-                    <button type="button" className="cf-dash-btn" onClick={loadWorker}>
+                    <button type="button" className="cf-dash-btn" onClick={loadPage}>
                         Reintentar
                     </button>
                 </div>
             </section>
         )
     }
+
+    const today = todayInMadrid()
 
     return (
         <section className="cf-absences">
@@ -122,11 +255,100 @@ export const WorkerAbsencesPage = () => {
                         )}
                     </div>
                 </div>
+
+                {/* Con el formulario abierto sobra: ya se está añadiendo. Sin
+                    ausencias tampoco: el botón va en el estado vacío. */}
+                {!editing && absences.length > 0 && (
+                    <button type="button" className="cf-dash-btn" onClick={() => openForm(null)}>
+                        <i className="fa-solid fa-plus" aria-hidden="true" />
+                        Añadir ausencia
+                    </button>
+                )}
             </div>
 
-            {/* Provisional: el paso 8 lo cambia por la lista y el formulario
-                nuevos (components/dashboard/absences/). */}
-            <WorkerAbsences key={workerId} workerId={workerId} token={store.token} />
+            <p className="sr-only" role="status">
+                {status}
+            </p>
+
+            {removeError && (
+                <p className="cf-dash-alert" role="alert">
+                    {removeError}
+                </p>
+            )}
+
+            {/* key: al pasar de editar una a otra, el formulario empieza de cero. */}
+            {editing && (
+                <AbsenceForm
+                    key={editing.absence?.absence_id ?? "new"}
+                    absence={editing.absence}
+                    saving={saving}
+                    error={formError}
+                    onSubmit={submitForm}
+                    onClose={closeForm}
+                />
+            )}
+
+            {absences.length === 0 ? (
+                !editing && (
+                    <div className="cf-dash-state">
+                        <span className="cf-dash-state__icon">
+                            <i className="fa-solid fa-calendar-check" aria-hidden="true" />
+                        </span>
+                        <p className="cf-dash-state__title">{worker.name} no tiene ausencias</p>
+                        <p className="cf-dash-state__text">
+                            Registra sus vacaciones, bajas u otros días libres: esos días no aparecerá disponible
+                            para reservar.
+                        </p>
+                        <button type="button" className="cf-dash-btn" onClick={() => openForm(null)}>
+                            <i className="fa-solid fa-plus" aria-hidden="true" />
+                            Añadir la primera ausencia
+                        </button>
+                    </div>
+                )
+            ) : (
+                <AbsenceList
+                    absences={absences}
+                    today={today}
+                    disabled={saving}
+                    onEdit={openForm}
+                    onRemove={askRemove}
+                />
+            )}
+
+            {removing && (
+                // onClick en el propio dialog: solo llega aquí el clic en el
+                // fondo oscuro, porque el contenido va dentro de __body.
+                <dialog
+                    ref={dialogRef}
+                    className="cf-dash-modal"
+                    aria-labelledby="remove-title"
+                    aria-describedby="remove-text"
+                    onClose={() => setRemoving(null)}
+                    onClick={(event) => event.target === event.currentTarget && closeDialog()}
+                >
+                    <div className="cf-dash-modal__body">
+                        <span className="cf-dash-modal__icon">
+                            <i className="fa-solid fa-trash-can" aria-hidden="true" />
+                        </span>
+                        <h2 className="cf-dash-modal__title" id="remove-title">
+                            ¿Quitar esta ausencia?
+                        </h2>
+                        <p className="cf-dash-modal__text" id="remove-text">
+                            {reasonLabel(removing.reason)}: {absenceDates(removing).toLowerCase()}. Esos días{" "}
+                            {worker.name} volverá a aparecer libre, y sus reservas dejarán de estar afectadas.
+                        </p>
+                        <div className="cf-dash-modal__actions">
+                            {/* autoFocus en Cancelar: con Enter no se quita por error. */}
+                            <button type="button" className="cf-dash-btn cf-dash-btn--ghost" onClick={closeDialog} autoFocus>
+                                Cancelar
+                            </button>
+                            <button type="button" className="cf-dash-btn cf-dash-btn--danger" onClick={confirmRemove}>
+                                Quitar ausencia
+                            </button>
+                        </div>
+                    </div>
+                </dialog>
+            )}
         </section>
     )
 }
