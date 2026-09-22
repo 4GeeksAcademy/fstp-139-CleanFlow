@@ -1,3 +1,7 @@
+
+import { apiRequest } from "./apiClient";
+
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export const getWorkers = async (token) => {
@@ -115,4 +119,17 @@ export const getWorker = async (token, workerId) => {
             },
         };
     }
+};
+
+// Activa o desactiva a un trabajador (y a su usuario). isActive: true o false.
+// Con apiRequest, como los servicios nuevos: devuelve { ok, status, data } y
+// status permite detectar el 401 de sesión caducada.
+export const toggleWorkerStatus = async (token, workerId, isActive) => {
+  const result = await apiRequest(`/api/workers/${workerId}/status`, {
+    method: "PATCH",
+    token,
+    body: { is_active: isActive },
+  });
+
+  return result.ok ? { ...result, data: result.data.worker } : result;
 };
