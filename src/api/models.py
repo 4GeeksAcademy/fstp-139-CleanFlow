@@ -62,6 +62,24 @@ class MediaKind(Enum):
     INCIDENT = "incident"
 
 
+class IncidentType(Enum):
+    """De quién viene el problema.
+
+    client: el cliente no está, no deja entrar, pide tareas de más...
+    company: falta material, un daño, un retraso nuestro. También es lo
+    que se usa cuando el cliente reclama el resultado del servicio.
+    """
+    CLIENT = "client"
+    COMPANY = "company"
+
+
+class IncidentSource(Enum):
+    """Quién la abrió: el trabajador durante el servicio (#18) o el
+    cliente al reclamar (#83)."""
+    WORKER = "worker"
+    CLIENT = "client"
+
+
 class ApplicationStatus(Enum):
     NEW = "new"
     CONTACTED = "contacted"
@@ -731,6 +749,14 @@ class Booking(db.Model):
         order_by="BookingTask.booking_task_id"
     )
 
+
+    # Las incidencias de la reserva, de la más reciente a la más antigua.
+    # Las lee el detalle del cliente (#16) y el del encargado.
+    incidents = db.relationship(
+        "Incident",
+        order_by="Incident.created_at.desc()"
+    )
+
     # ---- DATOS CALCULADOS ----
 
     @property
@@ -996,8 +1022,8 @@ class Incident(db.Model):
         ForeignKey("booking_tasks.booking_task_id"),
         nullable=True
     )
-    incident_type: Mapped[str | None] = mapped_column(
-        String(50),
+    incident_type: Mapped[IncidentType | None] = mapped_column(
+        SQLEnum(IncidentType),
         nullable=True
     )
     description: Mapped[str | None] = mapped_column(
@@ -1017,19 +1043,46 @@ class Incident(db.Model):
         nullable=True
     )
 
+    # Quién la abrió y quién es esa persona. Con source basta para
+    # filtrar en el listado del encargado (#19); reported_by dice el
+    # usuario concreto, para poder avisarle cuando se resuelva.
+    source: Mapped[IncidentSource | None] = mapped_column(
+        SQLEnum(IncidentSource),
+        nullable=True
+    )
+    reported_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.user_id"),
+        nullable=True
+    )
+
+    # Lo que el encargado escribe al cerrarla. Lo ve el cliente cuando la
+    # incidencia es suya, así que se guarda tal cual y no como una nota
+    # interna (#19).
+    resolution: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True
+    )
+
     def serialize(self):
         media = Media.query.filter_by(
             incident_id=self.incident_id
         ).all()
 
         return {
-            "incident_id": self.incident_id,
+            "incident_type": (
+                self.incident_type.value
+                if self.incident_type
+                else None
+            ),
+            "source": self.source.value if self.source else None,
+            "reported_by": self.reported_by,
+            "description": self.description,
+            "resolved": self.resolved,
+            "resolution": self.resolution,
             "booking_id": self.booking_id,
             "worker_id": self.worker_id,
             "booking_task_id": self.booking_task_id,
             "incident_type": self.incident_type,
-            "description": self.description,
-            "resolved": self.resolved,
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at
