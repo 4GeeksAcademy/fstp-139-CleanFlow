@@ -485,3 +485,60 @@ def complete_booking(booking_id):
     db.session.commit()
 
     return jsonify({"booking": booking.serialize()}), 200
+
+
+@absence_api.route("/bookings/<int:booking_id>/cancel", methods=["PATCH"])
+@role_required("client", "manager")
+@transaction
+def cancel_booking(booking_id):
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    if user.role == "client" and booking.client_id != user_id:
+        return jsonify({
+            "message": "Solo puedes cancelar tus propias reservas."
+        }), 403
+
+    if booking.status == BookingStatus.COMPLETED:
+        return jsonify({
+            "message": "No se puede cancelar una reserva completada."
+        }), 409
+
+    # Repetir la petición conserva los datos de la cancelación original.
+    if booking.status == BookingStatus.CANCELLED:
+        return jsonify({"booking": booking.serialize()}), 200
+
+    if user.role == "client" and booking.status != BookingStatus.PENDING:
+        return jsonify({
+            "message": "Solo puedes cancelar reservas pendientes de confirmación."
+        }), 409
+
+    if booking.status not in (
+        BookingStatus.PENDING,
+        BookingStatus.CONFIRMED,
+    ):
+        return jsonify({
+            "message": "El estado actual no permite cancelar la reserva."
+        }), 409
+
+    booking.status = BookingStatus.CANCELLED
+    booking.cancelled_by_company = user.role == "manager"
+    booking.cancellation_reason = (
+        "Reserva cancelada por el encargado."
+        if user.role == "manager"
+        else None
+    )
+    booking.updated_at = madrid_now()
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize()}), 200
