@@ -162,7 +162,8 @@ export const Sidebar = () => {
     // ----------------------------------------------------------------------
     // El ORDEN importa: primero navegar, luego LOGOUT. Al revés, ProtectedRoutes
     // vería el token borrado y su <Navigate> guardaría la ruta privada, así que
-    // el próximo login volvería allí en vez de a /dashboard.
+    // el próximo login volvería allí en vez de a /dashboard. Y el rol, que
+    // decide la puerta, también se lee antes: después el store está vacío.
     // state: null (sin ruta de origen) y replace ("atrás" no vuelve aquí).
     const handleLogout = () => {
         navigate(loginPathForRole(store.user?.role), { replace: true, state: null })

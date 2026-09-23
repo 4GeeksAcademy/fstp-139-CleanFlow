@@ -82,7 +82,8 @@ export const ProtectedRoutes = () => {
     // LA DECISIÓN
     // ------------------------------------------------------------------
 
-    // Sin token, redirige al login.
+    // Sin token, redirige a la puerta que le toca (WEB-10): quien nunca
+    // entró acaba en la de clientes, que es la pública.
     // `replace`: Evita el bucle al pulsar "Atrás".
     // `state`: Pasa la ruta previa y si la sesión caducó (sin mostrarlo en la URL).
     if (!store.token) {

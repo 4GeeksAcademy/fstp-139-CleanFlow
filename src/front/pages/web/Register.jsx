@@ -80,6 +80,7 @@ export const Register = () => {
             // La cuenta existe, pero la sesión no se pudo abrir: al login,
             // con el destino, el correo ya escrito y el aviso de que solo le
             // falta entrar. La contraseña no viaja: la vuelve a escribir.
+            // A la puerta de clientes: por aquí solo se registran ellos.
             navigate("/login-clients", {
                 replace: true,
                 state: { from: location.state?.from, registered: true, email: formData.email },

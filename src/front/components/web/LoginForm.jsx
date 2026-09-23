@@ -31,7 +31,7 @@ export const LoginForm = ({ title, subtitle, foot }) => {
     //
     // `from`: la ruta que intentaba abrir. Si llegó al login por su
     // cuenta no hay state, y se usa /dashboard. El ?. es imprescindible:
-    // entrando directo a /login, state y from son undefined.
+    // entrando directo a una puerta, state y from son undefined.
     const from = location.state?.from?.pathname || "/dashboard";
 
     // Inputs controlados: React guarda lo que se escribe en su estado y
