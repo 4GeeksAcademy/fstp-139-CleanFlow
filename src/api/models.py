@@ -819,8 +819,14 @@ class Booking(db.Model):
         }
 
     def serialize_detail(self):
-        """La reserva completa: servicio, dirección, tramos y tareas. La
-        usa la confirmación del panel, y la usará "Mis reservas" (#16)."""
+        """La reserva completa: servicio, dirección, tramos, tareas con sus
+        fotos, e incidencias.
+
+        La usan la confirmación del panel, "Mis reservas" del cliente (#16)
+        y el seguimiento del trabajador (#82). Lo pesado (fotos e
+        incidencias) va solo aquí: `serialize()` se queda ligera porque la
+        usan las listas, como la de Reservas afectadas.
+        """
         return {
             **self.serialize(),
             "hours": self.hours,
@@ -831,6 +837,24 @@ class Booking(db.Model):
             "address": self.address.serialize(),
             "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
+            "incidents": [incident.serialize() for incident in self.incidents],
+
+            # Lo que pasó de verdad, frente a lo previsto en scheduled_*.
+            "started_at": (
+                self.started_at.isoformat()
+                if self.started_at
+                else None
+            ),
+            "completed_at": (
+                self.completed_at.isoformat()
+                if self.completed_at
+                else None
+            ),
+            "client_confirmed_at": (
+                self.client_confirmed_at.isoformat()
+                if self.client_confirmed_at
+                else None
+            ),
         }
 
 
@@ -948,7 +972,10 @@ class BookingTask(db.Model):
                 else None
             ),
             "notes": self.notes,
+            # El antes y el después, que el trabajador sube para cerrarla.
+            "photos": [photo.serialize() for photo in self.photos],
         }
+        
 
 
 # ==================================================================
