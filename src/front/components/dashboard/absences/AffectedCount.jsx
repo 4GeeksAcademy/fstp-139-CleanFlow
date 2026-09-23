@@ -9,7 +9,7 @@
  *   · al cambiar de página (pathname)
  *   · cuando otra pantalla avisa con refreshAffected()
  *
- * Estilos: dashboard.css (cf-side-count).
+ * Estilos: dashboard.css (cf-side__count).
  */
 
 import { useEffect, useState } from "react";
@@ -54,7 +54,7 @@ export const AffectedCount = ({ token, pathname }) => {
 
     // El texto oculto completa lo que oye el lector: "Reservas afectadas, 3 pendientes".
     return (
-        <span className="cf-side-count">
+        <span className="cf-side__count">
             {count}
             <span className="sr-only"> pendientes</span>
         </span>
