@@ -32,7 +32,8 @@ export const Login = () => {
     // Inputs controlados: React guarda lo que se escribe en su estado y
     // lo devuelve al input por la prop `value`. El estado es la fuente
     // de la verdad, no el DOM.
-    const [email, setEmail] = useState("");
+    // Viniendo del registro, el correo llega ya escrito (WEB-15).
+    const [email, setEmail] = useState(location.state?.email || "");
     const [password, setPassword] = useState("");
 
     // Solo controla si la contraseña se ve o no (el botón del ojo).
@@ -46,6 +47,10 @@ export const Login = () => {
     // ocultarlo en cuanto el usuario reaccione (al reintentar el login).
     const [expired, setExpired] = useState(Boolean(location.state?.expired));
 
+    // Aviso de cuenta creada: llega así desde el registro cuando la sesión
+    // no se pudo abrir sola. Se retira igual que el de sesión caducada.
+    const [registered, setRegistered] = useState(Boolean(location.state?.registered));
+
     const handleSubmit = async (e) => {
         // Evita que el navegador recargue la página al enviar el
         // formulario, que es su comportamiento por defecto.
@@ -55,9 +60,11 @@ export const Login = () => {
         // mensaje viejo en pantalla mientras llega la nueva respuesta.
         setError("");
 
-        // El usuario ya ha reaccionado al aviso de sesión caducada: se
-        // retira para que no compita con el error que pueda venir ahora.
+        // El usuario ya ha reaccionado a los avisos (sesión caducada o
+        // cuenta creada): se retiran para que no compitan con el error
+        // que pueda venir ahora.
         setExpired(false);
+        setRegistered(false);
 
         // authService devuelve { ok, data }: ok dice si la respuesta fue
         // correcta, data trae el cuerpo.
@@ -99,6 +106,14 @@ export const Login = () => {
             {expired && (
                 <div className="auth-notice" role="status">
                     Tu sesión ha expirado, vuelve a iniciar sesión
+                </div>
+            )}
+
+            {/* Aviso de cuenta creada. Solo aparece cuando el registro fue
+                bien pero la sesión no se pudo abrir sola (WEB-15). */}
+            {registered && (
+                <div className="auth-notice" role="status">
+                    Tu cuenta se ha creado. Inicia sesión con tu correo y tu contraseña para continuar.
                 </div>
             )}
 
@@ -167,8 +182,10 @@ export const Login = () => {
                 <button type="submit" className="auth-btn">Iniciar sesión</button>
             </form>
 
+            {/* state={location.state}: el destino viaja al registro, y tras
+                el alta se vuelve a donde quería ir (WEB-15). */}
             <p className="auth-foot">
-                ¿No tienes una cuenta? <Link to="/register">Regístrate</Link>
+                ¿No tienes una cuenta? <Link to="/register" state={location.state}>Regístrate</Link>
             </p>
         </div>
     );

@@ -54,16 +54,25 @@ export const login = async (email, password) => {
     }
 };
 
+/**
+ * Crea una cuenta de cliente con { name, last_name, email, phone, password }.
+ *
+ * No abre la sesión: de eso se encarga Register.jsx, que llama a login()
+ * justo después con los mismos datos (WEB-15).
+ */
 export const register = async (formData) => {
     try {
         const response = await fetch(`${BACKEND_URL}/api/register`, {
             method: "POST",
+            // Sin esta cabecera, Flask no lee el cuerpo como JSON.
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(formData),
         });
 
+        // El cuerpo se lee también cuando va mal: ahí viene el mensaje, por
+        // ejemplo el 409 de "El correo electrónico ya está registrado".
         const data = await response.json();
 
         return {
@@ -71,6 +80,8 @@ export const register = async (formData) => {
             data,
         };
     } catch (error) {
+        // Sin respuesta (backend caído o sin conexión). Mismo formato que
+        // login(): el mensaje va en data.error.
         console.error("Fallo de red al registrar usuario:", error);
 
         return {
