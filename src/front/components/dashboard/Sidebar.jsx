@@ -9,7 +9,7 @@
  *
  * En móvil (menos de 768px) se esconde tras una barra con hamburguesa y se
  * abre como panel lateral. En tablet y escritorio se ve fijo.
- * Estilos: dashboard.css, bloques "SIDEBAR REDISEÑADO" y "SIDEBAR EN MÓVIL".
+ * Estilos: dashboard.css, bloques "SIDEBAR" y "SIDEBAR EN MÓVIL".
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -38,9 +38,9 @@ import "../../dashboard.css"
 // "Mi cuenta" ya no está aquí: se entra por "Ajustes", en el bloque de
 // usuario de abajo.
 //
-// Decide `roles`, no el orden: los comentarios por rol son solo para leer.
-// El orden de arriba abajo es el de la lista: los enlaces de un mismo
-// grupo tienen que ir seguidos.
+// El menú sale en el orden de esta lista, así que los enlaces de un mismo
+// grupo van seguidos. Quién ve qué lo decide `roles`, no el orden: los
+// comentarios por rol son solo para leer.
 
 import { AffectedCount } from "./AffectedCount";
 
@@ -87,16 +87,20 @@ const THEMES = [
     { value: "dark", label: "Oscuro", icon: "fa-moon" },
 ]
 
-// Dónde se guarda si el menú quedó plegado. Es una preferencia de este
-// navegador, no del usuario: no tiene sentido llevarla al servidor.
+// ----------------------------------------------------------------------
+// PREFERENCIAS DEL NAVEGADOR
+// ----------------------------------------------------------------------
+// Cómo se dejó el menú (plegado y tema). Son preferencias de este aparato,
+// no del usuario: no tiene sentido llevarlas al servidor. localStorage
+// puede fallar (ventana privada, permisos) y no vale la pena romper el
+// menú por eso: ante la duda, valores de partida.
+
 const COLLAPSED_KEY = "cleanflow:sidebar-collapsed"
 
 // Por debajo de 1024px el menú desplegado se come la página: si nunca se
 // ha elegido nada en este navegador, arranca plegado.
 const TABLET_QUERY = "(max-width: 1023.98px)"
 
-// localStorage puede fallar (ventana privada, permisos) y no vale la pena
-// romper el menú por eso: ante la duda, desplegado.
 const readCollapsed = () => {
     try {
         const saved = window.localStorage.getItem(COLLAPSED_KEY)
@@ -111,8 +115,8 @@ const readCollapsed = () => {
     }
 }
 
-// El tema elegido, guardado en este navegador. Cuando exista el modo
-// oscuro de todo el panel, esta misma clave la leerá el marco.
+// Cuando exista el modo oscuro de todo el panel, esta misma clave la
+// leerá el marco.
 const THEME_KEY = "cleanflow:theme"
 
 const readTheme = () => {
@@ -126,7 +130,7 @@ const readTheme = () => {
 export const Sidebar = () => {
 
     // ----------------------------------------------------------------------
-    // LÓGICA (NO HACE FALTA TOCARLA PARA REDISEÑAR)
+    // SESIÓN, SECCIONES Y GRUPOS
     // ----------------------------------------------------------------------
 
     const { store, dispatch } = useGlobalReducer()
@@ -180,7 +184,6 @@ export const Sidebar = () => {
     // panel es su propia issue. El interruptor se deja puesto y funcionando
     // para no tener que rehacer el pie después.
 
-    // Sin paréntesis: se lee una vez, al montar.
     const [theme, setTheme] = useState(readTheme)
     const dark = theme === "dark"
 
@@ -266,7 +269,7 @@ export const Sidebar = () => {
     // ----------------------------------------------------------------------
     // PANTALLA
     // ----------------------------------------------------------------------
-    // Tres reglas al tocar el diseño:
+    // Tres cosas que no se pueden perder al tocar esto:
     //   1. Recorrer `visibleLinks`, nunca LINKS.
     //   2. Usar <NavLink> (no <a>): navega sin recargar y pone aria-current
     //      en la página actual, que es de lo que tira el CSS.

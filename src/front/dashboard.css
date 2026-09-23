@@ -1024,12 +1024,13 @@ textarea.cf-dash-input {
   }
 }
 
-/* ---------- SIDEBAR REDISEÑADO (Sidebar.jsx) ----------
-   El menú del panel: tarjeta verde con la marca arriba, las secciones en
-   medio y el usuario abajo. Se pliega a una barra de iconos (--rail).
+/* ---------- SIDEBAR (Sidebar.jsx) ----------
+   El menú del panel: tarjeta verde con la marca arriba, las secciones del
+   rol en medio y el usuario abajo. Se pliega a una barra de iconos
+   (--rail) y en móvil pasa a cajón (ver el bloque siguiente).
 
-   Sus medidas y sus blancos viven aquí, no en index.css: solo los usa
-   el menú, y los blancos son para su fondo verde. */
+   Sus medidas y sus blancos viven aquí y no en index.css: solo los usa el
+   menú, y los blancos son para su fondo verde. */
 
 .cf-side {
   --side-w: 268px;
