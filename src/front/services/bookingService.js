@@ -1,17 +1,59 @@
+/**
+ * RESERVAS DEL CLIENTE (#14) · llamadas a la API.
+ *
+ * Devuelven { ok, status, data } y nunca lanzan errores.
+ *  - ok:    `data` ya es la reserva.
+ *  - error: el mensaje está en data.message.
+ *
+ * El precio lo calcula el backend: lo que envíe el panel ni se lee.
+ */
+
 import { apiRequest } from "./apiClient";
 
-export const getWorkerBookings = (token) =>
-    apiRequest("/api/bookings", { token });
+/**
+ * Crea una reserva, que nace confirmada.
+ *
+ * bookingData: { service_slug, task_ids, hours, worker, start, address_id, notes }
+ *  - task_ids: con repeticiones (tres habitaciones = tres veces el mismo id).
+ *  - worker:   "any" (Cualquiera) o el id, como número.
+ *  - start:    "2026-10-05T09:00", hora de Madrid y sin zona.
+ *
+ * data: la reserva, con su trabajador, sus tramos y sus tareas.
+ * Un 409 significa que el hueco acaba de ocuparse: hay que recargarlos.
+ */
+export const createBooking = async (bookingData, token) => {
+  const result = await apiRequest("/api/bookings", {
+    method: "POST",
+    token,
+    body: bookingData,
+  });
 
-export const completeBookingTask = (taskId, token) =>
-    apiRequest(`/api/booking-tasks/${taskId}`, {
-        method: "PATCH",
-        token,
-        body: { status: "completed" },
-    });
+  return result.ok ? { ...result, data: result.data.booking } : result;
+};
+
+export const getWorkerBookings = (token) =>
+  apiRequest("/api/bookings", { token });
+
+export const completeBookingTask = (taskId, token, completed = true) =>
+  apiRequest(`/api/booking-tasks/${taskId}`, {
+    method: "PATCH",
+    token,
+    body: {
+      status: completed ? "completed" : "pending",
+    },
+  });
 
 export const completeBooking = (bookingId, token) =>
-    apiRequest(`/api/bookings/${bookingId}/complete`, {
-        method: "PATCH",
-        token,
-    });
+  apiRequest(`/api/bookings/${bookingId}/complete`, {
+    method: "PATCH",
+    token,
+  });
+
+export const getMyBookings = (token) =>
+    apiRequest("/api/bookings", { token });
+
+// Fechas de Madrid sin convertirlas al huso horario del navegador.
+export const formatInterval = (day) => {
+    const date = day.starts_at.slice(0, 10).split("-").reverse().join("/");
+    return `${date} · ${day.starts_at.slice(11, 16)}–${day.ends_at.slice(11, 16)}`;
+};

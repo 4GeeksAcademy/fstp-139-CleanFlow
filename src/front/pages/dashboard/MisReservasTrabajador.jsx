@@ -1,3 +1,5 @@
+import "../../dashboard.css";
+import "../../bookingTracking.css";
 import { useCallback, useEffect, useState } from "react";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import {
@@ -5,7 +7,7 @@ import {
     completeBookingTask,
     completeBooking,
 } from "../../services/bookingService";
-import { formatInterval } from "../../services/absenceService";
+import { formatInterval } from "../../services/bookingService";
 
 const statuses = {
     pending: "Pendiente",
@@ -19,8 +21,17 @@ const money = new Intl.NumberFormat("es-ES", {
     currency: "EUR",
 });
 
+// Compare calendar days in Madrid, matching the backend's date rule.
+const madridToday = () => {
+    const parts = new Intl.DateTimeFormat("en", {
+        timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(new Date());
+    const value = (type) => parts.find(part => part.type === type).value;
+    return `${value("year")}-${value("month")}-${value("day")}`;
+};
+
 export const MisReservasTrabajador = () => {
-    const { store } = useGlobalReducer();
+    const { store, dispatch } = useGlobalReducer();
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -32,6 +43,13 @@ export const MisReservasTrabajador = () => {
 
         const result = await getWorkerBookings(store.token);
 
+        if (result.status === 401) {
+            setLoading(false);
+            setSaving(false);
+            dispatch({ type: "LOGOUT" });
+            return;
+        }
+
         if (result.ok) {
             setBookings(result.data.bookings);
         } else {
@@ -40,17 +58,28 @@ export const MisReservasTrabajador = () => {
         }
 
         setLoading(false);
-    }, [store.token]);
+    }, [store.token, dispatch]);
 
     useEffect(() => {
         load();
     }, [load]);
 
-    const handleTaskComplete = async (bookingId, taskId) => {
+    const handleTaskComplete = async (bookingId, taskId, completed) => {
         setSaving(true);
         setError("");
 
-        const result = await completeBookingTask(taskId, store.token);
+        const result = await completeBookingTask(
+            taskId,
+            store.token,
+            completed
+        );
+
+        if (result.status === 401) {
+            setLoading(false);
+            setSaving(false);
+            dispatch({ type: "LOGOUT" });
+            return;
+        }
 
         if (result.ok) {
             setBookings(current => current.map(booking =>
@@ -78,6 +107,13 @@ export const MisReservasTrabajador = () => {
 
         const result = await completeBooking(bookingId, store.token);
 
+        if (result.status === 401) {
+            setLoading(false);
+            setSaving(false);
+            dispatch({ type: "LOGOUT" });
+            return;
+        }
+
         if (result.ok) {
             setBookings(current => current.map(booking =>
                 booking.booking_id === bookingId
@@ -92,12 +128,12 @@ export const MisReservasTrabajador = () => {
     };
 
     return (
-        <div className="container py-3">
-            <div className="d-flex justify-content-between flex-wrap gap-2 mb-4">
+        <div className="cf-dash-bookings">
+            <div className="cf-dash-bookings__header">
                 <h1>Mis reservas asignadas</h1>
                 <button
                     type="button"
-                    className="btn btn-outline-secondary align-self-center"
+                    className="cf-dash-btn cf-dash-btn--ghost"
                     disabled={loading || saving}
                     onClick={load}
                 >
@@ -106,7 +142,7 @@ export const MisReservasTrabajador = () => {
             </div>
 
             {error && (
-                <div className="alert alert-danger" role="alert">
+                <div className="cf-dash-alert" role="alert">
                     {error}
                 </div>
             )}
@@ -129,17 +165,26 @@ export const MisReservasTrabajador = () => {
                         const allCompleted = completedCount === tasks.length;
                         const confirmed = booking.status === "confirmed";
                         const address = booking.address;
+                        const today = madridToday();
+                        const firstDay = booking.scheduled_start?.slice(0, 10);
+                        const lastDay = (booking.days || []).reduce(
+                            (latest, day) => day.starts_at.slice(0, 10) > latest
+                                ? day.starts_at.slice(0, 10) : latest,
+                            firstDay || ""
+                        );
+                        const canEditTasks = confirmed && Boolean(firstDay) && firstDay <= today;
+                        const canFinish = confirmed && Boolean(lastDay) && lastDay <= today;
 
                         return (
                             <article
                                 key={booking.booking_id}
-                                className="card p-4 mb-3"
+                                className="cf-dash-bookings__card"
                             >
-                                <h2 className="h5">
+                                <h2 className="cf-dash-bookings__title">
                                     Reserva #{booking.booking_id}
                                 </h2>
 
-                                <p>Servicio: {booking.service_name}</p>
+                                <p className="cf-dash-bookings__service">{booking.service?.name || "Servicio no disponible"}</p>
 
                                 <p>
                                     Dirección: {address
@@ -156,7 +201,7 @@ export const MisReservasTrabajador = () => {
                                 </p>
 
                                 <p>
-                                    Estado: {statuses[booking.status] || booking.status}
+                                    Estado: <span className={`cf-dash-bookings__badge cf-dash-bookings__badge--${booking.status}`}>{statuses[booking.status] || booking.status}</span>
                                 </p>
 
                                 <ul>
@@ -167,12 +212,18 @@ export const MisReservasTrabajador = () => {
                                     ))}
                                 </ul>
 
-                                <h3 className="h6">
+                                <h3 className="cf-dash-bookings__subtitle">
                                     Checklist: {completedCount}/{tasks.length}
                                 </h3>
 
                                 {tasks.length === 0 && (
                                     <p>Esta reserva no tiene tareas de checklist.</p>
+                                )}
+
+                                {confirmed && !canEditTasks && (
+                                    <p className="cf-dash-bookings__hint">
+                                        Podrás marcar las tareas a partir del día de inicio del servicio.
+                                    </p>
                                 )}
 
                                 {tasks.map(task => {
@@ -181,27 +232,28 @@ export const MisReservasTrabajador = () => {
 
                                     return (
                                         <div
-                                            className="form-check mb-2"
+                                            className="cf-dash-check cf-dash-bookings__check"
                                             key={task.booking_task_id}
                                         >
                                             <input
                                                 id={inputId}
-                                                className="form-check-input"
+                                                className="cf-dash-bookings__checkbox"
                                                 type="checkbox"
                                                 checked={completed}
-                                                disabled={saving || completed || !confirmed}
-                                                onChange={() => handleTaskComplete(
+                                                disabled={saving || !canEditTasks}
+                                                onChange={(event) => handleTaskComplete(
                                                     booking.booking_id,
-                                                    task.booking_task_id
+                                                    task.booking_task_id,
+                                                    event.target.checked
                                                 )}
                                             />
                                             <label
-                                                className="form-check-label"
+                                                className="cf-dash-bookings__check-label"
                                                 htmlFor={inputId}
                                             >
                                                 {task.task_name}
                                                 {completed && (
-                                                    <span className="text-success">
+                                                    <span className="cf-dash-bookings__done">
                                                         {" "}— Completada
                                                     </span>
                                                 )}
@@ -211,16 +263,21 @@ export const MisReservasTrabajador = () => {
                                 })}
 
                                 {confirmed && (
-                                    <div className="mt-3">
+                                    <div className="cf-dash-bookings__actions">
+                                        {!canFinish && (
+                                            <p className="cf-dash-bookings__hint">
+                                                La reserva podrá finalizarse a partir de su último día de servicio.
+                                            </p>
+                                        )}
                                         {!allCompleted && (
-                                            <p className="text-muted">
+                                            <p className="cf-dash-bookings__hint">
                                                 Completa todas las tareas para finalizar la reserva.
                                             </p>
                                         )}
                                         <button
                                             type="button"
-                                            className="btn btn-primary"
-                                            disabled={saving || !allCompleted}
+                                            className="cf-dash-btn"
+                                            disabled={saving || !allCompleted || !canFinish}
                                             onClick={() => handleBookingComplete(
                                                 booking.booking_id
                                             )}

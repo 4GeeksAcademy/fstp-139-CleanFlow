@@ -9,20 +9,21 @@ ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py)
 """
 
 import re
-
+import math
 import cloudinary
 import cloudinary.uploader
-from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task, Service, Worker, Address, Shift
+from flask import Flask, request, jsonify, url_for, Blueprint, current_app
+from api.models import db, User, Task, Service, Worker, Address, Shift, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
-from api.availability import can_work, load_busy, madrid_now, month_availability, BOOKING_HORIZON, SEARCH_LIMIT_DAYS
+from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import selectinload
+from functools import wraps
 
 
 api = Blueprint("api", __name__)
@@ -35,6 +36,30 @@ CORS(api)
 # AYUDANTES COMUNES
 # ----------------------------------------------------------------------
 
+
+def booking_transaction(fn):
+    """Revierte errores y libera bloqueos al terminar cada operación."""
+    @wraps(fn)
+    def wrapped(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except APIException:
+            db.session.rollback()
+            raise
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception("Error al actualizar una reserva")
+            return jsonify({
+                "message": "No se ha podido guardar la operación."
+            }), 500
+        finally:
+            # También libera los bloqueos en respuestas 403, 404 o 409.
+            # Los cambios correctos ya se han guardado mediante commit.
+            db.session.rollback()
+
+    return wrapped
+
+
 def get_json_body():
     """Devuelve el cuerpo si es un objeto JSON, o None.
 
@@ -43,6 +68,16 @@ def get_json_body():
     """
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else None
+
+
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
+def is_valid_email(email):
+    if not isinstance(email, str):
+        return False
+
+    return bool(re.fullmatch(EMAIL_PATTERN, email.strip()))
 
 
 def clean_optional_text(value, field_label, max_length=None):
@@ -251,6 +286,7 @@ def delete_shift(shift_id):
 #   GET    /api/workers        listar
 #   GET    /api/workers/<id>   ver uno
 #   PUT    /api/workers/<id>   editar
+
 
 @api.route("/workers", methods=["POST"])
 @role_required("manager")
@@ -670,7 +706,8 @@ def get_services():
     quien llama si ve también los desactivados.
     """
     services = db.session.execute(
-        db.select(Service).filter_by(is_active=True).order_by(Service.service_id)
+        db.select(Service).filter_by(
+            is_active=True).order_by(Service.service_id)
     ).scalars().all()
 
     return jsonify({"services": [service.serialize_public() for service in services]}), 200
@@ -699,6 +736,17 @@ def get_tasks():
 
     Sin minutos: dependen del servicio (Service.minutes_per_task).
     """
+    now = madrid_now()
+
+    last_service_day = max(
+        (day.starts_at.date() for day in booking.days),
+        default=booking.scheduled_start.date(),
+    )
+
+    if last_service_day > now.date():
+        return jsonify({
+            "message": "No puedes completar la reserva antes de su último día de servicio."
+        }), 409
     tasks = db.session.execute(
         db.select(Task).filter_by(is_active=True).order_by(Task.task_id)
     ).scalars().all()
@@ -989,7 +1037,8 @@ def upload_account_avatar():
             invalidate=True,
             resource_type="image",
             # Cuadrada y centrada en la cara, que es lo que se ve en el avatar.
-            transformation=[{"width": 256, "height": 256, "crop": "fill", "gravity": "face"}],
+            transformation=[{"width": 256, "height": 256,
+                             "crop": "fill", "gravity": "face"}],
         )
     except Exception as error:
         # Cloudinary caído, sin internet o claves mal: no es culpa de quien sube.
@@ -1018,7 +1067,8 @@ def delete_account_avatar():
 
     if user.avatar_url and cloudinary_is_configured():
         try:
-            cloudinary.uploader.destroy(avatar_public_id(user), invalidate=True)
+            cloudinary.uploader.destroy(
+                avatar_public_id(user), invalidate=True)
         except Exception as error:
             # Si Cloudinary falla, la imagen se queda allí, pero el usuario
             # deja de verla igual: no se le bloquea por eso.
@@ -1059,7 +1109,8 @@ POSTAL_CODE_PATTERN = r"^[0-9]{5}$"
 def owned_address(user, address_id):
     """La dirección activa del cliente, o None si no es suya o ya no está."""
     return db.session.execute(
-        db.select(Address).filter_by(address_id=address_id, client_id=user.user_id, is_active=True)
+        db.select(Address).filter_by(address_id=address_id,
+                                     client_id=user.user_id, is_active=True)
     ).scalar_one_or_none()
 
 
@@ -1115,11 +1166,13 @@ def validate_address(data, current=None):
     fields["postal_code"] = postal_code.strip()
 
     # ---- opcionales: vacíos se guardan como NULL ----
-    fields["floor"], error = clean_optional_text(pick("floor"), "El piso", FLOOR_MAX_LENGTH)
+    fields["floor"], error = clean_optional_text(
+        pick("floor"), "El piso", FLOOR_MAX_LENGTH)
     if error:
         return None, error
 
-    fields["access_notes"], error = clean_optional_text(pick("access_notes"), "Las notas de acceso")
+    fields["access_notes"], error = clean_optional_text(
+        pick("access_notes"), "Las notas de acceso")
     if error:
         return None, error
 
@@ -1153,7 +1206,8 @@ def create_address():
         return jsonify({"message": error}), 400
 
     # is_default no se acepta del cuerpo: se marca con PATCH .../default.
-    address = Address(client_id=user.user_id, is_default=not active_addresses(user), **fields)
+    address = Address(client_id=user.user_id,
+                      is_default=not active_addresses(user), **fields)
 
     db.session.add(address)
     db.session.commit()
@@ -1508,11 +1562,13 @@ def validate_service(data, current=None):
     fields["description"] = description.strip()
 
     # ---- textos opcionales ----
-    fields["long_description"], error = clean_optional_text(pick("long_description"), "La descripción larga")
+    fields["long_description"], error = clean_optional_text(
+        pick("long_description"), "La descripción larga")
     if error:
         return None, error
 
-    fields["image_url"], error = clean_optional_text(pick("image_url"), "La URL de la imagen", IMAGE_URL_MAX_LENGTH)
+    fields["image_url"], error = clean_optional_text(
+        pick("image_url"), "La URL de la imagen", IMAGE_URL_MAX_LENGTH)
     if error:
         return None, error
 
@@ -1636,7 +1692,8 @@ def update_service(service_id):
         return jsonify({"message": "No se recibieron datos"}), 400
 
     # Sin is_active en el cuerpo, validate_service conserva el estado actual.
-    data = {field: value for field, value in data.items() if field != "is_active"}
+    data = {field: value for field, value in data.items() if field !=
+            "is_active"}
 
     fields, error = validate_service(data, current=service)
     if error:
@@ -1680,7 +1737,6 @@ def update_service_status(service_id):
     db.session.commit()
 
     return jsonify({"service": service.serialize()}), 200
-
 
 
 # ----------------------------------------------------------------------
@@ -1730,8 +1786,6 @@ def get_availability_workers():
     return jsonify({"workers": [public_worker(worker) for worker in bookable_workers()]}), 200
 
 
-
-
 # Tope de horas al pedir huecos. Ningún servicio llega, y evita que
 # alguien pida "hours=5000" y ponga al servidor a calcular para nada.
 MAX_REQUEST_HOURS = 60
@@ -1759,7 +1813,8 @@ def get_availability():
 
     # ---- MES ----
     try:
-        month_first_day = datetime.strptime(request.args.get("month", ""), "%Y-%m").date()
+        month_first_day = datetime.strptime(
+            request.args.get("month", ""), "%Y-%m").date()
     except ValueError:
         return jsonify({"message": "Indica el mes con el formato AAAA-MM, por ejemplo 2026-10"}), 400
 
@@ -1776,7 +1831,8 @@ def get_availability():
     worker_param = request.args.get("worker", "any")
 
     if worker_param != "any":
-        chosen = [worker for worker in workers if str(worker.worker_id) == worker_param]
+        chosen = [worker for worker in workers if str(
+            worker.worker_id) == worker_param]
 
         # Mismo 404 si no existe o si no se puede reservar: para el
         # cliente es lo mismo.
@@ -1788,8 +1844,10 @@ def get_availability():
     # ---- CÁLCULO ----
     # Se carga un poco más allá del fin de mes: una reserva que empieza
     # el día 30 puede tener tramos en el mes siguiente.
-    next_month = (month_first_day.replace(day=28) + timedelta(days=4)).replace(day=1)
-    busy = load_busy(workers, month_first_day, next_month + timedelta(days=SEARCH_LIMIT_DAYS))
+    next_month = (month_first_day.replace(day=28) +
+                  timedelta(days=4)).replace(day=1)
+    busy = load_busy(workers, month_first_day, next_month +
+                     timedelta(days=SEARCH_LIMIT_DAYS))
 
     days = month_availability(workers, hours, month_first_day, now, busy)
 
@@ -1800,7 +1858,8 @@ def get_availability():
                 {
                     "start": slot["start"],
                     "options": [
-                        {"worker_id": option["worker_id"], "days": [d.isoformat() for d in option["days"]]}
+                        {"worker_id": option["worker_id"], "days": [
+                            d.isoformat() for d in option["days"]]}
                         for option in slot["options"]
                     ],
                 }
@@ -1808,4 +1867,827 @@ def get_availability():
             ]
             for day, slots in days.items()
         }
+    }), 200
+
+
+# ----------------------------------------------------------------------
+# RESERVAS DEL CLIENTE
+# ----------------------------------------------------------------------
+#   POST   /api/bookings   crear una reserva
+#
+# De arriba abajo: las reglas, validate_booking() y create_booking().
+#
+# ⚠️ Las cuentas están repetidas en bookingRules.js (frontend): si cambia
+# una, cambian las dos, o el panel enseñará un precio que aquí se rechaza.
+# La ventana de reserva y la hora de Madrid vienen de api/availability.py:
+# cada regla vive en un solo sitio.
+BOOKING_MAX_TASKS = 30                 # tope de filas por reserva
+BOOKING_NOTES_MAX_LENGTH = 1000
+
+
+def is_int(value):
+    """True si es un entero de verdad. bool cuenta como int en Python, así
+    que sin esto un `true` en el JSON pasaría por un id o por una hora."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def hours_needed(service, task_count):
+    """Horas mínimas que exigen las tareas en este servicio.
+
+        tareas × minutos  →  a horas, redondeando hacia arriba
+                          →  nunca menos que el mínimo del servicio
+                          →  subido hasta respetar el salto (8, 12, 16...)
+
+    Fin de obra (sin minutos por tarea) necesita solo su mínimo.
+    """
+    if service.minutes_per_task is None:
+        return service.min_hours
+
+    # La hora se cobra entera: 90 minutos de trabajo son 2 horas.
+    hours = math.ceil(task_count * service.minutes_per_task / 60)
+    hours = max(hours, service.min_hours)
+
+    # Cuántos saltos hacen falta por encima del mínimo.
+    steps = math.ceil((hours - service.min_hours) / service.hour_step)
+
+    return service.min_hours + steps * service.hour_step
+
+
+def validate_booking(data, user):
+    """Valida una reserva ANTES de escribir nada en la base de datos.
+
+    Devuelve (campos, None) o (None, (mensaje, código)). El código es 400,
+    salvo un trabajador o una dirección que no se encuentran: 404.
+
+    No mira si el hueco está libre: eso lo hace create_booking(), dentro
+    de su transacción.
+    """
+
+    # ---- SERVICIO ----
+    # Llega por slug: la vista pública del servicio no expone su id.
+    slug = data.get("service_slug")
+    service = None
+
+    if isinstance(slug, str):
+        service = db.session.execute(
+            db.select(Service).filter_by(slug=slug, is_active=True)
+        ).scalar_one_or_none()
+
+    if not service:
+        return None, ("Elige un servicio disponible", 400)
+
+    # ---- TAREAS ----
+    task_ids = data.get("task_ids", [])
+
+    if not isinstance(task_ids, list) or not all(is_int(task_id) for task_id in task_ids):
+        return None, ("Las tareas no tienen un formato válido", 400)
+
+    if service.minutes_per_task is None:
+        # Fin de obra: se contrata solo por horas.
+        if task_ids:
+            return None, (f"{service.name} no lleva tareas: se contrata solo por horas", 400)
+        tasks = []
+
+    else:
+        if not task_ids:
+            return None, ("Añade al menos una tarea", 400)
+
+        if len(task_ids) > BOOKING_MAX_TASKS:
+            return None, (f"Como mucho {BOOKING_MAX_TASKS} tareas por reserva", 400)
+
+        # Se consultan los ids sin repetir y después se rehace la lista con
+        # sus repeticiones: tres habitaciones siguen siendo tres.
+        unique_ids = set(task_ids)
+        found = db.session.execute(
+            db.select(Task).filter_by(is_active=True).where(
+                Task.task_id.in_(unique_ids))
+        ).scalars().all()
+        by_id = {task.task_id: task for task in found}
+
+        if len(by_id) != len(unique_ids):
+            return None, ("Alguna de las tareas ya no está disponible", 400)
+
+        tasks = [by_id[task_id] for task_id in task_ids]
+
+    # ---- HORAS ----
+    hours = data.get("hours")
+
+    if not is_int(hours):
+        return None, ("Indica cuántas horas quieres contratar", 400)
+
+    needed = hours_needed(service, len(tasks))
+
+    if hours < needed:
+        if tasks:
+            return None, (f"Tus tareas necesitan {needed} h", 400)
+        return None, (f"{service.name} se contrata desde {needed} h", 400)
+
+    if (hours - service.min_hours) % service.hour_step != 0:
+        step = service.hour_step
+        return None, (f"{service.name} se contrata de {step} en {step} horas", 400)
+
+    if service.max_hours is not None and hours > service.max_hours:
+        return None, (f"{service.name} se contrata como mucho {service.max_hours} h", 400)
+
+    # ---- TRABAJADOR ----
+    # "any" (Cualquiera) o el id de uno: lo mismo que acepta GET /availability.
+    worker_choice = data.get("worker", "any")
+    workers = bookable_workers()
+
+    if worker_choice != "any":
+        workers = [
+            worker for worker in workers
+            if is_int(worker_choice) and worker.worker_id == worker_choice
+        ]
+
+        # Mismo 404 si no existe o si no se puede reservar.
+        if not workers:
+            return None, ("Ese trabajador no está disponible para reservar", 404)
+
+    # ---- INICIO ----
+    # Llega como "2026-10-05T09:30", sin zona: es hora de Madrid.
+    try:
+        start = datetime.fromisoformat(data.get("start"))
+    except (TypeError, ValueError):
+        return None, ("Elige una fecha y una hora de inicio", 400)
+
+    # Si llega con zona, se pasa a Madrid y se le quita: así se compara
+    # siempre lo mismo con lo mismo.
+    if start.tzinfo is not None:
+        start = start.astimezone(MADRID).replace(tzinfo=None)
+
+    # Solo la ventana de reserva. Si la hora cae en el turno y está libre
+    # lo comprueba create_booking().
+    now = madrid_now()
+
+    if start < now + MIN_NOTICE:
+        return None, ("Las reservas se hacen con al menos 24 horas de antelación", 400)
+
+    if start > now + BOOKING_HORIZON:
+        return None, ("Solo se puede reservar hasta 60 días vista", 400)
+
+    # ---- DIRECCIÓN ----
+    # owned_address() ya filtra por cliente y por activa (#13).
+    address_id = data.get("address_id")
+    address = owned_address(user, address_id) if is_int(address_id) else None
+
+    if not address:
+        return None, ("Dirección no encontrada", 404)
+
+    # ---- DESCRIPCIÓN ----
+    notes, error = clean_optional_text(
+        data.get("notes"), "La descripción", BOOKING_NOTES_MAX_LENGTH)
+
+    if error:
+        return None, (error, 400)
+
+    return {
+        "service": service,
+        "tasks": tasks,
+        "hours": hours,
+        "workers": workers,
+        "address": address,
+        "start": start,
+        "notes": notes,
+    }, None
+
+
+def free_options_at(workers, hours, start, busy):
+    """Las opciones libres para empezar justo a esa hora, o [].
+
+    Usa month_availability, el mismo cálculo que el calendario: lo que no
+    sale allí tampoco se puede reservar aquí.
+    """
+    day = start.date()
+    slots = month_availability(
+        workers, hours, day.replace(day=1), madrid_now(), busy)
+
+    for slot in slots.get(day, []):
+        if slot["start"] == start.strftime("%H:%M"):
+            return slot["options"]
+
+    return []
+
+
+@api.route("/bookings", methods=["POST"])
+@role_required("client")
+def create_booking():
+    """Crea una reserva confirmada, con su trabajador y sus tramos.
+
+        POST /api/bookings
+        {"service_slug": "limpieza-esencial", "task_ids": [1, 1, 3],
+         "hours": 2, "worker": "any", "start": "2026-10-05T09:00",
+         "address_id": 4, "notes": ""}
+
+    Responde 201 {"booking": {...}}. El total lo calcula el servidor: lo
+    que mande el navegador ni se lee.
+    """
+    user = current_user()
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    fields, error = validate_booking(data, user)
+
+    if error:
+        message, code = error
+        return jsonify({"message": message}), code
+
+    workers = fields["workers"]
+    hours = fields["hours"]
+    start = fields["start"]
+    day = start.date()
+
+    # Bloquea a los candidatos hasta el commit: si dos clientes piden el
+    # mismo hueco a la vez, el segundo espera aquí y vuelve a mirar.
+    db.session.execute(
+        db.select(Worker)
+        .where(Worker.worker_id.in_([worker.worker_id for worker in workers]))
+        .with_for_update()
+    )
+
+    busy = load_busy(workers, day, day + timedelta(days=SEARCH_LIMIT_DAYS))
+    options = free_options_at(workers, hours, start, busy)
+
+    if not options:
+        # Sin reservas por medio: si entonces sí había hueco, es que acaban
+        # de ocuparlo; si tampoco, esa hora nunca fue reservable.
+        if free_options_at(workers, hours, start, {}):
+            return jsonify({"message": "Ese hueco acaba de ocuparse, elige otro"}), 409
+
+        return jsonify({"message": "Esa hora no está disponible para reservar"}), 400
+
+    # Con "Cualquiera", el que menos horas tenga ese día.
+    by_id = {worker.worker_id: worker for worker in workers}
+    worker = pick_worker([by_id[option["worker_id"]]
+                         for option in options], busy, day)
+
+    service = fields["service"]
+    intervals = booking_intervals(worker, start, hours)
+
+    booking = Booking(
+        client_id=user.user_id,
+        service_id=service.service_id,
+        address_id=fields["address"].address_id,
+        worker_id=worker.worker_id,
+        scheduled_start=intervals[0][0],
+        scheduled_end=intervals[-1][1],
+        # Congelados: si el servicio cambia, esta reserva conserva los suyos.
+        hourly_rate=service.base_hourly_rate,
+        minutes_per_task=service.minutes_per_task,
+        total_price=round(hours * service.base_hourly_rate, 2),
+        status=BookingStatus.CONFIRMED,
+        client_notes=fields["notes"],
+        created_at=madrid_now(),
+    )
+
+    # Se guardan con la reserva gracias a la relación Booking.days.
+    for begins, ends in intervals:
+        booking.days.append(BookingDay(starts_at=begins, ends_at=ends))
+
+    db.session.add(booking)
+
+    # flush: pide el id de la reserva sin cerrar la transacción.
+    db.session.flush()
+
+    for task in fields["tasks"]:
+        db.session.add(BookingTask(
+            booking_id=booking.booking_id,
+            task_id=task.task_id,
+            task_name=task.task_name,
+            status=BookingTaskStatus.PENDING,
+        ))
+
+    db.session.commit()
+
+    return jsonify({
+        "booking": {**booking.serialize_detail(), "worker": public_worker(worker)}
+    }), 201
+
+
+
+@api.route("/booking-tasks/<int:task_id>", methods=["PATCH"])
+@role_required("worker")
+@booking_transaction
+def complete_booking_task(task_id):
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict) or data.get("status") not in (
+        "pending",
+        "completed",
+    ):
+        return jsonify({
+            "message": 'El estado debe ser "pending" o "completed".'
+        }), 400
+
+    user_id = int(get_jwt_identity())
+
+    booking_id = db.session.execute(
+        db.select(BookingTask.booking_id).where(
+            BookingTask.booking_task_id == task_id
+        )
+    ).scalar_one_or_none()
+
+    if booking_id is None:
+        return jsonify({"message": "Tarea no encontrada."}), 404
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    worker = db.session.get(Worker, booking.worker_id)
+    if worker is None or worker.user_id != user_id:
+        return jsonify({
+            "message": "Solo puedes modificar tareas de tus reservas asignadas."
+        }), 403
+
+    if booking.status != BookingStatus.CONFIRMED:
+        return jsonify({
+            "message": "Solo puedes modificar tareas de reservas confirmadas."
+        }), 409
+
+    now = madrid_now()
+
+    if booking.scheduled_start.date() > now.date():
+        return jsonify({
+            "message": "No puedes modificar tareas antes del día de inicio de la reserva."
+        }), 409
+
+    task = db.session.get(BookingTask, task_id)
+    if task is None:
+        return jsonify({"message": "Tarea no encontrada."}), 404
+
+    new_status = BookingTaskStatus(data["status"])
+
+    # Repetir la misma petición conserva la fecha original.
+    if task.status != new_status:
+        task.status = new_status
+        task.completed_at = (
+            now if new_status == BookingTaskStatus.COMPLETED else None
+        )
+        booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"task": task.serialize()}), 200
+
+
+
+
+@api.route("/bookings/<int:booking_id>/cancel", methods=["PATCH"])
+@role_required("client", "manager")
+@booking_transaction
+def cancel_booking(booking_id):
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    if user.role == "client" and booking.client_id != user_id:
+        return jsonify({
+            "message": "Solo puedes cancelar tus propias reservas."
+        }), 403
+
+    if booking.status == BookingStatus.COMPLETED:
+        return jsonify({
+            "message": "No se puede cancelar una reserva completada."
+        }), 409
+
+    # Repetir la petición conserva los datos de la cancelación original.
+    if booking.status == BookingStatus.CANCELLED:
+        return jsonify({"booking": booking.serialize_detail()}), 200
+
+    if user.role == "client" and booking.status != BookingStatus.PENDING:
+        return jsonify({
+            "message": "Solo puedes cancelar reservas pendientes de confirmación."
+        }), 409
+
+    if booking.status not in (
+        BookingStatus.PENDING,
+        BookingStatus.CONFIRMED,
+    ):
+        return jsonify({
+            "message": "El estado actual no permite cancelar la reserva."
+        }), 409
+
+    booking.status = BookingStatus.CANCELLED
+    booking.cancelled_by_company = user.role == "manager"
+    booking.cancellation_reason = (
+        "Reserva cancelada por el encargado."
+        if user.role == "manager"
+        else None
+    )
+    booking.updated_at = madrid_now()
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+@api.route("/bookings", methods=["GET"])
+@api.route("/my/bookings", methods=["GET"])
+@role_required("client", "worker")
+def my_bookings():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+
+    if user.role == "client":
+        if "worker_id" in request.args:
+            return jsonify({
+                "message": "El cliente solo puede consultar sus propias reservas."
+            }), 403
+
+        parameter = "client_id"
+        own_id = user_id
+        booking_filter = Booking.client_id == user_id
+    else:
+        if "client_id" in request.args:
+            return jsonify({
+                "message": "El trabajador solo puede consultar sus reservas asignadas."
+            }), 403
+
+        worker = db.session.execute(
+            db.select(Worker).where(Worker.user_id == user_id)
+        ).scalar_one_or_none()
+
+        if worker is None:
+            return jsonify({
+                "message": "No tienes un perfil de trabajador."
+            }), 403
+
+        parameter = "worker_id"
+        own_id = worker.worker_id
+        booking_filter = Booking.worker_id == worker.worker_id
+
+    requested_id = request.args.get(parameter)
+
+    if requested_id is not None:
+        try:
+            requested_id = int(requested_id)
+        except ValueError:
+            return jsonify({
+                "message": f"{parameter} debe ser un entero."
+            }), 400
+
+        if requested_id != own_id:
+            return jsonify({
+                "message": "Solo puedes consultar tus propias reservas."
+            }), 403
+
+    bookings = db.session.execute(
+        db.select(Booking).options(
+            selectinload(Booking.worker).selectinload(Worker.user),
+            selectinload(Booking.days),
+            selectinload(Booking.service),
+            selectinload(Booking.address),
+            selectinload(Booking.tasks),
+        ).where(
+            booking_filter
+        ).order_by(
+            Booking.scheduled_start.desc(),
+            Booking.booking_id.desc(),
+        )
+    ).scalars().all()
+
+    return jsonify({
+        "bookings": [booking.serialize_detail() for booking in bookings]
+    })
+
+
+@api.route("/bookings/<int:booking_id>/complete", methods=["PATCH"])
+@role_required("worker")
+@booking_transaction
+def complete_booking(booking_id):
+    user_id = int(get_jwt_identity())
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    worker = db.session.get(Worker, booking.worker_id)
+    if worker is None or worker.user_id != user_id:
+        return jsonify({
+            "message": "Solo puedes completar tus reservas asignadas."
+        }), 403
+
+    if booking.status == BookingStatus.COMPLETED:
+        return jsonify({"booking": booking.serialize_detail()}), 200
+
+    if booking.status != BookingStatus.CONFIRMED:
+        return jsonify({
+            "message": "Solo puedes completar reservas confirmadas."
+        }), 409
+
+    now = madrid_now()
+
+    last_service_day = max(
+        (day.starts_at.date() for day in booking.days),
+        default=booking.scheduled_start.date(),
+    )
+
+    if last_service_day > now.date():
+        return jsonify({
+            "message": "No puedes completar la reserva antes de su último día de servicio."
+        }), 409
+
+    tasks = db.session.execute(
+        db.select(BookingTask).where(
+            BookingTask.booking_id == booking_id
+        )
+    ).scalars().all()
+
+    if any(task.status != BookingTaskStatus.COMPLETED for task in tasks):
+        return jsonify({
+            "message": "Debes completar todas las tareas antes de finalizar la reserva."
+        }), 409
+
+    booking.status = BookingStatus.COMPLETED
+    booking.updated_at = now
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+# ----------------------------------------------------------------------
+# FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
+# ----------------------------------------------------------------------
+#   POST   /api/job-applications                público
+#   GET    /api/job-applications                encargado
+#   PATCH  /api/job-applications/<id>/status    encargado
+#   POST   /api/contact-messages                público
+#   GET    /api/contact-messages                encargado
+#   PATCH  /api/contact-messages/<id>/status    encargado
+
+
+@api.route("/job-applications", methods=["POST"])
+def create_job_application():
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    # Honeypot antispam.
+    # Los usuarios reales dejan este campo vacío.
+    if data.get("website"):
+        return jsonify({
+            "message": "Candidatura recibida correctamente"
+        }), 201
+
+    required_fields = [
+        "name",
+        "last_name",
+        "email",
+        "phone",
+        "experience",
+        "message",
+    ]
+
+    for field in required_fields:
+        value = data.get(field)
+
+        if not isinstance(value, str) or not value.strip():
+            return jsonify({
+                "message": "Todos los campos son obligatorios"
+            }), 400
+
+    # Mismos topes que las columnas de JobApplication.
+    APPLICATION_MAX_LENGTHS = {
+        "name": 100,
+        "last_name": 150,
+        "email": 120,
+        "phone": 20
+    }
+
+    for field, max_length in APPLICATION_MAX_LENGTHS.items():
+        if len(data[field].strip()) > max_length:
+            return jsonify({
+                "message": f"El campo {field} no puede superar los {max_length} caracteres"
+            }), 400
+
+    email = data["email"].strip()
+
+    if not is_valid_email(email):
+        return jsonify({
+            "message": "El correo electrónico no es válido"
+        }), 400
+
+    application = JobApplication(
+        name=data["name"].strip(),
+        last_name=data["last_name"].strip(),
+        email=email,
+        phone=data["phone"].strip(),
+        experience=data["experience"].strip(),
+        message=data["message"].strip(),
+        status=ApplicationStatus.NEW,
+    )
+
+    db.session.add(application)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Candidatura recibida correctamente"
+    }), 201
+
+
+@api.route("/contact-messages", methods=["POST"])
+def create_contact_message():
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    # Honeypot antispam.
+    # Si un bot rellena este campo, respondemos como si todo fuera correcto
+    # pero no guardamos el mensaje.
+    if data.get("website"):
+        return jsonify({
+            "message": "Mensaje recibido correctamente"
+        }), 201
+
+    required_fields = [
+        "name",
+        "email",
+        "subject",
+        "message",
+    ]
+
+    for field in required_fields:
+        value = data.get(field)
+
+        if not isinstance(value, str) or not value.strip():
+            return jsonify({
+                "message": "Todos los campos obligatorios deben estar completos"
+            }), 400
+
+    # Mismos topes que las columnas de ContactMessage.
+    CONTACT_MAX_LENGTHS = {
+        "name": 100,
+        "email": 120,
+        "subject": 150
+    }
+
+    for field, max_length in CONTACT_MAX_LENGTHS.items():
+        if len(data[field].strip()) > max_length:
+            return jsonify({
+                "message": f"El campo {field} no puede superar los {max_length} caracteres"
+            }), 400
+
+    email = data["email"].strip()
+
+    if not is_valid_email(email):
+        return jsonify({
+            "message": "El correo electrónico no es válido"
+        }), 400
+
+    phone = data.get("phone")
+
+    if isinstance(phone, str):
+        phone = phone.strip() or None
+    else:
+        phone = None
+
+    if phone and len(phone) > 20:
+        return jsonify({
+            "message": "El teléfono no puede superar los 20 caracteres"
+        }), 400
+
+    contact_message = ContactMessage(
+        name=data["name"].strip(),
+        email=email,
+        phone=phone,
+        subject=data["subject"].strip(),
+        message=data["message"].strip(),
+        status=ApplicationStatus.NEW,
+    )
+
+    db.session.add(contact_message)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Mensaje recibido correctamente"
+    }), 201
+
+
+@api.route("/job-applications", methods=["GET"])
+@role_required("manager")
+def get_job_applications():
+    applications = JobApplication.query.order_by(
+        JobApplication.created_at.desc()
+    ).all()
+
+    return jsonify([
+        application.serialize()
+        for application in applications
+    ]), 200
+
+
+@api.route("/contact-messages", methods=["GET"])
+@role_required("manager")
+def get_contact_messages():
+    messages = ContactMessage.query.order_by(
+        ContactMessage.created_at.desc()
+    ).all()
+
+    return jsonify([
+        message.serialize()
+        for message in messages
+    ]), 200
+
+
+@api.route("/job-applications/<int:application_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_job_application_status(application_id):
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    status_value = data.get("status")
+
+    valid_statuses = {
+        status.value for status in ApplicationStatus
+    }
+
+    if status_value not in valid_statuses:
+        return jsonify({
+            "message": "El estado no es válido"
+        }), 400
+
+    application = db.session.get(JobApplication, application_id)
+
+    if application is None:
+        return jsonify({
+            "message": "Candidatura no encontrada"
+        }), 404
+
+    application.status = ApplicationStatus(status_value)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Estado actualizado correctamente",
+        "application": application.serialize()
+    }), 200
+
+
+@api.route("/contact-messages/<int:contact_message_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_contact_message_status(contact_message_id):
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({
+            "message": "No se recibieron datos válidos"
+        }), 400
+
+    status_value = data.get("status")
+
+    valid_statuses = {
+        status.value for status in ApplicationStatus
+    }
+
+    if status_value not in valid_statuses:
+        return jsonify({
+            "message": "El estado no es válido"
+        }), 400
+
+    contact_message = db.session.get(
+        ContactMessage,
+        contact_message_id
+    )
+
+    if contact_message is None:
+        return jsonify({
+            "message": "Mensaje de contacto no encontrado"
+        }), 404
+
+    contact_message.status = ApplicationStatus(status_value)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Estado actualizado correctamente",
+        "contact_message": contact_message.serialize()
     }), 200

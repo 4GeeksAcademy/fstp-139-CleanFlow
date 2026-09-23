@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
-import { getAffected, getReplacements, reassignBooking, cancelCompany, refreshAffected, formatInterval } from "../../services/absenceService";
+import { getAffected, getReplacements, reassignBooking, cancelCompany, refreshAffected } from "../../services/absenceService";
+import { formatInterval } from "../../services/bookingService";
 
 const BookingResolution = ({ booking, token, onResolved }) => {
     const [workers, setWorkers] = useState(null);
