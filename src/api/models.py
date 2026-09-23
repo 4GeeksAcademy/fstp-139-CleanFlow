@@ -42,6 +42,12 @@ class MediaType(Enum):
     VIDEO = "video"
 
 
+class ApplicationStatus(Enum):
+    NEW = "new"
+    CONTACTED = "contacted"
+    DISCARDED = "discarded"
+
+
 # ==================================================================
 # USER
 # ==================================================================
@@ -618,6 +624,8 @@ class Booking(db.Model):
         nullable=False,
         index=True
     )
+    # Hora de Madrid, sin zona: inicio del primer tramo y fin del último.
+    # Las horas contratadas no se guardan: salen de los tramos (hours).
     scheduled_start: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False
@@ -626,7 +634,6 @@ class Booking(db.Model):
         DateTime,
         nullable=False
     )
-
     # Congelados al reservar (tarifa, minutos y total): si el servicio cambia
     # después, esta reserva conserva los suyos. El histórico no se reescribe.
     hourly_rate: Mapped[float] = mapped_column(
@@ -641,7 +648,6 @@ class Booking(db.Model):
         Float,
         nullable=False
     )
-
     status: Mapped[BookingStatus] = mapped_column(
         SQLEnum(BookingStatus),
         nullable=False
@@ -665,21 +671,41 @@ class Booking(db.Model):
     )
     cancellation_reason: Mapped[str | None] = mapped_column(
         Text, nullable=True)
+
     # ---- RELACIONES ----
+    # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
+    # Así se lee booking.service en vez de buscarlo.
     worker = db.relationship("Worker")
     service = db.relationship("Service")
     address = db.relationship("Address")
 
+    # Los tramos, en orden. Con booking.days.append(...) se guardan
+    # junto con la reserva.
     days = db.relationship(
         "BookingDay",
-        order_by="BookingDay.starts_at",
+        order_by="BookingDay.starts_at"
     )
 
+    # Las tareas en el orden en que se añadieron. Con
+    # booking.tasks.append(...) se guardan junto con la reserva.
     tasks = db.relationship(
         "BookingTask",
-        order_by="BookingTask.booking_task_id",
+        order_by="BookingTask.booking_task_id"
     )
 
+    # ---- DATOS CALCULADOS ----
+
+    @property
+    def hours(self):
+        """Horas contratadas: la suma de sus tramos.
+
+        Fin menos inicio no vale: una reserva de viernes a lunes contaría
+        también las noches y el fin de semana.
+        """
+        seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
+        return int(seconds // 3600)
+
+    # ---- SERIALIZADORES ----
 
     def serialize(self):
         return {
@@ -687,8 +713,6 @@ class Booking(db.Model):
             "client_id": self.client_id,
             "service_id": self.service_id,
             "address_id": self.address_id,
-            "service_name": self.service.name if self.service else None,
-            "address": self.address.serialize() if self.address else None,
             "worker_id": self.worker_id,
             "scheduled_start": (
                 self.scheduled_start.isoformat()
@@ -718,7 +742,6 @@ class Booking(db.Model):
                 ) if self.worker and self.worker.user else None
             ),
             "days": [day.serialize() for day in self.days],
-            "tasks": [task.serialize() for task in self.tasks],
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at
@@ -729,6 +752,21 @@ class Booking(db.Model):
                 if self.updated_at
                 else None
             ),
+        }
+
+    def serialize_detail(self):
+        """La reserva completa: servicio, dirección, tramos y tareas. La
+        usa la confirmación del panel, y la usará "Mis reservas" (#16)."""
+        return {
+            **self.serialize(),
+            "hours": self.hours,
+            "service": {
+                "name": self.service.name,
+                "slug": self.service.slug,
+            },
+            "address": self.address.serialize(),
+            "days": [day.serialize() for day in self.days],
+            "tasks": [task.serialize() for task in self.tasks],
         }
 
 
@@ -1029,4 +1067,138 @@ class Absence(db.Model):
             "ends_on": self.ends_on.isoformat() if self.ends_on else None,
             "reason": self.reason,
             "notes": self.notes,
+        }
+
+
+# ==================================================================
+# JOB APPLICATION
+# ==================================================================
+# Candidatura enviada desde el formulario público "Trabaja con nosotros".
+
+
+class JobApplication(db.Model):
+    __tablename__ = "job_applications"
+
+    application_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+    last_name: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False
+    )
+    email: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False
+    )
+    phone: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False
+    )
+    experience: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+    message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+    status: Mapped[ApplicationStatus] = mapped_column(
+        SQLEnum(
+            ApplicationStatus,
+            values_callable=lambda enum: [item.value for item in enum],
+            name="application_status"
+        ),
+        nullable=False,
+        default=ApplicationStatus.NEW,
+        server_default=ApplicationStatus.NEW.value
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now()
+    )
+
+    def serialize(self):
+        return {
+            "application_id": self.application_id,
+            "name": self.name,
+            "last_name": self.last_name,
+            "email": self.email,
+            "phone": self.phone,
+            "experience": self.experience,
+            "message": self.message,
+            "status": self.status.value if self.status else None,
+            "created_at": (
+                self.created_at.isoformat()
+                if self.created_at
+                else None
+            ),
+        }
+
+
+# ==================================================================
+# CONTACT MESSAGE
+# ==================================================================
+# Mensaje enviado desde el formulario público de contacto.
+
+class ContactMessage(db.Model):
+    __tablename__ = "contact_messages"
+
+    contact_message_id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+    email: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False
+    )
+    phone: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True
+    )
+    subject: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False
+    )
+    message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+    status: Mapped[ApplicationStatus] = mapped_column(
+        SQLEnum(
+            ApplicationStatus,
+            values_callable=lambda enum: [item.value for item in enum],
+            name="application_status"
+        ),
+        nullable=False,
+        default=ApplicationStatus.NEW,
+        server_default=ApplicationStatus.NEW.value
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now()
+    )
+
+    def serialize(self):
+        return {
+            "contact_message_id": self.contact_message_id,
+            "name": self.name,
+            "email": self.email,
+            "phone": self.phone,
+            "subject": self.subject,
+            "message": self.message,
+            "status": self.status.value if self.status else None,
+            "created_at": (
+                self.created_at.isoformat()
+                if self.created_at
+                else None
+            ),
         }

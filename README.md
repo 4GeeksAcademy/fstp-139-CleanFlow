@@ -74,6 +74,30 @@ Every Github codespace environment will have **its own database**, so if you're 
 
 This boilerplate it's 100% read to deploy with Render.com and Heroku in a matter of minutes. Please read the [official documentation about it](https://4geeks.com/docs/start/deploy-to-render-com).
 
+## CleanFlow API - Formularios públicos
+
+### Candidaturas de trabajo
+
+| Método | Endpoint | Acceso | Descripción |
+| --- | --- | --- | --- |
+| POST | `/api/job-applications` | Público | Envía y guarda una candidatura de trabajo. |
+| GET | `/api/job-applications` | Manager | Obtiene las candidaturas ordenadas de más reciente a más antigua. |
+| PATCH | `/api/job-applications/<application_id>/status` | Manager | Actualiza el estado de una candidatura. |
+
+### Mensajes de contacto
+
+| Método | Endpoint | Acceso | Descripción |
+| --- | --- | --- | --- |
+| POST | `/api/contact-messages` | Público | Envía y guarda un mensaje del formulario de contacto. |
+| GET | `/api/contact-messages` | Manager | Obtiene los mensajes ordenados de más reciente a más antiguo. |
+| PATCH | `/api/contact-messages/<contact_message_id>/status` | Manager | Actualiza el estado de un mensaje. |
+
+Los estados permitidos son `new`, `contacted` y `discarded`.
+
+Los endpoints públicos validan los campos obligatorios y el formato del correo electrónico. También utilizan el campo oculto `website` como honeypot básico contra spam.
+
+Los endpoints GET y PATCH requieren un token JWT de un usuario con rol `manager`.
+
 ### Contributors
 
 This template was built as part of the 4Geeks Academy [Coding Bootcamp](https://4geeksacademy.com/us/coding-bootcamp) by [Alejandro Sanchez](https://twitter.com/alesanchezr) and many other contributors. Find out more about our [Full Stack Developer Course](https://4geeksacademy.com/us/coding-bootcamps/part-time-full-stack-developer), and [Data Science Bootcamp](https://4geeksacademy.com/us/coding-bootcamps/datascience-machine-learning).

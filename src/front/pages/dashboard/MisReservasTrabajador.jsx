@@ -139,7 +139,7 @@ export const MisReservasTrabajador = () => {
                                     Reserva #{booking.booking_id}
                                 </h2>
 
-                                <p>Servicio: {booking.service_name}</p>
+                                <p>Servicio: {booking.service?.name}</p>
 
                                 <p>
                                     Dirección: {address

@@ -28,7 +28,7 @@ export const MyBookings = () => {
             {!rows.length && <p>Todavía no tienes reservas.</p>}
             {rows.map(booking => <article key={booking.booking_id} className="card p-4 mb-3">
                 <h2 className="h5">Reserva #{booking.booking_id}</h2>
-                <p>Servicio: {booking.service_name || "Servicio no disponible"}</p>
+                <p>Servicio: {booking.service?.name || "Servicio no disponible"}</p>
                 <p>
                     Dirección: {booking.address
                         ? [
