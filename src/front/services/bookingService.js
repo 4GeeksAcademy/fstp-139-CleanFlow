@@ -49,11 +49,18 @@ export const completeBooking = (bookingId, token) =>
     token,
   });
 
-export const getMyBookings = (token) =>
-    apiRequest("/api/bookings", { token });
+export const getMyBookings = (token) => apiRequest("/api/bookings", { token });
 
 // Fechas de Madrid sin convertirlas al huso horario del navegador.
 export const formatInterval = (day) => {
-    const date = day.starts_at.slice(0, 10).split("-").reverse().join("/");
-    return `${date} · ${day.starts_at.slice(11, 16)}–${day.ends_at.slice(11, 16)}`;
+  const date = day.starts_at.slice(0, 10).split("-").reverse().join("/");
+  return `${date} · ${day.starts_at.slice(11, 16)}–${day.ends_at.slice(11, 16)}`;
 };
+export const cancelBooking = (bookingId, token) =>
+  apiRequest(`/api/bookings/${bookingId}/cancel`, {
+    method: "PATCH",
+    token,
+  });
+
+export const getManagedBookings = (token) =>
+  apiRequest("/api/manage/bookings", { token });

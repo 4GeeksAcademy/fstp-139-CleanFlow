@@ -39,6 +39,7 @@ import "../../dashboard.css"
 import { AffectedCount } from "./AffectedCount";
 
 const LINKS = [
+    { to: "/dashboard/bookings", label: "Reservas", roles: ["manager"] },
     // --- Comunes a todos los roles ---
     { to: "/dashboard",                    label: "Inicio",        roles: ["client", "worker", "manager"], end: true },
 

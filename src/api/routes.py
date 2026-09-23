@@ -2166,7 +2166,6 @@ def create_booking():
     }), 201
 
 
-
 @api.route("/booking-tasks/<int:task_id>", methods=["PATCH"])
 @role_required("worker")
 @booking_transaction
@@ -2238,8 +2237,6 @@ def complete_booking_task(task_id):
     return jsonify({"task": task.serialize()}), 200
 
 
-
-
 @api.route("/bookings/<int:booking_id>/cancel", methods=["PATCH"])
 @role_required("client", "manager")
 @booking_transaction
@@ -2295,6 +2292,27 @@ def cancel_booking(booking_id):
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+@api.route("/manage/bookings", methods=["GET"])
+@role_required("manager")
+def list_managed_bookings():
+    bookings = db.session.execute(
+        db.select(Booking).options(
+            selectinload(Booking.worker).selectinload(Worker.user),
+            selectinload(Booking.days),
+            selectinload(Booking.service),
+            selectinload(Booking.address),
+            selectinload(Booking.tasks),
+        ).order_by(
+            Booking.scheduled_start.desc(),
+            Booking.booking_id.desc(),
+        )
+    ).scalars().all()
+
+    return jsonify({
+        "bookings": [booking.serialize_detail() for booking in bookings]
+    })
 
 
 @api.route("/bookings", methods=["GET"])
