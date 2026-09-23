@@ -16,6 +16,7 @@ import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { Avatar } from "./Avatar"
 // Estilos del grupo desplegable y del menú de móvil (cf-side-*).
 import "../../dashboard.css"
+import { loginPathForRole } from "../../authPaths";
 
 
 // ----------------------------------------------------------------------
@@ -164,7 +165,7 @@ export const Sidebar = () => {
     // el próximo login volvería allí en vez de a /dashboard.
     // state: null (sin ruta de origen) y replace ("atrás" no vuelve aquí).
     const handleLogout = () => {
-        navigate("/login", { replace: true, state: null })
+        navigate(loginPathForRole(store.user?.role), { replace: true, state: null })
         dispatch({ type: "LOGOUT" })
     }
 

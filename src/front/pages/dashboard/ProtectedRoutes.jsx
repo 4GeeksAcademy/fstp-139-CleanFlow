@@ -16,6 +16,7 @@ import { useEffect, useState } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { getProfile } from "../../services/userService"
+import { loginPathForRole } from "../../authPaths";
 
 export const ProtectedRoutes = () => {
     const { store, dispatch } = useGlobalReducer()
@@ -28,6 +29,10 @@ export const ProtectedRoutes = () => {
     // el <Navigate> de abajo no podría saber si mostrar el aviso: cuando
     // se ejecuta, el token ya se ha borrado en los dos casos.
     const [sessionExpired, setSessionExpired] = useState(false)
+
+    // La puerta a la que volver, guardada ANTES de limpiar la sesión:
+    // después, store.user es null y no se sabría cuál es la suya.
+    const [expiredPath, setExpiredPath] = useState(null)
 
     // ------------------------------------------------------------------
         // Revalidación asíncrona del token contra el backend (firma secreta).
@@ -54,6 +59,7 @@ export const ProtectedRoutes = () => {
             // para que React agrupe (batch) el estado y muestre el aviso en el nuevo render.
             // LOGOUT limpia store/localStorage (token=null) y <Navigate> redirige automáticamente.
             if (!ok) {
+                setExpiredPath(loginPathForRole(store.user?.role))
                 setSessionExpired(true)
                 dispatch({ type: "LOGOUT" })
                 return
@@ -82,7 +88,7 @@ export const ProtectedRoutes = () => {
     if (!store.token) {
         return (
             <Navigate
-                to={"/login"}
+                to={expiredPath || loginPathForRole(store.user?.role)}
                 replace
                 state={{ from: location, expired: sessionExpired }}
             />
