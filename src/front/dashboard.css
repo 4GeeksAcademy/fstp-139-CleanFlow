@@ -825,205 +825,6 @@ textarea.cf-dash-input {
   color: var(--cf-accent-dark);
 }
 
-/* ---------- SIDEBAR EN MÓVIL (Sidebar.jsx y DashboardLayout.jsx) ----------
-   Por debajo de 768px: barra superior con la marca y la hamburguesa, y el
-   menú como cajón que entra por la IZQUIERDA, el mismo lado en el que está
-   en escritorio. Todo lo visible va dentro del @media: tablet y escritorio
-   no cambian; fuera solo se ocultan las piezas nuevas.
-   767.98px: una tablet en vertical conserva el menú fijo. Mismo valor que
-   MOBILE_QUERY en Sidebar.jsx. */
-
-.cf-side-topbar,
-.cf-side-close,
-.cf-side-backdrop {
-  display: none;
-}
-
-@media (max-width: 767.98px) {
-  /* El marco pasa de fila a columna: la barra arriba, la página debajo. */
-  .cf-dash-layout {
-    flex-direction: column;
-  }
-
-  /* !important: el p-4 de Bootstrap también lo lleva. */
-  .cf-dash-main {
-    padding: var(--cf-space-4) !important;
-  }
-
-  /* sticky: la hamburguesa sigue a mano al bajar por la página. */
-  .cf-side-topbar {
-    position: sticky;
-    top: 0;
-    z-index: 1030;
-    display: flex;
-    align-items: center;
-    gap: var(--cf-space-3);
-    height: 60px;
-    padding: 0 var(--cf-space-4);
-    /* ⚠️ Verde a mano: el mismo degradado del panel. */
-    background: linear-gradient(180deg, #33422a, #232e1c);
-    color: #ffffff;
-  }
-
-  /* La marca de la barra es la misma del panel, en pequeño. */
-  .cf-side-topbar__brand {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #ffffff;
-    text-decoration: none;
-  }
-
-  .cf-side-topbar__brand .cf-side__logo {
-    width: 32px;
-    height: 32px;
-  }
-
-  .cf-side-topbar__brand .cf-side__logo svg {
-    width: 28px;
-    height: 28px;
-  }
-
-  .cf-side-topbar__brand .cf-side__name {
-    font-size: 0.95rem;
-  }
-
-  /* La hamburguesa, a la derecha del todo. */
-  .cf-side-toggle {
-    margin-left: auto;
-  }
-
-  .cf-side-toggle,
-  .cf-side-close {
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: var(--cf-radius-sm);
-    background: none;
-    color: #ffffff;
-    font-size: 1.125rem;
-    cursor: pointer;
-  }
-
-  .cf-side-toggle:focus-visible,
-  .cf-side-close:focus-visible {
-    outline: 2px solid #ffffff;
-    outline-offset: 2px;
-  }
-
-  /* Cajón pegado al borde izquierdo: se redondea solo por dentro y pierde
-     el margen del panel de escritorio. Cerrado lleva visibility hidden
-     para que el tabulador no llegue a sus enlaces; cambia al terminar de
-     salir (0.25s), no de golpe. */
-  .cf-side {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 1045;
-    width: min(290px, 86vw);
-    margin: 0;
-    border-radius: 0 var(--cf-radius-lg) var(--cf-radius-lg) 0;
-    overflow-y: auto;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.35);
-    transform: translateX(-102%);
-    visibility: hidden;
-    transition:
-      transform 0.25s ease,
-      visibility 0s linear 0.25s;
-  }
-
-  .cf-side--open {
-    transform: translateX(0);
-    visibility: visible;
-    transition:
-      transform 0.25s ease,
-      visibility 0s;
-  }
-
-  /* Plegado no existe en móvil: el cajón sale siempre entero. */
-  .cf-side--rail {
-    width: min(290px, 86vw);
-    padding: var(--cf-space-4) 14px;
-  }
-
-  .cf-side--rail .cf-side__name,
-  .cf-side--rail .cf-side__eyebrow,
-  .cf-side--rail .cf-side__link span,
-  .cf-side--rail .cf-side__chevron,
-  .cf-side--rail .cf-side__paneltag,
-  .cf-side--rail .cf-side__who,
-  .cf-side--rail .cf-side__action span {
-    display: revert;
-  }
-
-  .cf-side--rail .cf-side__link {
-    grid-template-columns: 22px minmax(0, 1fr) auto;
-    justify-items: stretch;
-    padding: 10px 12px;
-  }
-
-  .cf-side--rail .cf-side__user {
-    grid-template-columns: 44px minmax(0, 1fr);
-    justify-items: stretch;
-    padding: 12px;
-  }
-
-  .cf-side--rail .cf-side__actions {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .cf-side--rail .cf-side__theme {
-    display: grid;
-  }
-
-  .cf-side--rail .cf-side__theme-switch {
-    display: none;
-  }
-
-  .cf-side--rail .cf-side__count {
-    position: static;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 7px;
-    font-size: 0.72rem;
-  }
-
-  /* La ✕ del cajón, arriba a la derecha. */
-  .cf-side-close {
-    position: absolute;
-    top: var(--cf-space-3);
-    right: var(--cf-space-3);
-  }
-
-  .cf-side-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 1040;
-    display: block;
-    /* ⚠️ Oscurecido a mano: no hay token de velo. */
-    background-color: rgba(28, 32, 24, 0.55);
-  }
-
-  .cf-side-backdrop[hidden] {
-    display: none;
-  }
-
-  /* Las pestañas se desplazan de lado sin enseñar la barra de scroll. */
-  .cf-tasks__tabs,
-  .cf-services__tabs {
-    scrollbar-width: none;
-  }
-
-  .cf-tasks__tabs::-webkit-scrollbar,
-  .cf-services__tabs::-webkit-scrollbar {
-    display: none;
-  }
-}
-
 /* ---------- SIDEBAR (Sidebar.jsx) ----------
    El menú del panel: tarjeta verde con la marca arriba, las secciones del
    rol en medio y el usuario abajo. Se pliega a una barra de iconos
@@ -1641,6 +1442,215 @@ textarea.cf-dash-input {
 .cf-side--rail .cf-side__action:focus-visible .cf-side__tip,
 .cf-side--rail .cf-side__user:hover .cf-side__tip {
   display: block;
+}
+
+/* ---------- SIDEBAR EN MÓVIL (Sidebar.jsx y DashboardLayout.jsx) ----------
+   Por debajo de 768px: barra superior con la marca y la hamburguesa, y el
+   menú como cajón que entra por la IZQUIERDA, el mismo lado en el que está
+   en escritorio. Todo lo visible va dentro del @media: tablet y escritorio
+   no cambian; fuera solo se ocultan las piezas nuevas.
+   767.98px: una tablet en vertical conserva el menú fijo. Mismo valor que
+   MOBILE_QUERY en Sidebar.jsx. */
+
+.cf-side-topbar,
+.cf-side-close,
+.cf-side-backdrop {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  /* El marco pasa de fila a columna: la barra arriba, la página debajo. */
+  .cf-dash-layout {
+    flex-direction: column;
+  }
+
+  /* !important: el p-4 de Bootstrap también lo lleva. */
+  .cf-dash-main {
+    padding: var(--cf-space-4) !important;
+  }
+
+  /* sticky: la hamburguesa sigue a mano al bajar por la página. */
+  .cf-side-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    display: flex;
+    align-items: center;
+    gap: var(--cf-space-3);
+    height: 60px;
+    padding: 0 var(--cf-space-4);
+    /* ⚠️ Verde a mano: el mismo degradado del panel. */
+    background: linear-gradient(180deg, #33422a, #232e1c);
+    color: #ffffff;
+  }
+
+  /* La marca de la barra es la misma del panel, en pequeño. */
+  .cf-side-topbar__brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+    text-decoration: none;
+  }
+
+  .cf-side-topbar__brand .cf-side__logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .cf-side-topbar__brand .cf-side__logo svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .cf-side-topbar__brand .cf-side__name {
+    font-size: 0.95rem;
+  }
+
+  /* La hamburguesa, a la derecha del todo. */
+  .cf-side-toggle {
+    margin-left: auto;
+  }
+
+  .cf-side-toggle,
+  .cf-side-close {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--cf-radius-sm);
+    background: none;
+    color: #ffffff;
+    font-size: 1.125rem;
+    cursor: pointer;
+  }
+
+  .cf-side-toggle:focus-visible,
+  .cf-side-close:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+  }
+
+  /* Cajón pegado al borde izquierdo: se redondea solo por dentro y pierde
+     el margen del panel de escritorio. Cerrado lleva visibility hidden
+     para que el tabulador no llegue a sus enlaces; cambia al terminar de
+     salir (0.25s), no de golpe. */
+  .cf-side {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1045;
+    width: min(290px, 86vw);
+    margin: 0;
+    border-radius: 0 var(--cf-radius-lg) var(--cf-radius-lg) 0;
+    overflow-y: auto;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.35);
+    transform: translateX(-102%);
+    visibility: hidden;
+    transition:
+      transform 0.25s ease,
+      visibility 0s linear 0.25s;
+  }
+
+  .cf-side--open {
+    transform: translateX(0);
+    visibility: visible;
+    transition:
+      transform 0.25s ease,
+      visibility 0s;
+  }
+
+  /* Plegado no existe en móvil: el cajón sale siempre entero. */
+  .cf-side--rail {
+    width: min(290px, 86vw);
+    padding: var(--cf-space-4) 14px;
+  }
+
+  .cf-side--rail .cf-side__name,
+  .cf-side--rail .cf-side__eyebrow,
+  .cf-side--rail .cf-side__link span,
+  .cf-side--rail .cf-side__chevron,
+  .cf-side--rail .cf-side__paneltag,
+  .cf-side--rail .cf-side__who,
+  .cf-side--rail .cf-side__action span {
+    display: revert;
+  }
+
+  .cf-side--rail .cf-side__link {
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    justify-items: stretch;
+    padding: 10px 12px;
+  }
+
+  .cf-side--rail .cf-side__user {
+    grid-template-columns: 44px minmax(0, 1fr);
+    justify-items: stretch;
+    padding: 12px;
+  }
+
+  .cf-side--rail .cf-side__actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cf-side--rail .cf-side__theme {
+    display: grid;
+  }
+
+  .cf-side--rail .cf-side__theme-switch {
+    display: none;
+  }
+
+  .cf-side--rail .cf-side__count {
+    position: static;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    font-size: 0.72rem;
+  }
+
+  /* La marca ya está en la barra de arriba: repetirla dentro del cajón
+     sobra y roba sitio. */
+  .cf-side__brand {
+    display: none;
+  }
+
+  /* Sin marca, las secciones empiezan arriba y la ✕ se pone a su altura. */
+  .cf-side__nav {
+    margin-top: var(--cf-space-6);
+  }
+
+  .cf-side-close {
+    position: absolute;
+    top: var(--cf-space-3);
+    right: var(--cf-space-3);
+  }
+
+  .cf-side-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    display: block;
+    /* ⚠️ Oscurecido a mano: no hay token de velo. */
+    background-color: rgba(28, 32, 24, 0.55);
+  }
+
+  .cf-side-backdrop[hidden] {
+    display: none;
+  }
+
+  /* Las pestañas se desplazan de lado sin enseñar la barra de scroll. */
+  .cf-tasks__tabs,
+  .cf-services__tabs {
+    scrollbar-width: none;
+  }
+
+  .cf-tasks__tabs::-webkit-scrollbar,
+  .cf-services__tabs::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* ======================================================================
