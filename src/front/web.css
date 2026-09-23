@@ -48,10 +48,12 @@ section[id] {
 
 /* ---------- FILA SUPERIOR: ACCESOS ---------- */
 
-/* Ancho de los accesos y del botón de la navbar. En ch y no en píxeles:
-   así sigue cuadrando si cambia la tipografía o crece un nombre. */
+/* Ancho de los accesos y del botón de la navbar: los tres miden lo mismo.
+   En rem y no en ch porque los accesos llevan la letra más pequeña para
+   dejar sitio al icono, y ch depende del tamaño de la letra: en ch cada
+   botón saldría de un ancho distinto. */
 :root {
-  --cf-access-w: 15ch;
+  --cf-access-w: 11rem;
 }
 
 .cf-header__utility {
@@ -77,7 +79,10 @@ section[id] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* gap y letra más pequeña: el icono entra sin ensanchar el botón. */
+  gap: var(--cf-space-2);
   min-width: var(--cf-access-w);
+  font-size: 0.8125rem;
   padding: var(--cf-space-2) var(--cf-space-6);
   border: 1px solid var(--cf-border);
   border-radius: 999px;
@@ -99,6 +104,11 @@ section[id] {
 .cf-access:focus-visible {
   outline: 3px solid var(--cf-ring);
   outline-offset: 2px;
+}
+
+.cf-access i {
+  font-size: 0.875rem;
+  color: var(--cf-accent-dark);
 }
 
 /* El botón principal se iguala a los accesos. Solo dentro de la navbar:
@@ -282,7 +292,13 @@ section[id] {
 
   .cf-utility-list {
     justify-content: center;
-    gap: var(--cf-space-4);
+    gap: var(--cf-space-2);
+  }
+
+  /* Dos botones de 11rem no caben en un móvil: se reparten la fila. */
+  .cf-access {
+    flex: 1;
+    min-width: 0;
   }
 
   .cf-nav-toggle,

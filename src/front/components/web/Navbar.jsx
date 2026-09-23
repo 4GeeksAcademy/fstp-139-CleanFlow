@@ -21,8 +21,8 @@ import { useActiveSection } from "../../hooks/useActiveSection";
 // Los nombres van sin "de" a propósito: así los dos miden casi lo mismo y
 // quedan del ancho de "Reservar ahora" (ver .cf-access en web.css).
 const ACCESS_LINKS = [
-    { label: "Área clientes", to: "/login-clients" },
-    { label: "Área empleados", to: "/login-workers" },
+    { label: "Área clientes", to: "/login-clients", icon: "fa-user" },
+    { label: "Área empleados", to: "/login-workers", icon: "fa-briefcase" },
 ]
 
 
@@ -127,7 +127,10 @@ export const Navbar = () => {
                     <ul className="cf-utility-list">
                         {ACCESS_LINKS.map((link) => (
                             <li key={link.to}>
-                                <Link to={link.to} className="cf-access">{link.label}</Link>
+                                <Link to={link.to} className="cf-access">
+                                    <i className={`fa-solid ${link.icon}`} aria-hidden="true" />
+                                    {link.label}
+                                </Link>
                             </li>
                         ))}
                     </ul>
