@@ -709,7 +709,7 @@ class Booking(db.Model):
     )
     cancellation_reason: Mapped[str | None] = mapped_column(
         Text, nullable=True)
-    
+
     # ---- LO QUE PASÓ DE VERDAD ----
     # scheduled_start y los tramos dicen lo previsto; esto, lo ocurrido.
     # Hora de Madrid sin zona, como el resto de fechas del proyecto.
@@ -748,7 +748,6 @@ class Booking(db.Model):
         "BookingTask",
         order_by="BookingTask.booking_task_id"
     )
-
 
     # Las incidencias de la reserva, de la más reciente a la más antigua.
     # Las lee el detalle del cliente (#16) y el del encargado.
@@ -947,7 +946,6 @@ class BookingTask(db.Model):
         nullable=True
     )
 
-
     # Las fotos de esta tarea, en el orden en que se subieron. Así se
     # leen con task.photos, sin buscarlas a mano.
     photos = db.relationship(
@@ -975,7 +973,6 @@ class BookingTask(db.Model):
             # El antes y el después, que el trabajador sube para cerrarla.
             "photos": [photo.serialize() for photo in self.photos],
         }
-        
 
 
 # ==================================================================
@@ -1096,20 +1093,23 @@ class Incident(db.Model):
         ).all()
 
         return {
+            "incident_id": self.incident_id,
+            "booking_id": self.booking_id,
+            "worker_id": self.worker_id,
+            "booking_task_id": self.booking_task_id,
+
+            # Los enums viajan como texto: el front no sabe de Python.
             "incident_type": (
                 self.incident_type.value
                 if self.incident_type
                 else None
             ),
             "source": self.source.value if self.source else None,
+
             "reported_by": self.reported_by,
             "description": self.description,
             "resolved": self.resolved,
             "resolution": self.resolution,
-            "booking_id": self.booking_id,
-            "worker_id": self.worker_id,
-            "booking_task_id": self.booking_task_id,
-            "incident_type": self.incident_type,
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at
@@ -1137,7 +1137,7 @@ class Media(db.Model):
     media_id: Mapped[int] = mapped_column(
         primary_key=True
     )
-        # Uno de los dos lleva valor y el otro va vacío.
+    # Uno de los dos lleva valor y el otro va vacío.
     incident_id: Mapped[int | None] = mapped_column(
         ForeignKey("incidents.incident_id"),
         nullable=True,
@@ -1170,7 +1170,6 @@ class Media(db.Model):
         DateTime,
         nullable=True
     )
-
 
     # La regla la pone la base de datos y no el código: así no hay forma
     # de colar una foto huérfana, venga de donde venga.

@@ -872,6 +872,8 @@ IMAGE_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
 PHOTO_MAX_BYTES = 5 * 1024 * 1024
 AVATAR_FOLDER = "cleanflow/avatars"
+# Estas dos aún no las usa nadie: las estrenan las fotos de tarea (#82)
+# y las de incidencia (#18), que ya solo tienen que llamar a upload_image().
 BOOKING_FOLDER = "cleanflow/bookings"
 INCIDENT_FOLDER = "cleanflow/incidents"
 
@@ -1063,6 +1065,7 @@ def cloudinary_is_configured():
     config = cloudinary.config()
     return bool(config.cloud_name and config.api_key and config.api_secret)
 
+
 def upload_image(photo, folder, *, public_id=None, max_bytes=PHOTO_MAX_BYTES,
                  transformation=None):
     """Sube una imagen a Cloudinary y devuelve (url, error).
@@ -1116,7 +1119,6 @@ def upload_image(photo, folder, *, public_id=None, max_bytes=PHOTO_MAX_BYTES,
     # secure_url: la https y con número de versión, así el navegador no
     # sigue enseñando la imagen anterior de su caché.
     return result.get("secure_url"), None
-
 
 
 @api.route("/account/avatar", methods=["POST"])
