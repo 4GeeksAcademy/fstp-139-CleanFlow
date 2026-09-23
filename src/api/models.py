@@ -25,10 +25,19 @@ db = SQLAlchemy()
 # ==================================================================
 
 class BookingStatus(Enum):
+    """El camino de una reserva, en orden:
+
+    pending -> confirmed -> in_progress -> completed
+
+    Y dos salidas: cancelled (antes de empezar) y not_done (el trabajador
+    llegó pero no se pudo hacer, por ejemplo si el cliente no estaba).
+    """
     PENDING = "pending"
     CONFIRMED = "confirmed"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    NOT_DONE = "not_done"
 
 
 class BookingTaskStatus(Enum):
@@ -671,6 +680,24 @@ class Booking(db.Model):
     )
     cancellation_reason: Mapped[str | None] = mapped_column(
         Text, nullable=True)
+    
+    # ---- LO QUE PASÓ DE VERDAD ----
+    # scheduled_start y los tramos dicen lo previsto; esto, lo ocurrido.
+    # Hora de Madrid sin zona, como el resto de fechas del proyecto.
+
+    # Cuando el trabajador pulsó "Empezar" el primer día.
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+
+    # Cuando dio el servicio por terminado. De aquí salen los 3 días que
+    # tiene el cliente para confirmar (#83).
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+
+    # Cuando el cliente confirmó que se hizo bien. Vacío no significa
+    # "mal": puede estar aún en plazo o confirmarse solo (#83).
+    client_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
 
     # ---- RELACIONES ----
     # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
@@ -799,11 +826,21 @@ class BookingDay(db.Model):
         nullable=False
     )
 
+    # Lo que pasó ese día. Un servicio de varios días se empieza y se
+    # cierra cada día, así que las horas reales van aquí y no solo en la
+    # reserva.
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+
     def serialize(self):
         return {
             "booking_day_id": self.booking_day_id,
             "starts_at": self.starts_at.isoformat(),
             "ends_at": self.ends_at.isoformat(),
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
         }
 
 
