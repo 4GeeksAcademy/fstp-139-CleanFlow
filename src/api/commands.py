@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from api.models import (
     db, Service, Task, User, Shift, Worker, Address,
     Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, Review,
+    Media, MediaKind, MediaType, Incident, IncidentType, IncidentSource,
 )
 from api.utils import slugify
 
@@ -149,6 +150,10 @@ PEOPLE = [
 #   YA HECHAS     reservas completadas en las semanas anteriores, cada una
 #                 con su reseña: dan la valoración del listado de
 #                 trabajadores (Ana 4,8, Luis 4,5 y Carlos 3,7).
+#   EN MARCHA     los estados nuevos (#81): una en curso hoy con fotos del
+#                 antes y el después, una finalizada ayer pendiente de que
+#                 el cliente la confirme, y una no realizada con su
+#                 incidencia.
 #
 # La #15 reutiliza los tres primeros para probar las reservas afectadas.
 
@@ -477,6 +482,114 @@ def create_reviews():
     return len(PAST_REVIEWS)
 
 
+def create_states():
+    """Reservas en los estados nuevos: en curso, finalizada sin confirmar
+    y no realizada. Devuelve cuántas creó.
+
+    Aparte de los otros bloques para poder añadirlas a una base de datos
+    que ya tenía las demás reservas, sin rehacerla.
+    """
+    exists = db.session.execute(
+        db.select(Booking).where(
+            Booking.client_notes.startswith(SEED_MARK),
+            Booking.status.in_(
+                [BookingStatus.IN_PROGRESS, BookingStatus.NOT_DONE]),
+        )
+    ).scalars().first()
+
+    if exists:
+        return 0
+
+    client = user_by_email("cliente@cleanflow.test")
+    address = db.session.execute(
+        db.select(Address).filter_by(client_id=client.user_id, is_active=True)
+    ).scalars().first()
+
+    profunda = service_by_slug("limpieza-profunda")
+    habitacion = db.session.execute(
+        db.select(Task).filter_by(task_name="Limpiar habitación")
+    ).scalar_one()
+
+    ana = worker_by_email("ana@cleanflow.test")
+    luis = worker_by_email("luis@cleanflow.test")
+
+    hoy = datetime.now(MADRID).date()
+    ayer = hoy - timedelta(days=1)
+    ahora = datetime.now(MADRID).replace(tzinfo=None)
+
+    def add_photo(task, kind, name, worker):
+        """Una foto de relleno de picsum.photos: el seed no sube nada a
+        Cloudinary, que gasta cuota y necesitaría las claves."""
+        db.session.add(Media(
+            booking_task_id=task.booking_task_id,
+            kind=kind,
+            media_url=f"https://picsum.photos/seed/{name}/640/480",
+            media_type=MediaType.IMAGE,
+            uploaded_by=worker.user_id,
+            uploaded_at=ahora,
+        ))
+
+    # ---- EN CURSO: Ana está trabajando ahora mismo ----
+    in_progress = add_booking(
+        client, address, profunda, ana,
+        [(at(hoy, 8), at(hoy, 12))],
+        "En curso, con una tarea cerrada.",
+        tasks=[habitacion] * 2,
+        status=BookingStatus.IN_PROGRESS,
+    )
+    in_progress.started_at = at(hoy, 8)
+    in_progress.days[0].started_at = at(hoy, 8)
+    db.session.flush()
+
+    # La primera tarea, cerrada con su antes y su después.
+    first_task = in_progress.tasks[0]
+    first_task.status = BookingTaskStatus.COMPLETED
+    first_task.completed_at = at(hoy, 9)
+    add_photo(first_task, MediaKind.BEFORE, "antes-1", ana)
+    add_photo(first_task, MediaKind.AFTER, "despues-1", ana)
+
+    # ---- FINALIZADA AYER: esperando que el cliente confirme (#83) ----
+    finished = add_booking(
+        client, address, profunda, luis,
+        [(at(ayer, 8), at(ayer, 10))],
+        "Finalizada, pendiente de confirmar.",
+        tasks=[habitacion],
+        status=BookingStatus.COMPLETED,
+    )
+    finished.started_at = at(ayer, 8)
+    finished.completed_at = at(ayer, 10)
+    finished.days[0].started_at = at(ayer, 8)
+    finished.days[0].finished_at = at(ayer, 10)
+    db.session.flush()
+
+    add_photo(finished.tasks[0], MediaKind.BEFORE, "antes-2", luis)
+    add_photo(finished.tasks[0], MediaKind.AFTER, "despues-2", luis)
+
+    # ---- NO REALIZADA: el cliente no estaba, con su incidencia (#18) ----
+    not_done = add_booking(
+        client, address, profunda, ana,
+        [(at(ayer, 14), at(ayer, 16))],
+        "No realizada: el cliente no estaba.",
+        tasks=[habitacion],
+        status=BookingStatus.NOT_DONE,
+    )
+    not_done.started_at = at(ayer, 14)
+    db.session.flush()
+
+    db.session.add(Incident(
+        booking_id=not_done.booking_id,
+        worker_id=ana.worker_id,
+        incident_type=IncidentType.CLIENT,
+        source=IncidentSource.WORKER,
+        reported_by=ana.user_id,
+        description="Nadie abrió la puerta. Esperé 20 minutos y llamé dos veces.",
+        resolved=False,
+        created_at=at(ayer, 14),
+    ))
+
+    return 3
+
+
 def print_seed_bookings():
     """Lista las reservas de prueba con sus fechas, para las pruebas."""
     bookings = db.session.execute(
@@ -509,6 +622,7 @@ def setup_commands(app):
         created_shifts, created_people = create_people()
         created_bookings = create_bookings()
         created_reviews = create_reviews()
+        created_states = create_states()
 
         # Un solo commit al final: o entra todo, o nada.
         db.session.commit()
@@ -519,6 +633,7 @@ def setup_commands(app):
         print(f"Personas:  {created_people} creadas, {len(PEOPLE) - created_people} ya existían")
         print(f"Reservas:  {created_bookings} creadas")
         print(f"Reseñas:   {created_reviews} creadas (con sus reservas ya hechas)")
+        print(f"Estados:   {created_states} creadas (en curso, finalizada sin confirmar y no realizada)")
         print()
         print(f"Cuentas (contraseña: {TEST_PASSWORD}):")
         for person in PEOPLE:
