@@ -51,6 +51,17 @@ class MediaType(Enum):
     VIDEO = "video"
 
 
+class MediaKind(Enum):
+    """Para qué es la foto.
+
+    before / after: el antes y el después de una tarea, que el trabajador
+    sube para cerrarla. incident: la prueba de una incidencia.
+    """
+    BEFORE = "before"
+    AFTER = "after"
+    INCIDENT = "incident"
+
+
 class ApplicationStatus(Enum):
     NEW = "new"
     CONTACTED = "contacted"
@@ -886,6 +897,14 @@ class BookingTask(db.Model):
         nullable=True
     )
 
+
+    # Las fotos de esta tarea, en el orden en que se subieron. Así se
+    # leen con task.photos, sin buscarlas a mano.
+    photos = db.relationship(
+        "Media",
+        order_by="Media.media_id"
+    )
+
     def serialize(self):
         return {
             "booking_task_id": self.booking_task_id,
@@ -1028,7 +1047,9 @@ class Incident(db.Model):
 # ==================================================================
 # MEDIA
 # ==================================================================
-# Foto o vídeo adjunto a una incidencia.
+# Foto o vídeo de una incidencia, o del antes y el después de una tarea.
+# Cada archivo cuelga de UNA de las dos cosas, nunca de las dos ni de
+# ninguna: lo garantiza la restricción del final de la clase.
 
 class Media(db.Model):
     __tablename__ = "media"
@@ -1036,9 +1057,26 @@ class Media(db.Model):
     media_id: Mapped[int] = mapped_column(
         primary_key=True
     )
-    incident_id: Mapped[int] = mapped_column(
+        # Uno de los dos lleva valor y el otro va vacío.
+    incident_id: Mapped[int | None] = mapped_column(
         ForeignKey("incidents.incident_id"),
+        nullable=True,
+        index=True
+    )
+    booking_task_id: Mapped[int | None] = mapped_column(
+        ForeignKey("booking_tasks.booking_task_id"),
+        nullable=True,
+        index=True
+    )
+    kind: Mapped[MediaKind] = mapped_column(
+        SQLEnum(MediaKind),
         nullable=False
+    )
+    # Quién la subió: el trabajador que cierra la tarea o el cliente que
+    # reclama. Hace falta para saber de quién es la prueba.
+    uploaded_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.user_id"),
+        nullable=True
     )
     media_url: Mapped[str] = mapped_column(
         String(255),
@@ -1053,10 +1091,23 @@ class Media(db.Model):
         nullable=True
     )
 
+
+    # La regla la pone la base de datos y no el código: así no hay forma
+    # de colar una foto huérfana, venga de donde venga.
+    __table_args__ = (
+        db.CheckConstraint(
+            "(incident_id IS NULL) <> (booking_task_id IS NULL)",
+            name="media_one_owner",
+        ),
+    )
+
     def serialize(self):
         return {
             "media_id": self.media_id,
             "incident_id": self.incident_id,
+            "booking_task_id": self.booking_task_id,
+            "kind": self.kind.value if self.kind else None,
+            "uploaded_by": self.uploaded_by,
             "media_url": self.media_url,
             "media_type": (
                 self.media_type.value
