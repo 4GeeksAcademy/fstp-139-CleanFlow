@@ -1,96 +1,223 @@
-import { useCallback, useEffect, useState } from "react";
-import useGlobalReducer from "../../hooks/useGlobalReducer";
-import { getAffected, getReplacements, reassignBooking, cancelCompany, refreshAffected } from "../../services/absenceService";
-import { formatInterval } from "../../services/bookingService";
+/**
+ * RESERVAS AFECTADAS (ENCARGADO) · #75.
+ *
+ * Reservas pendientes cuyo trabajador tiene una ausencia esos días o está
+ * desactivado. Cada tarjeta (AffectedBookingCard.jsx) se resuelve sola:
+ * reasignar a alguien libre todos los días o cancelar como empresa.
+ *
+ * Al resolver una, se avisa al contador del menú (refreshAffected) y se
+ * recarga la lista: la reserva resuelta desaparece.
+ *
+ * API: services/absenceService.js · Estilos: dashboard.css (cf-affected__*).
+ */
 
-const BookingResolution = ({ booking, token, onResolved }) => {
-    const [workers, setWorkers] = useState(null);
-    const [selected, setSelected] = useState("");
-    const [reason, setReason] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState("");
+import { useEffect, useState } from "react"
+import useGlobalReducer from "../../hooks/useGlobalReducer"
+import { getAffected, getReplacements, reassignBooking, cancelCompany, refreshAffected } from "../../services/absenceService"
+import { AffectedBookingCard } from "../../components/dashboard/absences/AffectedBookingCard"
+import "../../dashboard.css"
 
-    const loadOptions = async () => {
-        setBusy(true); setError(""); setWorkers(null); setSelected("");
-        const result = await getReplacements(booking.booking_id, token);
-        if (result.ok) setWorkers(result.data.workers);
-        else setError(result.data.message);
-        setBusy(false);
-    };
-    const submit = async (event) => {
-        event.preventDefault();
-        if (busy || workers == null) return;
-        const cancelling = workers.length === 0;
-        if (cancelling && !reason.trim()) { setError("Escribe el motivo que verá el cliente."); return; }
-        if (!cancelling && !selected) { setError("Selecciona un trabajador."); return; }
-        if (cancelling && !window.confirm("¿Cancelar la reserva como CleanFlow con este motivo?")) return;
-        setBusy(true); setError("");
-        const result = cancelling
-            ? await cancelCompany(booking.booking_id, reason.trim(), token)
-            : await reassignBooking(booking.booking_id, selected, token);
-        if (result.ok) { refreshAffected(); await onResolved(result.data.message); }
-        else { setError(result.data.message); setWorkers(null); }
-        setBusy(false);
-    };
-
-    return <article className="card p-4 mb-3">
-        <div className="d-flex justify-content-between flex-wrap gap-2">
-            <h2 className="h5">Reserva #{booking.booking_id} · {booking.client_name}</h2>
-            <span className="badge bg-warning text-dark align-self-start">Requiere atención</span>
+// Título y frase. Con onRefresh, además, el botón de actualizar.
+const PageHeader = ({ onRefresh }) => (
+    <div className="cf-affected__header">
+        <div>
+            <p className="cf-dash-eyebrow">Equipo</p>
+            <h1 className="cf-affected__title">Reservas afectadas</h1>
+            <p className="cf-affected__lede">
+                Reservas cuyo trabajador tiene una ausencia o está desactivado. Reasígnalas o cancélalas como
+                empresa: el cliente lo verá en Mis reservas.
+            </p>
         </div>
-        <p className="mb-1">Trabajador: <strong>{booking.worker_name || "Sin trabajador"}</strong></p>
-        <p className="text-danger">{booking.affected_reasons.join(" · ")}</p>
-        <ul>{booking.days.map(day => <li key={day.booking_day_id}>{formatInterval(day)}</li>)}</ul>
-        {error && <div className="alert alert-danger" role="alert">{error}</div>}
-        <button type="button" className="btn btn-outline-primary align-self-start mb-3" disabled={busy} onClick={loadOptions}>
-            {busy ? "Consultando o guardando…" : workers == null ? "Resolver reserva" : "Actualizar candidatos"}
-        </button>
-        {workers !== null && <form onSubmit={submit}>
-            <fieldset disabled={busy}>
-                {workers.length > 0 ? <>
-                    <label htmlFor={`replacement-${booking.booking_id}`} className="form-label">Trabajador libre en todos los días</label>
-                    <select id={`replacement-${booking.booking_id}`} className="form-select mb-3" required value={selected} onChange={e => setSelected(e.target.value)}>
-                        <option value="">Selecciona un trabajador</option>
-                        {workers.map(worker => <option key={worker.worker_id} value={worker.worker_id}>{worker.name} {worker.last_name} · {worker.shift_name}</option>)}
-                    </select>
-                    <button type="submit" className="btn btn-primary">Reasignar reserva</button>
-                </> : <>
-                    <p>No hay sustitutos disponibles para todos los días. Puedes cancelar como empresa.</p>
-                    <label htmlFor={`cancel-${booking.booking_id}`} className="form-label">Motivo que verá el cliente</label>
-                    <textarea id={`cancel-${booking.booking_id}`} className="form-control mb-3" required maxLength={1000} rows={3} value={reason} onChange={e => setReason(e.target.value)} />
-                    <button type="submit" className="btn btn-danger">Cancelar como CleanFlow</button>
-                </>}
-            </fieldset>
-        </form>}
-    </article>;
-};
+
+        {onRefresh && (
+            <button type="button" className="cf-dash-btn cf-dash-btn--ghost" onClick={onRefresh}>
+                <i className="fa-solid fa-rotate" aria-hidden="true" />
+                Actualizar
+            </button>
+        )}
+    </div>
+)
+
+// Tarjetas grises que se ven mientras carga.
+const SKELETON_CARDS = 2
+
+// "1 reserva necesita atención" · "3 reservas necesitan atención"
+const countText = (count) =>
+    count === 1 ? "1 reserva necesita atención" : `${count} reservas necesitan atención`
 
 export const AffectedBookings = () => {
-    const { store } = useGlobalReducer();
-    const [bookings, setBookings] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [message, setMessage] = useState("");
-    const load = useCallback(async () => {
-        setLoading(true); setError("");
-        const result = await getAffected(store.token);
-        if (result.ok) setBookings(result.data.bookings);
-        else setError(result.data.message);
-        setLoading(false);
-    }, [store.token]);
-    useEffect(() => { load(); }, [load]);
-    return <div className="container py-3">
-        <div className="d-flex justify-content-between flex-wrap gap-2 mb-3">
-            <h1>Reservas afectadas</h1>
-            <button className="btn btn-outline-secondary align-self-center" type="button" disabled={loading} onClick={load}>Actualizar</button>
-        </div>
-        <p className="text-muted">Ausencias y trabajadores desactivados con servicios pendientes de realizar.</p>
-        {message && <div className="alert alert-success" role="status">{message}</div>}
-        {error && <div className="alert alert-danger" role="alert">{error}</div>}
-        {loading ? <p role="status">Cargando reservas…</p> : !error && <>
-            <p>{bookings.length} reservas requieren atención.</p>
-            {bookings.length === 0 && <div className="alert alert-success">No hay reservas afectadas.</div>}
-            {bookings.map(booking => <BookingResolution key={booking.booking_id} booking={booking} token={store.token} onResolved={async text => { setMessage(text); await load(); }} />)}
-        </>}
-    </div>;
-};
+    const { store, dispatch } = useGlobalReducer()
+
+    // ------------------------------------------------------------------
+    // ESTADO
+    // ------------------------------------------------------------------
+
+    const [bookings, setBookings] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [loadError, setLoadError] = useState("")
+
+    // Lo que pasó con la última reserva resuelta ("Reserva reasignada.")
+    const [message, setMessage] = useState("")
+
+    // ------------------------------------------------------------------
+    // CARGA Y ACCIONES
+    // ------------------------------------------------------------------
+
+    // 401 = token caducado: se cierra la sesión y ProtectedRoutes manda al
+    // login. Devuelve true para que quien llama no siga.
+    const sessionExpired = (result) => {
+        if (result.status === 401) {
+            dispatch({ type: "LOGOUT" })
+            return true
+        }
+        return false
+    }
+
+    // Sin setLoading(true): "Cargando..." solo sale la primera vez. Al
+    // actualizar, las tarjetas se quedan hasta que llega la lista nueva.
+    const loadBookings = async () => {
+        setLoadError("")
+
+        const result = await getAffected(store.token)
+
+        if (sessionExpired(result)) return
+
+        if (result.ok) {
+            setBookings(result.data.bookings)
+        } else {
+            setLoadError(result.data.message)
+        }
+
+        setLoading(false)
+    }
+
+    useEffect(() => {
+        if (store.token) loadBookings()
+    }, [store.token])
+
+    // Quién puede cubrir TODOS los días de la reserva. La tarjeta espera
+    // { ok, workers } o { ok: false, message }.
+    const handleFind = async (booking) => {
+        const result = await getReplacements(booking.booking_id, store.token)
+
+        if (sessionExpired(result)) return { ok: false, message: "" }
+
+        return result.ok
+            ? { ok: true, workers: result.data.workers }
+            : { ok: false, message: result.data.message }
+    }
+
+    // Lo común a reasignar y cancelar: si sale bien, se enseña el mensaje,
+    // se avisa al contador del menú y se recarga (la reserva desaparece).
+    const afterResolve = async (result) => {
+        if (sessionExpired(result)) return { ok: false, message: "" }
+        if (!result.ok) return { ok: false, message: result.data.message }
+
+        setMessage(result.data.message)
+        refreshAffected()
+        await loadBookings()
+
+        return { ok: true }
+    }
+
+    const handleReassign = async (booking, workerId) =>
+        afterResolve(await reassignBooking(booking.booking_id, workerId, store.token))
+
+    const handleCancel = async (booking, reason) =>
+        afterResolve(await cancelCompany(booking.booking_id, reason, store.token))
+
+    // ------------------------------------------------------------------
+    // PANTALLA
+    // ------------------------------------------------------------------
+
+    if (loading) {
+        return (
+            <section className="cf-affected" aria-busy="true">
+                <PageHeader />
+
+                <p className="sr-only">Cargando reservas...</p>
+                <span className="cf-dash-skel cf-affected__skel-count" aria-hidden="true" />
+
+                <ul className="cf-affected__list" aria-hidden="true">
+                    {Array.from({ length: SKELETON_CARDS }, (_, index) => (
+                        <li className="cf-affected__card" key={index}>
+                            <div className="cf-affected__top">
+                                <div className="cf-affected__skel-head">
+                                    <span className="cf-dash-skel cf-affected__skel-id" />
+                                    <span className="cf-dash-skel cf-affected__skel-client" />
+                                </div>
+                                <span className="cf-dash-skel cf-affected__skel-pill" />
+                            </div>
+                            <div className="cf-affected__worker">
+                                <span className="cf-dash-skel cf-skel-avatar cf-skel-avatar--sm" />
+                                <span className="cf-dash-skel cf-affected__skel-line" />
+                            </div>
+                            <ul className="cf-affected__days">
+                                <li><span className="cf-dash-skel cf-affected__skel-day" /></li>
+                                <li><span className="cf-dash-skel cf-affected__skel-day" /></li>
+                            </ul>
+                            <div className="cf-affected__resolve">
+                                <span className="cf-dash-skel cf-affected__skel-btn" />
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+        )
+    }
+
+    if (loadError) {
+        return (
+            <section className="cf-affected">
+                <PageHeader />
+
+                <div className="cf-dash-state cf-dash-state--error" role="alert">
+                    <span className="cf-dash-state__icon">
+                        <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                    </span>
+                    <p className="cf-dash-state__title">No se han podido cargar las reservas afectadas</p>
+                    <p className="cf-dash-state__text">{loadError}</p>
+                    <button type="button" className="cf-dash-btn" onClick={loadBookings}>
+                        Reintentar
+                    </button>
+                </div>
+            </section>
+        )
+    }
+
+    return (
+        <section className="cf-affected">
+            <PageHeader onRefresh={loadBookings} />
+
+            {/* role="status": el lector de pantalla anuncia el resultado al resolver una. */}
+            <p className="cf-affected__count" role="status">
+                {message && `${message} `}
+                {bookings.length > 0 && countText(bookings.length)}
+            </p>
+
+            {bookings.length === 0 ? (
+                <div className="cf-dash-state">
+                    <span className="cf-dash-state__icon">
+                        <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                    </span>
+                    <p className="cf-dash-state__title">No hay reservas afectadas</p>
+                    <p className="cf-dash-state__text">
+                        Cuando un trabajador tenga una ausencia o se desactive, sus reservas aparecerán aquí.
+                    </p>
+                </div>
+            ) : (
+                <ul className="cf-affected__list">
+                    {bookings.map((booking) => (
+                        <AffectedBookingCard
+                            key={booking.booking_id}
+                            booking={booking}
+                            onFind={handleFind}
+                            onReassign={handleReassign}
+                            onCancel={handleCancel}
+                        />
+                    ))}
+                </ul>
+            )}
+        </section>
+    )
+}

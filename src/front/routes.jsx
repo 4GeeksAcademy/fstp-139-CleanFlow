@@ -35,6 +35,7 @@ import { AccountAddresses } from "./pages/dashboard/account/AccountAddresses";
 
 import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
 import { MyBookings } from "./pages/dashboard/MyBookings";
+import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
@@ -97,6 +98,10 @@ export const router = createBrowserRouter(
             <Route
               path="workers/:workerId/edit"
               element={<EditarTrabajador />}
+            />
+            <Route
+              path="workers/:workerId/absences"
+              element={<WorkerAbsencesPage />}
             />
             <Route
               path="workers/new"

@@ -17,10 +17,12 @@ import { useActiveSection } from "../../hooks/useActiveSection";
 
 // Las dos puertas de acceso. Ambas llevan al mismo formulario: solo
 // cambia lo que se le ofrece a quien todavía no tiene cuenta.
-// Estas rutas aún no existen (WEB-10).
+//
+// Provisional: las dos van a /login hasta que existan /login-clients y
+// /login-workers (WEB-10, #44). Antes daban "Not found!".
 const ACCESS_LINKS = [
-    { label: "Área de clientes", to: "/login-clients" },
-    { label: "Área de empleados", to: "/login-workers" },
+    { label: "Área de clientes", to: "/login" },
+    { label: "Área de empleados", to: "/login" },
 ]
 
 
@@ -58,11 +60,11 @@ const NAV_LINKS = [
 
 // El botón de acción va aparte y NO se añade al array de arriba: no es un
 // item de navegación, así que no se resalta con el scroll ni entra en
-// isActive. Es el mismo que el del hero.
+// isActive. Es el mismo que el del hero: si cambia uno, cambian los dos.
 //
-// Provisional: apunta al login porque reservar exige cuenta. WEB-15 lo
-// llevará al catálogo del cliente, y hay que cambiar los dos a la vez.
-const CTA = { label: "Reservar ahora", to: "/login" }
+// Apunta a la ruta protegida del catálogo, no al login: si no hay sesión,
+// ProtectedRoutes manda al login y después vuelve aquí (WEB-15).
+const CTA = { label: "Reservar ahora", to: "/dashboard/service-catalog" }
 
 
 // Los ids a vigilar salen de los propios enlaces: al añadir un item con
@@ -124,7 +126,9 @@ export const Navbar = () => {
                 <div className="cf-container">
                     <ul className="cf-utility-list">
                         {ACCESS_LINKS.map((link) => (
-                            <li key={link.to}>
+                            // key por el texto y no por el destino: mientras
+                            // no exista WEB-10, los dos van a /login.
+                            <li key={link.label}>
                                 <Link to={link.to}>{link.label}</Link>
                             </li>
                         ))}
