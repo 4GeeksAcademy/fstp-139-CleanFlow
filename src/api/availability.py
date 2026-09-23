@@ -181,7 +181,9 @@ def load_busy(workers, first_day, last_day, exclude_booking_id=None):
         .where(
             Booking.worker_id.in_(worker_ids),
             Booking.booking_id != exclude_booking_id if exclude_booking_id is not None else True,
-            Booking.status != BookingStatus.CANCELLED,
+            # Cancelada y no realizada son salidas definitivas: su hueco
+            # vuelve a estar libre. Las demás (incluida en curso) ocupan.
+            Booking.status.not_in((BookingStatus.CANCELLED, BookingStatus.NOT_DONE)),
             BookingDay.starts_at < window_end,
             BookingDay.ends_at > window_start,
         )
