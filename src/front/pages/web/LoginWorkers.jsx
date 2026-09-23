@@ -1,11 +1,9 @@
 /**
- * Puerta de acceso del equipo (/login-workers).
+ * Puerta de acceso del equipo (/login-workers): trabajadores y encargado.
  *
- * Mismo formulario que la de clientes (LoginForm.jsx) y mismo endpoint:
- * quien entra por aquí puede ser trabajador o encargado. Cambia el pie,
- * porque por esta puerta nadie se registra solo: las cuentas del equipo
- * las crea la empresa, así que a quien no tiene se le ofrece la
- * candidatura.
+ * El formulario es LoginForm.jsx. Por aquí nadie se registra solo (las
+ * cuentas del equipo las crea la empresa), así que el pie ofrece la
+ * candidatura en lugar del alta.
  */
 
 import { Link } from "react-router-dom";

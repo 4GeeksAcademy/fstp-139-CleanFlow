@@ -1,9 +1,8 @@
 /**
  * Puerta de acceso de los clientes (/login-clients).
  *
- * El formulario es el mismo que el de empleados (LoginForm.jsx): las dos
- * puertas llaman al mismo POST /api/login, que no mira el rol. Aquí solo
- * se decide qué se le ofrece a quien todavía no tiene cuenta: registrarse.
+ * El formulario es LoginForm.jsx. Aquí solo se decide qué se le ofrece a
+ * quien todavía no tiene cuenta: registrarse.
  */
 
 import { Link } from "react-router-dom";
