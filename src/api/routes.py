@@ -736,6 +736,17 @@ def get_tasks():
 
     Sin minutos: dependen del servicio (Service.minutes_per_task).
     """
+    now = madrid_now()
+
+    last_service_day = max(
+        (day.starts_at.date() for day in booking.days),
+        default=booking.scheduled_start.date(),
+    )
+
+    if last_service_day > now.date():
+        return jsonify({
+            "message": "No puedes completar la reserva antes de su último día de servicio."
+        }), 409
     tasks = db.session.execute(
         db.select(Task).filter_by(is_active=True).order_by(Task.task_id)
     ).scalars().all()
@@ -2155,11 +2166,31 @@ def create_booking():
     }), 201
 
 
-@api.route("/bookings/<int:booking_id>/complete", methods=["PATCH"])
+
+@api.route("/booking-tasks/<int:task_id>", methods=["PATCH"])
 @role_required("worker")
 @booking_transaction
-def complete_booking(booking_id):
+def complete_booking_task(task_id):
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict) or data.get("status") not in (
+        "pending",
+        "completed",
+    ):
+        return jsonify({
+            "message": 'El estado debe ser "pending" o "completed".'
+        }), 400
+
     user_id = int(get_jwt_identity())
+
+    booking_id = db.session.execute(
+        db.select(BookingTask.booking_id).where(
+            BookingTask.booking_task_id == task_id
+        )
+    ).scalar_one_or_none()
+
+    if booking_id is None:
+        return jsonify({"message": "Tarea no encontrada."}), 404
 
     booking = db.session.execute(
         db.select(Booking).where(
@@ -2173,34 +2204,40 @@ def complete_booking(booking_id):
     worker = db.session.get(Worker, booking.worker_id)
     if worker is None or worker.user_id != user_id:
         return jsonify({
-            "message": "Solo puedes completar tus reservas asignadas."
+            "message": "Solo puedes modificar tareas de tus reservas asignadas."
         }), 403
-
-    # Repetir la petición no modifica una reserva ya completada.
-    if booking.status == BookingStatus.COMPLETED:
-        return jsonify({"booking": booking.serialize_detail()}), 200
 
     if booking.status != BookingStatus.CONFIRMED:
         return jsonify({
-            "message": "Solo puedes completar reservas confirmadas."
+            "message": "Solo puedes modificar tareas de reservas confirmadas."
         }), 409
 
-    tasks = db.session.execute(
-        db.select(BookingTask).where(
-            BookingTask.booking_id == booking_id
-        )
-    ).scalars().all()
+    now = madrid_now()
 
-    if any(task.status != BookingTaskStatus.COMPLETED for task in tasks):
+    if booking.scheduled_start.date() > now.date():
         return jsonify({
-            "message": "Debes completar todas las tareas antes de finalizar la reserva."
+            "message": "No puedes modificar tareas antes del día de inicio de la reserva."
         }), 409
 
-    booking.status = BookingStatus.COMPLETED
-    booking.updated_at = madrid_now()
+    task = db.session.get(BookingTask, task_id)
+    if task is None:
+        return jsonify({"message": "Tarea no encontrada."}), 404
+
+    new_status = BookingTaskStatus(data["status"])
+
+    # Repetir la misma petición conserva la fecha original.
+    if task.status != new_status:
+        task.status = new_status
+        task.completed_at = (
+            now if new_status == BookingTaskStatus.COMPLETED else None
+        )
+        booking.updated_at = now
+
     db.session.commit()
 
-    return jsonify({"booking": booking.serialize_detail()}), 200
+    return jsonify({"task": task.serialize()}), 200
+
+
 
 
 @api.route("/bookings", methods=["GET"])
@@ -2273,28 +2310,12 @@ def my_bookings():
     })
 
 
-@api.route("/booking-tasks/<int:task_id>", methods=["PATCH"])
+@api.route("/bookings/<int:booking_id>/complete", methods=["PATCH"])
 @role_required("worker")
 @booking_transaction
-def complete_booking_task(task_id):
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict) or data.get("status") != "completed":
-        return jsonify({
-            "message": 'Debes enviar {"status": "completed"}.'
-        }), 400
-
+def complete_booking(booking_id):
     user_id = int(get_jwt_identity())
 
-    booking_id = db.session.execute(
-        db.select(BookingTask.booking_id).where(
-            BookingTask.booking_task_id == task_id
-        )
-    ).scalar_one_or_none()
-
-    if booking_id is None:
-        return jsonify({"message": "Tarea no encontrada."}), 404
-
-    # Bloquea la reserva mientras se comprueba la asignación y se guarda.
     booking = db.session.execute(
         db.select(Booking).where(
             Booking.booking_id == booking_id
@@ -2307,26 +2328,45 @@ def complete_booking_task(task_id):
     worker = db.session.get(Worker, booking.worker_id)
     if worker is None or worker.user_id != user_id:
         return jsonify({
-            "message": "Solo puedes modificar tareas de tus reservas asignadas."
+            "message": "Solo puedes completar tus reservas asignadas."
         }), 403
+
+    if booking.status == BookingStatus.COMPLETED:
+        return jsonify({"booking": booking.serialize_detail()}), 200
 
     if booking.status != BookingStatus.CONFIRMED:
         return jsonify({
-            "message": "Solo puedes completar tareas de reservas confirmadas."
+            "message": "Solo puedes completar reservas confirmadas."
         }), 409
 
-    task = db.session.get(BookingTask, task_id)
+    now = madrid_now()
 
-    # Repetir la petición conserva la fecha original de finalización.
-    if task.status != BookingTaskStatus.COMPLETED:
-        task.status = BookingTaskStatus.COMPLETED
-        task.completed_at = madrid_now()
-        booking.updated_at = task.completed_at
+    last_service_day = max(
+        (day.starts_at.date() for day in booking.days),
+        default=booking.scheduled_start.date(),
+    )
 
+    if last_service_day > now.date():
+        return jsonify({
+            "message": "No puedes completar la reserva antes de su último día de servicio."
+        }), 409
+
+    tasks = db.session.execute(
+        db.select(BookingTask).where(
+            BookingTask.booking_id == booking_id
+        )
+    ).scalars().all()
+
+    if any(task.status != BookingTaskStatus.COMPLETED for task in tasks):
+        return jsonify({
+            "message": "Debes completar todas las tareas antes de finalizar la reserva."
+        }), 409
+
+    booking.status = BookingStatus.COMPLETED
+    booking.updated_at = now
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 200
-
 # ----------------------------------------------------------------------
 # FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
 # ----------------------------------------------------------------------
