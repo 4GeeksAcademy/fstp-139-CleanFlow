@@ -5,7 +5,7 @@ import {
     completeBookingTask,
     completeBooking,
 } from "../../services/bookingService";
-import { formatInterval } from "../../services/absenceService";
+import { formatInterval } from "../../services/bookingService";
 
 const statuses = {
     pending: "Pendiente",
@@ -20,7 +20,7 @@ const money = new Intl.NumberFormat("es-ES", {
 });
 
 export const MisReservasTrabajador = () => {
-    const { store } = useGlobalReducer();
+    const { store, dispatch } = useGlobalReducer();
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -40,17 +40,21 @@ export const MisReservasTrabajador = () => {
         }
 
         setLoading(false);
-    }, [store.token]);
+    }, [store.token, dispatch]);
 
     useEffect(() => {
         load();
     }, [load]);
 
-    const handleTaskComplete = async (bookingId, taskId) => {
+    const handleTaskComplete = async (bookingId, taskId, completed) => {
         setSaving(true);
         setError("");
 
-        const result = await completeBookingTask(taskId, store.token);
+        const result = await completeBookingTask(
+            taskId,
+            store.token,
+            completed
+        );
 
         if (result.ok) {
             setBookings(current => current.map(booking =>
@@ -189,10 +193,11 @@ export const MisReservasTrabajador = () => {
                                                 className="form-check-input"
                                                 type="checkbox"
                                                 checked={completed}
-                                                disabled={saving || completed || !confirmed}
-                                                onChange={() => handleTaskComplete(
+                                                disabled={saving || !confirmed}
+                                                onChange={(event) => handleTaskComplete(
                                                     booking.booking_id,
-                                                    task.booking_task_id
+                                                    task.booking_task_id,
+                                                    event.target.checked
                                                 )}
                                             />
                                             <label

@@ -34,11 +34,13 @@ export const createBooking = async (bookingData, token) => {
 export const getWorkerBookings = (token) =>
   apiRequest("/api/bookings", { token });
 
-export const completeBookingTask = (taskId, token) =>
+export const completeBookingTask = (taskId, token, completed = true) =>
   apiRequest(`/api/booking-tasks/${taskId}`, {
     method: "PATCH",
     token,
-    body: { status: "completed" },
+    body: {
+      status: completed ? "completed" : "pending",
+    },
   });
 
 export const completeBooking = (bookingId, token) =>
@@ -46,3 +48,12 @@ export const completeBooking = (bookingId, token) =>
     method: "PATCH",
     token,
   });
+
+export const getMyBookings = (token) =>
+    apiRequest("/api/bookings", { token });
+
+// Fechas de Madrid sin convertirlas al huso horario del navegador.
+export const formatInterval = (day) => {
+    const date = day.starts_at.slice(0, 10).split("-").reverse().join("/");
+    return `${date} · ${day.starts_at.slice(11, 16)}–${day.ends_at.slice(11, 16)}`;
+};

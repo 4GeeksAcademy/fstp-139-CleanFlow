@@ -1,23 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
-import { getMyBookings, formatInterval } from "../../services/absenceService";
+import { getMyBookings, formatInterval } from "../../services/bookingService";
 
 const statuses = { pending: "Pendiente", confirmed: "Confirmada", completed: "Completada", cancelled: "Cancelada" };
 
 // Vista mínima para comprobar el resultado de #15. Integrar con la vista definitiva de #16.
 export const MyBookings = () => {
-    const { store } = useGlobalReducer();
+    const { store, dispatch } = useGlobalReducer();
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const load = useCallback(async () => {
         setLoading(true); setError("");
         const result = await getMyBookings(store.token);
+        if (result.status === 401) {
+            setLoading(false);
+            dispatch({ type: "LOGOUT" });
+            return;
+        }
         if (result.ok) setRows(result.data.bookings);
         else setError(result.data.message);
         setLoading(false);
-    }, [store.token]);
-    useEffect(() => { load(); }, [load]);
+    }, [store.token, dispatch]); useEffect(() => { load(); }, [load]);
     return <div className="container py-3">
         <div className="d-flex justify-content-between flex-wrap gap-2 mb-4">
             <h1>Mis reservas</h1>
