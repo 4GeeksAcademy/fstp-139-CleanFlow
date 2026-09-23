@@ -25,6 +25,7 @@ import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
 import { ListadoTurnos } from "./pages/dashboard/ListadoTurnos";
 import { EditarTrabajador } from "./pages/dashboard/EditarTrabajador";
 import { ServiceCatalog } from "./pages/dashboard/ServiceCatalog";
+import { BookingPanel } from "./pages/dashboard/booking/BookingPanel";
 import { AccountLayout } from "./pages/dashboard/account/AccountLayout";
 import { AccountDetails } from "./pages/dashboard/account/AccountDetails";
 import { AccountSecurity } from "./pages/dashboard/account/AccountSecurity";
@@ -75,6 +76,9 @@ export const router = createBrowserRouter(
               aquí. No confundir con services-catalog, la del encargado. */}
           <Route element={<RoleRoute allowed={["client"]} />}>
             <Route path="service-catalog" element={<ServiceCatalog />} />
+            {/* book es otro contrato: "Contratar" del catálogo llega aquí
+                con ?servicio=<slug>. */}
+            <Route path="book" element={<BookingPanel />} />
             <Route path="contracted-services" element={<MyBookings />} />
           </Route>
 
