@@ -17,6 +17,7 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { Avatar } from "./Avatar"
 import { Logo } from "../Logo"
+import { AffectedCount } from "./absences/AffectedCount"
 // Estilos del menú (cf-side__*).
 import "../../dashboard.css"
 
@@ -41,8 +42,6 @@ import "../../dashboard.css"
 // El menú sale en el orden de esta lista, así que los enlaces de un mismo
 // grupo van seguidos. Quién ve qué lo decide `roles`, no el orden: los
 // comentarios por rol son solo para leer.
-
-import { AffectedCount } from "./AffectedCount";
 
 const LINKS = [
     // --- Comunes a todos los roles (sin grupo: van sueltos arriba) ---

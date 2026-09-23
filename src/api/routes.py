@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Task, Service, Worker, Address, Shift, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -372,14 +372,54 @@ def create_worker():
 @api.route("/workers", methods=["GET"])
 @role_required("manager")
 def get_workers():
-    workers = Worker.query.all()
+    """Todos los trabajadores y encargados, por nombre.
 
-    return jsonify({
-        "workers": [
-            worker.serialize()
-            for worker in workers
-        ]
-    }), 200
+    Además de sus datos: la foto, el horario del turno, la valoración media
+    de sus reservas y si tiene una ausencia hoy ("Baja en curso").
+    """
+    workers = db.session.execute(
+        db.select(Worker)
+        .join(User, Worker.user_id == User.user_id)
+        .options(
+            selectinload(Worker.user),
+            selectinload(Worker.shift),
+            selectinload(Worker.absences),
+        )
+        .order_by(User.name, User.last_name)
+    ).scalars().all()
+
+    # La valoración de cada trabajador es la media de las reseñas de sus
+    # reservas. UNA consulta agrupada para todos, no una por trabajador.
+    ratings = {
+        worker_id: (average, total)
+        for worker_id, average, total in db.session.execute(
+            db.select(Booking.worker_id, func.avg(Review.rating), func.count(Review.review_id))
+            .join(Review, Review.booking_id == Booking.booking_id)
+            .group_by(Booking.worker_id)
+        ).all()
+    }
+
+    today = madrid_now().date()
+
+    def list_item(worker):
+        average, total = ratings.get(worker.worker_id, (None, 0))
+        shift = worker.shift
+
+        return {
+            **worker.serialize(),
+            "avatar_url": worker.user.avatar_url if worker.user else None,
+            "shift_start": shift.start_time.strftime("%H:%M") if shift else None,
+            "shift_end": shift.end_time.strftime("%H:%M") if shift else None,
+            "rating": round(float(average), 1) if average is not None else None,
+            "reviews_count": total,
+            # Una ausencia que incluye hoy. Sin fecha de fin, sigue abierta.
+            "on_leave_today": any(
+                absence.starts_on <= today and (absence.ends_on is None or absence.ends_on >= today)
+                for absence in worker.absences
+            ),
+        }
+
+    return jsonify({"workers": [list_item(worker) for worker in workers]}), 200
 
 
 @api.route("/workers/<int:worker_id>", methods=["GET"])
@@ -561,6 +601,38 @@ def update_worker(worker_id):
         return jsonify({
             "message": "Error al actualizar el worker"
         }), 500
+
+
+@api.route("/workers/<int:worker_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_worker_status(worker_id):
+    """Activa o desactiva a un trabajador: el trabajador y su usuario a la vez.
+
+    Desactivado no aparece libre para reservar, no puede entrar, y sus
+    reservas pendientes pasan solas a Reservas afectadas (#15).
+    """
+    data = get_json_body()
+
+    if data is None or not isinstance(data.get("is_active"), bool):
+        return jsonify({"message": "Indica el estado: is_active tiene que ser true o false"}), 400
+
+    worker = db.session.get(Worker, worker_id)
+
+    if worker is None:
+        return jsonify({"message": "Trabajador no encontrado"}), 404
+
+    # Nadie puede desactivarse a sí mismo: se quedaría fuera de la aplicación.
+    if worker.user_id == current_user().user_id and not data["is_active"]:
+        return jsonify({"message": "No puedes desactivar tu propia cuenta"}), 403
+
+    worker.is_active = data["is_active"]
+
+    if worker.user:
+        worker.user.is_active = data["is_active"]
+
+    db.session.commit()
+
+    return jsonify({"worker": worker.serialize()}), 200
 
 
 # ----------------------------------------------------------------------

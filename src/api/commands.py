@@ -1,13 +1,13 @@
 """
 Comandos de terminal del backend: corren fuera de la API, con acceso a la BD.
 
-    pipenv run insert-test-data    catálogo, personas y reservas de prueba
+    pipenv run insert-test-data    catálogo, personas, reservas y reseñas de prueba
 
 Se puede repetir sin miedo: lo que ya existe no se duplica ni se toca.
 
     1. Catálogo      tareas y servicios
     2. Personas      turnos, encargado, cliente y trabajadores
-    3. Reservas      tres escenarios para probar la disponibilidad
+    3. Reservas      escenarios de disponibilidad y reservas hechas con reseña
     4. Ayudantes     búsquedas y crear una reserva
     5. Bloques       lo que crea cada parte
     6. El comando
@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 from api.models import (
     db, Service, Task, User, Shift, Worker, Address,
-    Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus,
+    Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, Review,
 )
 from api.utils import slugify
 
@@ -116,8 +116,8 @@ TEST_PASSWORD = "cleanflow123"
 
 # Días de lunes (1) a domingo (7), como Shift.days.
 SHIFTS = [
-    {"name": "Mañana", "start_time": time(8, 0),  "end_time": time(14, 0), "days": [1, 2, 3, 4, 5, 6]},
-    {"name": "Tarde",  "start_time": time(14, 0), "end_time": time(20, 0), "days": [1, 2, 3, 4, 5]},
+    {"name": "Mañana", "start_time": time(6, 0),  "end_time": time(14, 0), "days": [1, 2, 3, 4, 5]},
+    {"name": "Tarde",  "start_time": time(14, 0), "end_time": time(22, 0), "days": [1, 2, 3, 4, 5]},
 ]
 
 # Tres de mañana y uno de tarde: así la mañana se puede llenar entera.
@@ -146,14 +146,34 @@ PEOPLE = [
 #   VARIOS DÍAS   el viernes siguiente, Carlos (tarde, de lunes a viernes)
 #                 12 horas: 8 h el viernes y 4 el LUNES, saltándose el
 #                 fin de semana.
+#   YA HECHAS     reservas completadas en las semanas anteriores, cada una
+#                 con su reseña: dan la valoración del listado de
+#                 trabajadores (Ana 4,8, Luis 4,5 y Carlos 3,7).
 #
-# La #15 las reutiliza para probar las reservas afectadas.
+# La #15 reutiliza los tres primeros para probar las reservas afectadas.
 
 # Hora de Madrid sin zona, como se guardan las reservas.
 MADRID = ZoneInfo("Europe/Madrid")
 
 # Marca en client_notes: así el comando reconoce sus reservas y no las duplica.
 SEED_MARK = "[datos de prueba]"
+
+# Las reseñas de las reservas ya hechas: (trabajador, nota, comentario).
+# Marta no tiene ninguna a propósito: así se ve "Sin valoraciones".
+PAST_REVIEWS = [
+    ("ana@cleanflow.test",    5, "Impecable y muy puntual."),
+    ("ana@cleanflow.test",    5, "Dejó la cocina como nueva."),
+    ("ana@cleanflow.test",    4, "Muy bien, aunque llegó un poco tarde."),
+    ("ana@cleanflow.test",    5, "Repetiremos seguro."),
+    ("ana@cleanflow.test",    5, None),
+    ("luis@cleanflow.test",   5, "Rápido y muy cuidadoso."),
+    ("luis@cleanflow.test",   4, "Todo correcto."),
+    ("luis@cleanflow.test",   4, None),
+    ("luis@cleanflow.test",   5, "Muy amable."),
+    ("carlos@cleanflow.test", 4, "Buen trabajo."),
+    ("carlos@cleanflow.test", 3, "Se dejó el baño a medias."),
+    ("carlos@cleanflow.test", 4, None),
+]
 
 
 # ------------------------------------------------------------------
@@ -194,10 +214,11 @@ def service_by_slug(slug):
     ).scalar_one()
 
 
-def add_booking(client, address, service, worker, days, note, tasks=()):
-    """Una reserva confirmada con sus tramos.
+def add_booking(client, address, service, worker, days, note, tasks=(), status=BookingStatus.CONFIRMED):
+    """Una reserva con sus tramos (confirmada, salvo que se diga otro estado).
 
     days: lista de (inicio, fin) · tasks: tareas, con sus repeticiones.
+    Devuelve la reserva, para poder colgarle una reseña.
     """
     hours = sum((end - start).seconds // 3600 for start, end in days)
 
@@ -211,7 +232,7 @@ def add_booking(client, address, service, worker, days, note, tasks=()):
         hourly_rate=service.base_hourly_rate,
         minutes_per_task=service.minutes_per_task,
         total_price=hours * service.base_hourly_rate,
-        status=BookingStatus.CONFIRMED,
+        status=status,
         client_notes=f"{SEED_MARK} {note}",
         created_at=datetime.now(MADRID).replace(tzinfo=None),
     )
@@ -230,8 +251,11 @@ def add_booking(client, address, service, worker, days, note, tasks=()):
             booking_id=booking.booking_id,
             task_id=task.task_id,
             task_name=task.task_name,
-            status=BookingTaskStatus.PENDING,
+            # Una reserva ya hecha tiene todas sus tareas terminadas.
+            status=BookingTaskStatus.COMPLETED if status == BookingStatus.COMPLETED else BookingTaskStatus.PENDING,
         ))
+
+    return booking
 
 
 # ------------------------------------------------------------------
@@ -343,8 +367,12 @@ def create_bookings():
     Todas o ninguna: si ya hay alguna con la marca, no crea nada. Sus
     fechas quedan fijas: para recalcularlas, rehacer la base de datos.
     """
+    # Las ya hechas (create_reviews) no cuentan: son otro bloque.
     exists = db.session.execute(
-        db.select(Booking).where(Booking.client_notes.startswith(SEED_MARK))
+        db.select(Booking).where(
+            Booking.client_notes.startswith(SEED_MARK),
+            Booking.status != BookingStatus.COMPLETED,
+        )
     ).scalars().first()
 
     if exists:
@@ -395,6 +423,60 @@ def create_bookings():
     return 5
 
 
+def create_reviews():
+    """Reservas ya hechas, cada una con su reseña. Devuelve cuántas creó.
+
+    Aparte de create_bookings(): así se añaden también a una base de datos
+    que ya tenía las otras reservas de prueba, sin tener que rehacerla.
+    """
+    exists = db.session.execute(
+        db.select(Booking).where(
+            Booking.client_notes.startswith(SEED_MARK),
+            Booking.status == BookingStatus.COMPLETED,
+        )
+    ).scalars().first()
+
+    if exists:
+        return 0
+
+    client = user_by_email("cliente@cleanflow.test")
+    address = db.session.execute(
+        db.select(Address).filter_by(client_id=client.user_id, is_active=True)
+    ).scalars().first()
+
+    profunda = service_by_slug("limpieza-profunda")
+    habitacion = db.session.execute(
+        db.select(Task).filter_by(task_name="Limpiar habitación")
+    ).scalar_one()
+
+    today = datetime.now(MADRID).date()
+
+    # Una por semana hacia atrás, siempre un martes: nunca se pisan. Dos
+    # habitaciones de profunda = 2 h, empezando 2 h después de su turno.
+    for weeks_ago, (email, rating, comment) in enumerate(PAST_REVIEWS, start=1):
+        worker = worker_by_email(email)
+        day = next_weekday(today - timedelta(weeks=weeks_ago), 2)
+        start = worker.shift.start_time.hour + 2
+
+        booking = add_booking(
+            client, address, profunda, worker,
+            [(at(day, start), at(day, start + 2))],
+            "Ya hecha, con reseña.",
+            tasks=[habitacion] * 2,
+            status=BookingStatus.COMPLETED,
+        )
+
+        db.session.add(Review(
+            booking_id=booking.booking_id,
+            client_id=client.user_id,
+            rating=rating,
+            comment=comment,
+            created_at=at(day, start + 3),
+        ))
+
+    return len(PAST_REVIEWS)
+
+
 def print_seed_bookings():
     """Lista las reservas de prueba con sus fechas, para las pruebas."""
     bookings = db.session.execute(
@@ -426,6 +508,7 @@ def setup_commands(app):
         created_tasks, created_services = create_catalog()
         created_shifts, created_people = create_people()
         created_bookings = create_bookings()
+        created_reviews = create_reviews()
 
         # Un solo commit al final: o entra todo, o nada.
         db.session.commit()
@@ -435,6 +518,7 @@ def setup_commands(app):
         print(f"Turnos:    {created_shifts} creados, {len(SHIFTS) - created_shifts} ya existían")
         print(f"Personas:  {created_people} creadas, {len(PEOPLE) - created_people} ya existían")
         print(f"Reservas:  {created_bookings} creadas")
+        print(f"Reseñas:   {created_reviews} creadas (con sus reservas ya hechas)")
         print()
         print(f"Cuentas (contraseña: {TEST_PASSWORD}):")
         for person in PEOPLE:

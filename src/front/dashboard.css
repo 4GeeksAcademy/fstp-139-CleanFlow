@@ -12,7 +12,9 @@
      5. Ajustes de la cuenta (cf-account__*) y avatar
      6. Página de turnos (cf-shifts__*)
      7. Panel de contratación del cliente (cf-booking__*)
-     8. Movimiento reducido
+     8. Trabajadores, ausencias y reservas afectadas (cf-workers__*,
+        cf-worker-form__*, cf-absences__*, cf-affected__*)
+     9. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -4181,7 +4183,1012 @@ textarea.cf-dash-input {
 
 
 /* ======================================================================
-   8. MOVIMIENTO REDUCIDO
+   8. PÁGINAS: TRABAJADORES, AUSENCIAS Y RESERVAS AFECTADAS
+      (ListadoTrabajadores.jsx, EditarTrabajador.jsx, WorkerAbsencesPage.jsx,
+       AffectedBookings.jsx y los componentes de components/dashboard/workers
+       y .../absences)
+   ======================================================================
+
+   Las pantallas del equipo, con la misma cabecera que Turnos y
+   Servicios. container-type: el diseño estrecho lo decide el hueco que
+   deja el sidebar, no el ancho de la ventana (ver @container al final). */
+
+/* ---------- COMÚN: CONTENEDOR Y CABECERA ---------- */
+
+.cf-workers,
+.cf-worker-form,
+.cf-absences,
+.cf-affected {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+.cf-workers__header,
+.cf-absences__header,
+.cf-affected__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-workers__title,
+.cf-worker-form__title,
+.cf-absences__title,
+.cf-affected__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+}
+
+.cf-workers__lede,
+.cf-worker-form__lede,
+.cf-absences__lede,
+.cf-affected__lede {
+  margin: var(--cf-space-2) 0 0;
+  max-width: 62ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- TRABAJADORES: BARRA ----------
+   Pestañas a la izquierda y buscador a la derecha, como en Servicios.
+   Las pestañas son las de Servicios (cf-services__tabs), sin copiarlas. */
+
+.cf-workers__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-workers__toolbar .cf-dash-search {
+  width: min(340px, 100%);
+}
+
+/* ---------- TRABAJADORES: LISTA ---------- */
+
+.cf-workers__list {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cinco columnas: nombre, puesto y turno, valoración, estado y acciones.
+   Las acciones con ancho fijo y no "auto": en la cabecera esa columna va
+   vacía, y con "auto" mediría 0 y descuadraría todas las demás. */
+.cf-workers__head,
+.cf-workers__row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.5fr) minmax(0, 1fr) 140px 224px;
+  align-items: center;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-3) var(--cf-space-6);
+}
+
+/* Borde transparente: el mismo grosor que la fila, así el texto de cada
+   columna empieza exactamente en el mismo punto. */
+.cf-workers__head {
+  border: 1px solid transparent;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* "Nombre" empieza donde empieza el nombre, no donde la foto: se salta
+   el avatar (48px) y el hueco que lo separa del texto. */
+.cf-workers__head > :first-child {
+  padding-left: calc(48px + var(--cf-space-3));
+}
+
+.cf-workers__row {
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  transition: border-color var(--cf-transition), box-shadow var(--cf-transition);
+}
+
+.cf-workers__row:hover {
+  border-color: var(--cf-primary);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+/* Desactivado: la fila se tiñe de terracota suave y el texto se apaga,
+   igual que un turno desactivado. */
+.cf-workers__row--inactive,
+.cf-workers__row--inactive:hover {
+  border-color: var(--cf-border);
+  background-color: var(--cf-accent-soft);
+  box-shadow: none;
+}
+
+.cf-workers__row--inactive .cf-workers__person,
+.cf-workers__row--inactive .cf-workers__job,
+.cf-workers__row--inactive .cf-workers__rating {
+  opacity: 0.6;
+}
+
+.cf-workers__person {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  min-width: 0;
+}
+
+.cf-workers__who {
+  min-width: 0;
+}
+
+.cf-workers__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.cf-workers__email {
+  display: block;
+  overflow: hidden;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Etiqueta junto al nombre. La forma aquí; el color, en cada variante. */
+.cf-workers__tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* "Baja en curso": lo único que hay que ver de un vistazo en la lista. */
+.cf-workers__tag--away {
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+}
+
+.cf-workers__job {
+  margin: 0;
+  font-size: var(--cf-text-sm);
+}
+
+.cf-workers__shift {
+  display: block;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La valoración: estrella terracota, nota y cuántas reseñas la sostienen. */
+.cf-workers__rating {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-workers__rating i {
+  color: var(--cf-accent);
+}
+
+.cf-workers__rating strong {
+  font-size: var(--cf-text-base);
+}
+
+.cf-workers__rating span {
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-workers__rating--none {
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-workers__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cf-space-2);
+}
+
+/* ---------- AUSENCIAS: CABECERA ---------- */
+
+.cf-absences__back,
+.cf-worker-form__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-decoration: none;
+}
+
+.cf-absences__back:hover,
+.cf-worker-form__back:hover {
+  color: var(--cf-primary);
+}
+
+/* Resumen del trabajador bajo el título: puesto, turno y valoración. */
+.cf-absences__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2) var(--cf-space-4);
+  margin-top: var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-absences__who i {
+  margin-right: 4px;
+  color: var(--cf-accent-dark);
+}
+
+/* ---------- AUSENCIAS: FORMULARIO ----------
+   Solo aparece al pulsar "Añadir ausencia" o "Editar". */
+
+.cf-absences__form {
+  margin-bottom: var(--cf-space-6);
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-absences__form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-absences__form-title {
+  margin: 0;
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+}
+
+.cf-absences__close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+
+.cf-absences__close:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-absences__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cf-space-4);
+}
+
+.cf-absences__wide {
+  grid-column: 1 / -1;
+}
+
+.cf-absences__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-4);
+}
+
+/* ---------- AUSENCIAS: LISTA ----------
+   Dos grupos: lo que afecta ahora (y lo próximo) y lo que ya pasó. */
+
+.cf-absences__list-title {
+  margin: 0 0 var(--cf-space-3);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+}
+
+.cf-absences__group + .cf-absences__group {
+  margin-top: var(--cf-space-6);
+}
+
+.cf-absences__group-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cf-space-2);
+  margin: 0 0 var(--cf-space-3);
+  font-size: var(--cf-text-base);
+  font-weight: 600;
+}
+
+.cf-absences__group-title span {
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.cf-absences__list {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-absences__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-4) var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+}
+
+/* Las pasadas, apagadas: ya no afectan a nada. */
+.cf-absences__row--past {
+  background-color: var(--cf-bg);
+}
+
+.cf-absences__row--past .cf-absences__dates {
+  color: var(--cf-muted);
+}
+
+.cf-absences__dates {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "En curso": la ausencia que afecta hoy, lo que más interesa. */
+.cf-absences__now {
+  margin-left: var(--cf-space-2);
+  color: var(--cf-accent-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cf-absences__notes {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* El motivo, en pastilla: baja en terracota (lo delicado), vacaciones en
+   verde y otro en neutro. */
+.cf-absences__reason {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-absences__reason--baja {
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+}
+
+.cf-absences__reason--vacaciones {
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-absences__reason--otro {
+  border: 1px solid var(--cf-border);
+  background-color: var(--cf-bg);
+  color: var(--cf-muted);
+}
+
+/* La papelera es la de Turnos (cf-shifts__delete): neutra, roja al pasar. */
+.cf-absences__row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+/* ---------- RESERVAS AFECTADAS ---------- */
+
+.cf-affected__count {
+  margin: 0 0 var(--cf-space-4);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-affected__list {
+  display: grid;
+  gap: var(--cf-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Borde terracota a la izquierda: todas piden atención. */
+.cf-affected__card {
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-left: 4px solid var(--cf-accent);
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-affected__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+}
+
+.cf-affected__id {
+  margin: 0;
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+}
+
+.cf-affected__client {
+  display: block;
+  margin-top: 2px;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-weight: 400;
+}
+
+.cf-affected__reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cf-affected__reason {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cf-affected__worker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-3);
+  margin: var(--cf-space-4) 0 var(--cf-space-3);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-affected__link {
+  color: var(--cf-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cf-affected__days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin: 0 0 var(--cf-space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.cf-affected__day {
+  padding: 6px 12px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-bg);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lo que se puede hacer con la reserva, separado por una línea. */
+.cf-affected__resolve {
+  display: grid;
+  gap: var(--cf-space-3);
+  padding-top: var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-affected__resolve-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--cf-space-3);
+}
+
+.cf-affected__resolve-row .cf-dash-field {
+  flex: 1;
+  min-width: 220px;
+}
+
+.cf-affected__none {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- EDITAR TRABAJADOR ----------
+   Como el formulario de servicios: una tarjeta con secciones y, a la
+   derecha, cómo se verá en el equipo. */
+
+.cf-worker-form__header {
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-worker-form__editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: var(--cf-space-6);
+}
+
+.cf-worker-form__form {
+  display: grid;
+  gap: var(--cf-space-6);
+  padding: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-md);
+}
+
+/* Cada bloque es un <fieldset>, separado del anterior por una línea que
+   va en el legend (en el fieldset, el legend la cortaría). */
+.cf-worker-form__section {
+  display: grid;
+  gap: var(--cf-space-4);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cf-worker-form__section + .cf-worker-form__section > .cf-worker-form__legend {
+  width: 100%;
+  padding-top: var(--cf-space-6);
+  border-top: 1px solid var(--cf-border);
+}
+
+/* Deshace el legend de Bootstrap: flotante, a todo lo ancho y grande. */
+.cf-worker-form__legend {
+  float: none;
+  width: auto;
+  margin: 0 0 var(--cf-space-4);
+  padding: 0;
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* align-items: start: un campo con error no estira a sus vecinos. */
+.cf-worker-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--cf-space-4);
+}
+
+.cf-worker-form__wide {
+  grid-column: 1 / -1;
+}
+
+/* Turno: tarjetas con su horario a la vista. El radio va oculto pero
+   sigue ahí: teclado y lector de pantalla funcionan igual. */
+.cf-worker-form__shifts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--cf-space-3);
+}
+
+.cf-worker-form__shift {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: var(--cf-space-3) var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  cursor: pointer;
+  transition: border-color var(--cf-transition), background-color var(--cf-transition);
+}
+
+.cf-worker-form__shift input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cf-worker-form__shift:hover {
+  border-color: var(--cf-primary);
+}
+
+.cf-worker-form__shift:has(input:checked) {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  box-shadow: inset 0 0 0 1px var(--cf-primary);
+}
+
+.cf-worker-form__shift:has(input:focus-visible) {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+}
+
+.cf-worker-form__shift-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+/* El check solo en la elegida. */
+.cf-worker-form__shift-name i {
+  color: var(--cf-primary);
+  opacity: 0;
+}
+
+.cf-worker-form__shift:has(input:checked) .cf-worker-form__shift-name i {
+  opacity: 1;
+}
+
+.cf-worker-form__shift-hours {
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Estado: el interruptor y lo que implica, en un recuadro suave. */
+.cf-worker-form__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3) var(--cf-space-6);
+  padding: var(--cf-space-4);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+}
+
+.cf-worker-form__status p {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-worker-form__status strong {
+  display: block;
+  color: var(--cf-text);
+}
+
+.cf-worker-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-3);
+}
+
+/* Resumen "Así aparece en el equipo". sticky: acompaña al bajar. */
+.cf-worker-form__aside {
+  position: sticky;
+  top: var(--cf-space-6);
+  display: grid;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-6);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-worker-form__aside-label {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-worker-form__who {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  min-width: 0;
+}
+
+.cf-worker-form__facts {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding-top: var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-worker-form__facts div {
+  display: grid;
+  gap: 2px;
+}
+
+.cf-worker-form__facts dt {
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.cf-worker-form__facts dd {
+  margin: 0;
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-worker-form__aside .cf-dash-btn {
+  justify-content: center;
+}
+
+/* ---------- BARRAS DE CARGA ----------
+   Como en el catálogo: .cf-dash-skel con la forma exacta de lo que va a
+   llegar, para que al cargar nada salte de sitio. */
+
+.cf-skel-avatar {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+}
+
+.cf-skel-avatar--sm {
+  width: 32px;
+  height: 32px;
+}
+
+/* Los bloques de texto gris ocupan el hueco que dejan pastilla y botón. */
+.cf-absences__skel-head,
+.cf-affected__skel-head,
+.cf-worker-form__skel-head {
+  flex: 1;
+}
+
+/* Trabajadores */
+.cf-workers__skel-name {
+  width: 55%;
+}
+
+.cf-workers__row:nth-child(odd) .cf-workers__skel-name {
+  width: 40%;
+}
+
+.cf-workers__skel-sub {
+  width: 72%;
+  height: 10px;
+  margin-top: 8px;
+}
+
+.cf-workers__skel-fact {
+  width: 65%;
+}
+
+.cf-workers__skel-switch {
+  width: 92px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.cf-workers__skel-btn {
+  width: 100px;
+  height: 32px;
+  border-radius: 999px;
+}
+
+/* Editar trabajador */
+.cf-worker-form__skel-legend {
+  width: 120px;
+  height: 10px;
+}
+
+.cf-worker-form__skel-label {
+  width: 35%;
+  height: 10px;
+}
+
+.cf-worker-form__skel-input {
+  height: 44px;
+  margin-top: 8px;
+  border-radius: var(--cf-radius-sm);
+}
+
+.cf-worker-form__skel-name {
+  width: 60%;
+}
+
+.cf-worker-form__skel-sub {
+  width: 80%;
+  height: 10px;
+  margin-top: 8px;
+}
+
+.cf-worker-form__skel-fact {
+  width: 70%;
+}
+
+/* Ausencias */
+.cf-absences__skel-title {
+  width: min(340px, 80%);
+  height: 30px;
+  margin-top: var(--cf-space-2);
+}
+
+.cf-absences__skel-who {
+  width: min(300px, 70%);
+  margin-top: var(--cf-space-4);
+}
+
+.cf-absences__skel-dates {
+  width: 38%;
+}
+
+.cf-absences__row:nth-child(even) .cf-absences__skel-dates {
+  width: 26%;
+}
+
+.cf-absences__skel-notes {
+  width: 24%;
+  height: 10px;
+  margin-top: 8px;
+}
+
+.cf-absences__skel-pill {
+  width: 84px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.cf-absences__skel-btn {
+  width: 118px;
+  height: 32px;
+  border-radius: 999px;
+}
+
+/* Reservas afectadas */
+.cf-affected__skel-count {
+  width: 220px;
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-affected__skel-id {
+  width: 30%;
+  height: 18px;
+}
+
+.cf-affected__skel-client {
+  width: 20%;
+  height: 10px;
+  margin-top: 8px;
+}
+
+.cf-affected__skel-pill {
+  width: 90px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.cf-affected__skel-line {
+  width: 160px;
+}
+
+.cf-affected__skel-day {
+  width: 150px;
+  height: 30px;
+  border-radius: 999px;
+}
+
+.cf-affected__skel-btn {
+  width: 170px;
+  height: 40px;
+  border-radius: 999px;
+}
+
+/* ---------- PANTALLAS ESTRECHAS ----------
+   860px: cada trabajador pasa a tarjeta (nombre arriba, datos en medio y
+   acciones abajo), sin cabecera de columnas. 640px: formularios a una
+   columna y tarjetas más compactas. */
+
+@container (max-width: 860px) {
+  .cf-workers__head {
+    display: none;
+  }
+
+  .cf-workers__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--cf-space-3);
+    padding: var(--cf-space-4);
+  }
+
+  .cf-workers__person {
+    grid-column: 1 / -1;
+  }
+
+  .cf-workers__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  /* Editar trabajador: una columna, con el resumen arriba (primero se ve
+     a quién se edita) y sus datos en fila. */
+  .cf-worker-form__editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cf-worker-form__aside {
+    position: static;
+    order: -1;
+  }
+
+  .cf-worker-form__facts {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+@container (max-width: 640px) {
+  .cf-absences__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cf-absences__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: var(--cf-space-4);
+  }
+
+  .cf-absences__row-actions {
+    grid-column: 1 / -1;
+  }
+
+  .cf-worker-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cf-absences__form,
+  .cf-affected__card,
+  .cf-worker-form__form,
+  .cf-worker-form__aside {
+    padding: var(--cf-space-4);
+  }
+}
+
+
+/* ======================================================================
+   9. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */

@@ -58,9 +58,10 @@ export const Hero = () => {
 
                     <div className="cf-hero__actions">
 
-                        {/* Al login porque reservar exige cuenta. Provisional:
-                            WEB-15 lo llevará al catálogo del cliente. */}
-                        <Link to="/login" className="cf-btn">
+                        {/* A la ruta protegida del catálogo, no al login: si no
+                            hay sesión, ProtectedRoutes manda al login y después
+                            vuelve aquí (WEB-15). Mismo destino que el navbar. */}
+                        <Link to="/dashboard/service-catalog" className="cf-btn">
                             Reservar ahora
                         </Link>
 
