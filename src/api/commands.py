@@ -587,7 +587,20 @@ def create_states():
         created_at=at(ayer, 14),
     ))
 
-    return 3
+
+    # ---- CANCELADA: el cliente anuló una de la semana que viene ----
+    # No la cancela nadie desde la aplicación (eso es la #17): se crea ya
+    # cancelada, para que el listado del cliente tenga qué enseñar.
+    cancelada = add_booking(
+        client, address, profunda, luis,
+        [(at(hoy + timedelta(days=5), 10), at(hoy + timedelta(days=5), 12))],
+        "Cancelada por el cliente.",
+        tasks=[habitacion],
+        status=BookingStatus.CANCELLED,
+    )
+    cancelada.cancellation_reason = "Me surgió un viaje y no voy a estar en casa."
+
+    return 4
 
 
 def print_seed_bookings():
@@ -633,7 +646,7 @@ def setup_commands(app):
         print(f"Personas:  {created_people} creadas, {len(PEOPLE) - created_people} ya existían")
         print(f"Reservas:  {created_bookings} creadas")
         print(f"Reseñas:   {created_reviews} creadas (con sus reservas ya hechas)")
-        print(f"Estados:   {created_states} creadas (en curso, finalizada sin confirmar y no realizada)")
+        print(f"Estados:   {created_states} creadas (en curso, finalizada, no realizada y cancelada)")
         print()
         print(f"Cuentas (contraseña: {TEST_PASSWORD}):")
         for person in PEOPLE:

@@ -1087,10 +1087,15 @@ class Incident(db.Model):
         nullable=True
     )
 
+    # Las fotos de la incidencia, en el orden en que se subieron. Con la
+    # relación se pueden precargar al listar; con una consulta suelta
+    # dentro de serialize() caía una por incidencia.
+    media = db.relationship(
+        "Media",
+        order_by="Media.media_id"
+    )
+
     def serialize(self):
-        media = Media.query.filter_by(
-            incident_id=self.incident_id
-        ).all()
 
         return {
             "incident_id": self.incident_id,
@@ -1120,7 +1125,7 @@ class Incident(db.Model):
                 if self.resolved_at
                 else None
             ),
-            "media": [media_item.serialize() for media_item in media],
+            "media": [media_item.serialize() for media_item in self.media],
         }
 
 

@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -2405,7 +2405,11 @@ def my_bookings():
             selectinload(Booking.days),
             selectinload(Booking.service),
             selectinload(Booking.address),
-            selectinload(Booking.tasks),
+            # Las tareas con sus fotos y las incidencias con las suyas: el
+            # detalle las pinta todas, y sin precargarlas sería una consulta
+            # por cada tarea y otra por cada incidencia.
+            selectinload(Booking.tasks).selectinload(BookingTask.photos),
+            selectinload(Booking.incidents).selectinload(Incident.media),
         ).where(
             booking_filter
         ).order_by(
