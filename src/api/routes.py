@@ -3008,7 +3008,6 @@ def mark_booking_not_done(booking_id):
     return jsonify({"booking": booking.serialize_detail()}), 200
 
 
-
 # ----------------------------------------------------------------------
 # LA RESPUESTA DEL CLIENTE (#83)
 # ----------------------------------------------------------------------

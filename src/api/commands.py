@@ -590,7 +590,6 @@ def create_states():
         created_at=at(ayer, 14),
     ))
 
-
     # ---- CANCELADA: el cliente anuló una de la semana que viene ----
     # No la cancela nadie desde la aplicación (eso es la #17): se crea ya
     # cancelada, para que el listado del cliente tenga qué enseñar.
@@ -602,7 +601,6 @@ def create_states():
         status=BookingStatus.CANCELLED,
     )
     cancelada.cancellation_reason = "Me surgió un viaje y no voy a estar en casa."
-
 
     # ---- CONFIRMADA SOLA: pasaron los 3 días sin respuesta (#83) ----
     # No lleva client_confirmed_at a propósito: el cliente no confirmó

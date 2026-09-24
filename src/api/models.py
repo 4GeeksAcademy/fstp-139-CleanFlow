@@ -783,7 +783,6 @@ class Booking(db.Model):
         seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
         return int(seconds // 3600)
 
-    
     @property
     def confirmation(self):
         """En qué punto está la respuesta del cliente (#83).
@@ -816,10 +815,11 @@ class Booking(db.Model):
         if self.client_confirmed_at:
             return "confirmed"
 
-        # Sin fecha de fin no hay plazo que contar: las reservas
-        # anteriores a la #81 se finalizaron sin ella.
+        # Sin fecha de fin no hay plazo que contar, así que tampoco hay
+        # nada que pedirle al cliente: las reservas anteriores a la #81 se
+        # finalizaron sin ella.
         if not self.completed_at:
-            return "pending"
+            return None
 
         limite = self.completed_at.date() + timedelta(days=CONFIRM_DAYS)
 
@@ -936,7 +936,7 @@ class Booking(db.Model):
             # En qué punto está la respuesta del cliente (#83). Se calcula
             # al leer, así que no hace falta ninguna tarea programada.
             "confirmation": self.confirmation,
-            
+
             "client_confirmed_at": (
                 self.client_confirmed_at.isoformat()
                 if self.client_confirmed_at
