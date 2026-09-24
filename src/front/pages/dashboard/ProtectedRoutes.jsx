@@ -12,7 +12,7 @@
  * No decide permisos: de eso se encarga RoleRoute.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { getProfile } from "../../services/userService"
@@ -24,15 +24,6 @@ export const ProtectedRoutes = () => {
     // Ruta que el usuario está intentando abrir. Se le pasa al login para
     // poder devolverlo aquí después de autenticarse.
     const location = useLocation()
-
-    // Distingue "nunca hubo sesión" de "la sesión caducó". Sin este dato,
-    // el <Navigate> de abajo no podría saber si mostrar el aviso: cuando
-    // se ejecuta, el token ya se ha borrado en los dos casos.
-    const [sessionExpired, setSessionExpired] = useState(false)
-
-    // La puerta a la que volver, guardada ANTES de limpiar la sesión:
-    // después, store.user es null y no se sabría cuál es la suya.
-    const [expiredPath, setExpiredPath] = useState(null)
 
     // ------------------------------------------------------------------
         // Revalidación asíncrona del token contra el backend (firma secreta).
@@ -55,12 +46,12 @@ export const ProtectedRoutes = () => {
             // expulsaríamos al usuario cada vez que parpadea la red.
             if (networkError) return
  
-            // Token inválido/caducado (401/422). Marcamos como caducado antes de LOGOUT
-            // para que React agrupe (batch) el estado y muestre el aviso en el nuevo render.
-            // LOGOUT limpia store/localStorage (token=null) y <Navigate> redirige automáticamente.
+            // Token inválido o caducado (401/422). LOGOUT limpia store y
+            // localStorage, y de paso guarda el rol y el motivo de la
+            // salida; el <Navigate> de abajo los lee para elegir la puerta
+            // y avisar. Es el mismo camino que siguen las pantallas del
+            // panel cuando reciben un 401 en sus propias llamadas.
             if (!ok) {
-                setExpiredPath(loginPathForRole(store.user?.role))
-                setSessionExpired(true)
                 dispatch({ type: "LOGOUT" })
                 return
             }
@@ -82,16 +73,19 @@ export const ProtectedRoutes = () => {
     // LA DECISIÓN
     // ------------------------------------------------------------------
 
-    // Sin token, redirige a la puerta que le toca (WEB-10): quien nunca
-    // entró acaba en la de clientes, que es la pública.
-    // `replace`: Evita el bucle al pulsar "Atrás".
-    // `state`: Pasa la ruta previa y si la sesión caducó (sin mostrarlo en la URL).
+    // Sin token, a la puerta que le toca (WEB-10). El rol sale de la
+    // sesión que acaba de cerrarse (lastRole), porque para cuando se llega
+    // aquí el usuario ya está borrado; quien nunca entró no tiene ninguno
+    // de los dos y acaba en la de clientes, que es la pública.
+    //
+    // `replace`: evita el bucle al pulsar "Atrás".
+    // `state`: la ruta previa y si la sesión caducó, sin enseñarlo en la URL.
     if (!store.token) {
         return (
             <Navigate
-                to={expiredPath || loginPathForRole(store.user?.role)}
+                to={loginPathForRole(store.user?.role || store.lastRole)}
                 replace
-                state={{ from: location, expired: sessionExpired }}
+                state={{ from: location, expired: store.sessionExpired }}
             />
         )
     }

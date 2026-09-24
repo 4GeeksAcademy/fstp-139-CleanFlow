@@ -165,9 +165,12 @@ export const Sidebar = () => {
     // el próximo login volvería allí en vez de a /dashboard. Y el rol, que
     // decide la puerta, también se lee antes: después el store está vacío.
     // state: null (sin ruta de origen) y replace ("atrás" no vuelve aquí).
+    //
+    // intentional: aquí el usuario se va porque quiere, así que el login no
+    // debe recibirlo con el aviso de sesión caducada.
     const handleLogout = () => {
         navigate(loginPathForRole(store.user?.role), { replace: true, state: null })
-        dispatch({ type: "LOGOUT" })
+        dispatch({ type: "LOGOUT", payload: { intentional: true } })
     }
 
     // ----------------------------------------------------------------------

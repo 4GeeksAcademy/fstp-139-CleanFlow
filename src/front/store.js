@@ -42,6 +42,13 @@ export const initialStore = () => {
     token: localStorage.getItem("token") || null,
     user,
 
+    // Rastro de la sesión que acaba de cerrarse (WEB-10). LOGOUT borra el
+    // usuario, así que sin esto no se sabría a qué puerta devolverlo ni si
+    // hay que avisarle de que su sesión caducó. No va a localStorage: solo
+    // sirve para el salto al login, no para la siguiente visita.
+    lastRole: null,
+    sessionExpired: false,
+
     // El catálogo NO se guarda en localStorage, a diferencia de la sesión:
     // son datos públicos que cambian en el servidor, y guardarlos en disco
     // es la mejor forma de enseñar un catálogo viejo. Lo rellena
@@ -73,12 +80,28 @@ export default function storeReducer(store, action = {}) {
         ...store,
         token,
         user,
+
+        // Sesión nueva: el rastro de la anterior ya no pinta nada.
+        lastRole: null,
+        sessionExpired: false,
       };
     }
 
-    // Cerrar sesión: se limpian las dos copias, disco y store. Ojo: no
-    // invalida el token en el servidor (un JWT no se puede revocar), solo
-    // se deja de usar.
+    /**
+     * Cerrar sesión: se limpian las dos copias, disco y store. Ojo: no
+     * invalida el token en el servidor (un JWT no se puede revocar), solo
+     * se deja de usar.
+     *
+     * Antes de borrar el usuario se guarda su rol, que es lo que decide
+     * a qué puerta vuelve (WEB-10). Sin esto, las pantallas del panel que
+     * cierran sesión al recibir un 401 dejarían a un encargado en la
+     * puerta de clientes, porque para cuando ProtectedRoutes mira el rol
+     * ya no hay usuario.
+     *
+     * `intentional`: lo pasa quien se va por su propio pie, desde el botón
+     * de Salir. Sin él se entiende que la sesión se ha caído, y el login
+     * lo avisa.
+     */
     case "LOGOUT":
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -87,6 +110,8 @@ export default function storeReducer(store, action = {}) {
         ...store,
         token: null,
         user: null,
+        lastRole: store.user?.role || null,
+        sessionExpired: !action.payload?.intentional,
       };
 
     // Refresca el usuario sin tocar el token. Lo usa la revalidación de
