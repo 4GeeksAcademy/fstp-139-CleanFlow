@@ -31,9 +31,16 @@ const AWAITING = {
     icon: "fa-clock",
 };
 
-/** ¿Este servicio está esperando a que el cliente diga algo? */
+/**
+ * ¿Este servicio está esperando a que el cliente diga algo?
+ *
+ * Hace falta completed_at: de él sale el plazo. Las reservas anteriores
+ * a la #81 se finalizaron sin esa fecha, así que no se les pide nada.
+ */
 export const awaitsConfirmation = (booking) =>
-    booking.status === "completed" && !booking.client_confirmed_at;
+    booking.status === "completed"
+    && Boolean(booking.completed_at)
+    && !booking.client_confirmed_at;
 
 export const BookingStatusPill = ({ status, awaitingConfirmation = false }) => {
     // Un estado desconocido no debe romper la pantalla: se enseña tal cual.

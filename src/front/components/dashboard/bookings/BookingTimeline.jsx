@@ -63,11 +63,15 @@ const stepsOf = (booking) => {
             : { ...WAITING, name: "Sin empezar" }
     );
 
-    steps.push(
-        booking.completed_at
-            ? { ...CHECK, name: "Servicio finalizado", when: shortMoment(booking.completed_at) }
-            : { ...WAITING, name: "Sin finalizar" }
-    );
+    // Las reservas anteriores a la #81 están finalizadas pero sin fecha:
+    // el hito se da por hecho igual, solo que sin hora.
+    if (booking.completed_at) {
+        steps.push({ ...CHECK, name: "Servicio finalizado", when: shortMoment(booking.completed_at) });
+    } else if (booking.status === "completed") {
+        steps.push({ ...CHECK, name: "Servicio finalizado" });
+    } else {
+        steps.push({ ...WAITING, name: "Sin finalizar" });
+    }
 
     // Último hito: la respuesta del cliente, que resuelve la #83.
     if (booking.client_confirmed_at) {

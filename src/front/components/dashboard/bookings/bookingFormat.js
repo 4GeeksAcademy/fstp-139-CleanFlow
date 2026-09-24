@@ -59,8 +59,11 @@ export const shortMoment = (isoDate) => {
 };
 
 // La fecha sin zona, sumándole días. Solo se usa para el plazo de
-// confirmación, así que basta con el día.
+// confirmación, así que basta con el día. Sin fecha no hay plazo: se
+// devuelve null en vez de reventar.
 const plusDays = (isoDate, days) => {
+    if (!isoDate) return null;
+
     const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
 
     return new Date(year, month - 1, day + days);
@@ -68,13 +71,16 @@ const plusDays = (isoDate, days) => {
 
 // "26 de septiembre": el día en que el servicio se dará por bueno solo.
 export const deadlineOf = (isoDate, days = CONFIRM_DAYS) =>
-    plusDays(isoDate, days).toLocaleDateString("es-ES", { day: "numeric", month: "long" });
+    plusDays(isoDate, days)?.toLocaleDateString("es-ES", { day: "numeric", month: "long" }) || "";
 
 // Cuántos días enteros quedan para ese plazo. Nunca menos de cero.
 export const daysLeft = (isoDate, days = CONFIRM_DAYS) => {
+    const limit = plusDays(isoDate, days);
+
+    if (!limit) return 0;
+
     const today = new Date();
     const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const left = Math.ceil((plusDays(isoDate, days) - midnight) / 86400000);
 
-    return Math.max(left, 0);
+    return Math.max(Math.ceil((limit - midnight) / 86400000), 0);
 };
