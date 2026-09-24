@@ -6204,6 +6204,171 @@ textarea.cf-dash-input {
   font-weight: 500;
 }
 
+/* ---------- ¿QUEDÓ TODO BIEN? ----------
+   La respuesta del cliente (#83), debajo de las fotos: se decide después
+   de verlas, no antes. Cuatro situaciones, cada una con su aspecto. */
+
+.cf-ask {
+  display: grid;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-accent);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-accent-soft);
+}
+
+.cf-ask__title {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+}
+
+.cf-ask__text {
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.8438rem;
+}
+
+/* El plazo, con su reloj y su fecha concreta: es lo que empuja a
+   responder, y lo que evita que luego nadie diga que no lo sabía. */
+.cf-ask__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  padding: 6px var(--cf-space-3);
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.6);
+  color: var(--cf-accent-dark);
+  font-size: 0.7813rem;
+  font-weight: 500;
+}
+
+/* "Sí, se hizo bien" pesa más y va primero, que es lo que va a pulsar
+   casi todo el mundo. El otro, al lado y del mismo tamaño: ni escondido
+   ni compitiendo. */
+.cf-ask__buttons {
+  display: grid;
+  gap: var(--cf-space-2);
+}
+
+.cf-ask__buttons .cf-dash-btn {
+  justify-content: center;
+}
+
+/* ---------- YA RESPONDIDO ---------- */
+
+.cf-answered {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-primary-soft);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-answered__icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-size: 0.75rem;
+}
+
+.cf-answered__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cf-answered__text {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  opacity: 0.85;
+}
+
+/* Cerrado por el plazo: lo mismo, pero sin celebrar nada. */
+.cf-answered--auto {
+  border-color: var(--cf-border);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+}
+
+.cf-answered--auto .cf-answered__icon {
+  background-color: var(--cf-border);
+  color: var(--cf-muted);
+}
+
+.cf-answered--auto .cf-answered__title {
+  color: var(--cf-text);
+}
+
+/* ---------- EN REVISIÓN ---------- */
+
+.cf-review {
+  display: grid;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-md) var(--cf-radius-md) 0;
+  background-color: var(--cf-surface);
+}
+
+.cf-review__top {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-accent-dark);
+}
+
+.cf-review__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cf-review__text {
+  margin: 0;
+  font-size: 0.8438rem;
+}
+
+/* Lo que escribió el cliente, tal cual lo escribió. */
+.cf-review__mine {
+  margin: 0;
+  padding: var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  font-size: 0.8438rem;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.cf-review__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-review__shots .cf-bookshot {
+  width: 72px;
+}
+
+.cf-review__shots .cf-bookshot__img {
+  aspect-ratio: 1 / 1;
+}
+
 /* ---------- INCIDENCIAS ----------
    Solo lectura: abrirlas es la #18 y resolverlas la #19. */
 
