@@ -5535,6 +5535,313 @@ textarea.cf-dash-input {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- DETALLE: REJILLA Y BLOQUES ----------
+   La columna ancha lleva lo que se lee en orden (línea de tiempo, qué se
+   contrató, cómo quedó); la estrecha, lo que se consulta de un vistazo. */
+
+.cf-bookdetail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: var(--cf-space-4);
+  margin-top: var(--cf-space-5, 20px);
+}
+
+.cf-bookdetail__col {
+  display: grid;
+  gap: var(--cf-space-4);
+  align-content: start;
+}
+
+.cf-bookblock {
+  padding: var(--cf-space-5, 20px) var(--cf-space-5, 22px);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+}
+
+.cf-bookblock__title {
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-brand);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---------- LÍNEA DE TIEMPO ----------
+   Vertical: cada hito lleva debajo su fecha y su hora reales, y en
+   horizontal no cabrían. */
+
+.cf-timeline__step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: var(--cf-space-3);
+}
+
+.cf-timeline__rail {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+}
+
+.cf-timeline__mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-size: 0.6875rem;
+}
+
+.cf-timeline__line {
+  width: 2px;
+  min-height: 26px;
+  background-color: var(--cf-primary);
+}
+
+/* Lo que aún no ha pasado: contorno de puntos y nada de relleno. */
+.cf-timeline__step--todo .cf-timeline__mark {
+  border: 2px dashed var(--cf-border);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+}
+
+.cf-timeline__step--todo .cf-timeline__line {
+  background-color: var(--cf-border);
+}
+
+/* El camino cortado: no se pudo hacer, o se canceló. */
+.cf-timeline__step--fail .cf-timeline__mark {
+  background-color: var(--cf-accent);
+  color: var(--cf-surface);
+}
+
+.cf-timeline__body {
+  padding-bottom: var(--cf-space-4);
+}
+
+.cf-timeline__step:last-child .cf-timeline__body {
+  padding-bottom: 0;
+}
+
+.cf-timeline__name {
+  margin: 3px 0 0;
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cf-timeline__step--todo .cf-timeline__name {
+  color: var(--cf-muted);
+  font-weight: 500;
+}
+
+.cf-timeline__when {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- FILAS DE DATOS ----------
+   Etiqueta a la izquierda, valor a la derecha. Lo usa el precio. */
+
+.cf-bookrows {
+  display: grid;
+  margin: 0;
+}
+
+.cf-bookrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-2) 0;
+  border-bottom: 1px solid var(--cf-border);
+  font-size: 0.9063rem;
+}
+
+.cf-bookrow:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-bookrow dt {
+  color: var(--cf-muted);
+}
+
+.cf-bookrow dd {
+  margin: 0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El total se separa con una línea más gruesa y crece de tamaño. */
+.cf-bookrow--total {
+  margin-top: 5px;
+  padding-top: var(--cf-space-3);
+  border-top: 2px solid var(--cf-border);
+  border-bottom: 0;
+}
+
+.cf-bookrow--total dt {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+.cf-bookrow--total dd {
+  font-family: var(--cf-font-heading);
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+
+/* ---------- TAREAS ---------- */
+
+.cf-booktasks {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-booktask {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-2) var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  font-size: 0.9063rem;
+}
+
+.cf-booktask__check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 0.625rem;
+}
+
+.cf-booktask--todo {
+  color: var(--cf-muted);
+}
+
+.cf-booktask--todo .cf-booktask__check {
+  border: 1.5px dashed var(--cf-border);
+  background-color: transparent;
+}
+
+.cf-booktask__count {
+  margin-left: auto;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Las notas que escribió el cliente al contratar, tal cual las escribió. */
+.cf-booknotes {
+  margin: var(--cf-space-3) 0 0;
+  padding: var(--cf-space-3);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-bg);
+  font-size: var(--cf-text-sm);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+/* ---------- DÍAS Y DIRECCIÓN ---------- */
+
+.cf-bookday {
+  display: grid;
+  gap: 3px;
+  padding: var(--cf-space-3) 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-bookday:first-of-type {
+  padding-top: 0;
+}
+
+.cf-bookday:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-bookday__when {
+  font-size: 0.9063rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La hora real, cuando la hay: es la que de verdad importa. */
+.cf-bookday__real {
+  color: var(--cf-primary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-bookplace {
+  display: flex;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 0;
+  padding-top: var(--cf-space-3);
+  border-top: 1px solid var(--cf-border);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- TRABAJADOR ---------- */
+
+.cf-bookworker {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+}
+
+.cf-bookworker__photo {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.cf-bookworker__initials {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-family: var(--cf-font-heading);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.cf-bookworker__name {
+  margin: 0;
+  font-size: var(--cf-text-base);
+  font-weight: 600;
+}
+
+.cf-bookworker__role {
+  margin: 1px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
 /* ---------- ESTRECHO ----------
    Sin sitio para tres columnas: el estado y el precio bajan a su fila. */
 
@@ -5555,6 +5862,10 @@ textarea.cf-dash-input {
   .cf-myservices__header .cf-dash-btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .cf-bookdetail__grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

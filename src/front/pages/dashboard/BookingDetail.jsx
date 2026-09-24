@@ -17,29 +17,14 @@ import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getMyBookings } from "../../services/bookingService";
 import { BookingStatusPill } from "../../components/dashboard/bookings/BookingStatusPill";
+import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
+import { BookingWhat } from "../../components/dashboard/bookings/BookingWhat";
+import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
+import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker";
+import { BookingWhen } from "../../components/dashboard/bookings/BookingWhen";
+import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
 
 const LIST_PATH = "/dashboard/contracted-services";
-
-const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles",
-                  "jueves", "viernes", "sábado"];
-
-const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
-                "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-
-/**
- * "2026-09-23T08:00:00" -> "Martes 23 de septiembre".
- *
- * Las fechas llegan en hora de Madrid y sin zona. El Date se construye
- * con los números sueltos para que el navegador no las mueva a su huso.
- */
-const longDate = (isoDate) => {
-    const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
-    const weekday = WEEKDAYS[new Date(year, month - 1, day).getDay()];
-
-    return `${weekday[0].toUpperCase()}${weekday.slice(1)} ${day} de ${MONTHS[month - 1]}`;
-};
-
-const timeOf = (isoDate) => isoDate.slice(11, 16);
 
 export const BookingDetail = () => {
     const { bookingId } = useParams();
@@ -155,6 +140,22 @@ export const BookingDetail = () => {
                 </div>
 
                 <BookingStatusPill status={booking.status} />
+            </div>
+
+            {/* La columna ancha se lee en orden; la estrecha se consulta. */}
+            <div className="cf-bookdetail__grid">
+
+                <div className="cf-bookdetail__col">
+                    <BookingTimeline booking={booking} />
+                    <BookingWhat booking={booking} />
+                </div>
+
+                <div className="cf-bookdetail__col">
+                    <BookingPrice booking={booking} />
+                    <BookingWorker booking={booking} />
+                    <BookingWhen booking={booking} />
+                </div>
+
             </div>
 
         </div>
