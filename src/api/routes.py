@@ -2778,6 +2778,10 @@ def delete_task_photo(media_id):
 # un parte, y se cuenta por teléfono.
 INCIDENT_TEXT_MAX_LENGTH = 500
 
+# Fotos que caben en una reclamación del cliente (#83). Cinco bastan para
+# enseñar lo que no quedó bien; más sería un álbum.
+CLAIM_MAX_PHOTOS = 5
+
 
 def worker_booking(booking_id):
     """La reserva, si es de quien pregunta y todavía admite incidencias.
@@ -2856,23 +2860,39 @@ def read_incident_form(booking):
     }, None
 
 
-def add_incident(booking, data, incident_type=None):
-    """Crea la incidencia y le cuelga la foto, si la hay.
+def add_incident(booking, data, incident_type=None,
+                 source=IncidentSource.WORKER, max_photos=1):
+    """Crea la incidencia y le cuelga sus fotos, si las hay.
 
     incident_type fuerza el tipo: lo usa "no realizado", donde siempre es
     de cliente y no se pregunta.
 
+    source dice quién la abre: el trabajador durante el servicio (#18) o
+    el cliente al reclamar (#83).
+
+    max_photos: una para el trabajador, hasta cinco para una reclamación,
+    donde una queja sobre la casa entera necesita más de una.
+
     Devuelve (incidencia, None) o (None, error).
     """
-    photo = request.files.get("photo")
-    url = None
+    # getlist y no get: el formulario puede repetir el campo "photo".
+    # Las que pasen del máximo se ignoran en vez de rechazar el envío:
+    # el cliente ya escribió su texto y perderlo sería peor.
+    photos = [
+        photo for photo in request.files.getlist("photo")[:max_photos]
+        if photo and photo.filename
+    ]
 
-    if photo and photo.filename:
+    urls = []
+
+    for photo in photos:
         url, error = upload_image(photo, INCIDENT_FOLDER)
 
         if error:
             message, status = error
             return None, (jsonify({"message": message}), status)
+
+        urls.append(url)
 
     now = madrid_now()
 
@@ -2881,7 +2901,7 @@ def add_incident(booking, data, incident_type=None):
         worker_id=booking.worker_id,
         booking_task_id=data["booking_task_id"],
         incident_type=incident_type or data["incident_type"],
-        source=IncidentSource.WORKER,
+        source=source,
         reported_by=int(get_jwt_identity()),
         description=data["description"],
         resolved=False,
@@ -2893,7 +2913,7 @@ def add_incident(booking, data, incident_type=None):
     # flush: hace falta el id de la incidencia para colgarle la foto.
     db.session.flush()
 
-    if url:
+    for url in urls:
         db.session.add(Media(
             incident_id=incident.incident_id,
             kind=MediaKind.INCIDENT,
@@ -3062,6 +3082,63 @@ def confirm_booking(booking_id):
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+@api.route("/bookings/<int:booking_id>/claim", methods=["POST"])
+@role_required("client")
+@booking_transaction
+def claim_booking(booking_id):
+    """El cliente dice que algo no fue bien.
+
+    Multipart: la descripción y hasta CLAIM_MAX_PHOTOS fotos. Crea una
+    incidencia con origen cliente y tipo empresa, que es la que resuelve
+    el encargado (#19). La reserva no cambia de estado: se queda
+    finalizada, y confirmation pasa a "in_review" mientras esté abierta.
+    """
+    booking, error = client_booking(booking_id)
+
+    if error:
+        return error
+
+    state = booking.confirmation
+
+    if state == "in_review":
+        return jsonify({
+            "message": "Ya nos lo contaste y lo estamos revisando."
+        }), 409
+
+    if state in ("confirmed", "auto_confirmed"):
+        return jsonify({
+            "message": "Este servicio ya se dio por bueno."
+        }), 409
+
+    description = (request.form.get("description") or "").strip()
+
+    if not description:
+        return jsonify({"message": "Cuéntanos qué pasó."}), 400
+
+    if len(description) > INCIDENT_TEXT_MAX_LENGTH:
+        return jsonify({
+            "message": f"El texto no puede pasar de {INCIDENT_TEXT_MAX_LENGTH} caracteres."
+        }), 400
+
+    incident, error = add_incident(
+        booking,
+        {"description": description, "booking_task_id": None},
+        # De empresa: el cliente se queja del servicio, no de sí mismo.
+        incident_type=IncidentType.COMPANY,
+        source=IncidentSource.CLIENT,
+        max_photos=CLAIM_MAX_PHOTOS,
+    )
+
+    if error:
+        return error
+
+    booking.updated_at = madrid_now()
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 201
 
 
 # ----------------------------------------------------------------------
