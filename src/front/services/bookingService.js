@@ -61,6 +61,3 @@ export const cancelBooking = (bookingId, token) =>
     method: "PATCH",
     token,
   });
-
-export const getManagedBookings = (token) =>
-  apiRequest("/api/manage/bookings", { token });

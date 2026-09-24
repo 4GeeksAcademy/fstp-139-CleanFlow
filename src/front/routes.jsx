@@ -15,7 +15,8 @@ import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
 import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
-import { Login } from "./pages/web/Login";
+import { LoginClients } from "./pages/web/LoginClients";
+import { LoginWorkers } from "./pages/web/LoginWorkers";
 import { WorkWithUs } from "./pages/web/WorkWithUs";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
 import { DashboardLayout } from "./pages/dashboard/DashboardLayout";
@@ -31,10 +32,10 @@ import { AccountLayout } from "./pages/dashboard/account/AccountLayout";
 import { AccountDetails } from "./pages/dashboard/account/AccountDetails";
 import { AccountSecurity } from "./pages/dashboard/account/AccountSecurity";
 import { AccountAddresses } from "./pages/dashboard/account/AccountAddresses";
-
-
 import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
 import { MyBookings } from "./pages/dashboard/MyBookings";
+import { BookingDetail } from "./pages/dashboard/BookingDetail";
+import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
@@ -45,9 +46,13 @@ export const router = createBrowserRouter(
         <Route path="work-with-us" element={<WorkWithUs />} />
       </Route>
 
-      {/* ---------- LOGIN Y REGISTRO: layout propio, sin navbar ni footer ---------- */}
+      {/* ---------- ACCESO Y REGISTRO: layout propio, sin navbar ni footer ----------
+          Dos puertas y un solo formulario: las dos llaman al mismo
+          POST /api/login. Cambian el título y lo que se le ofrece a quien
+          todavía no tiene cuenta (WEB-10). */}
       <Route element={<AuthLayout />}>
-        <Route path="/login" element={<Login />} />
+        <Route path="login-clients" element={<LoginClients />} />
+        <Route path="login-workers" element={<LoginWorkers />} />
         <Route path="register" element={<Register />} />
       </Route>
 
@@ -81,6 +86,9 @@ export const router = createBrowserRouter(
                 con ?servicio=<slug>. */}
             <Route path="book" element={<BookingPanel />} />
             <Route path="contracted-services" element={<MyBookings />} />
+            {/* El detalle de una reserva, dentro del mismo RoleRoute: si
+                se declara fuera, se cuela cualquier rol. */}
+            <Route path="contracted-services/:bookingId" element={<BookingDetail />} />
           </Route>
 
           {/* ---- SECCIONES DE WORKER ---- */}
@@ -92,12 +100,15 @@ export const router = createBrowserRouter(
               Un mismo RoleRoute envuelve varias rutas.
               tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
-            <Route path="bookings" element={<MyBookings />} />
             <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="affected-bookings" element={<AffectedBookings />} />
             <Route
               path="workers/:workerId/edit"
               element={<EditarTrabajador />}
+            />
+            <Route
+              path="workers/:workerId/absences"
+              element={<WorkerAbsencesPage />}
             />
             <Route
               path="workers/new"

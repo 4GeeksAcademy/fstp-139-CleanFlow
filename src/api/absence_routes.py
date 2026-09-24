@@ -10,14 +10,10 @@ from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_cors import CORS
-from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
-from api.models import (
-    db, Absence, Booking, BookingStatus, Worker, User,
-    BookingTask, BookingTaskStatus,
-)
+from api.models import db, Absence, Booking, BookingStatus, Worker, User
 from api.availability import (
     can_work, is_free, load_busy, madrid_now, worker_unavailable_days,
 )

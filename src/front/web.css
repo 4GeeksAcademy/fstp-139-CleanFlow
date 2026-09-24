@@ -48,6 +48,14 @@ section[id] {
 
 /* ---------- FILA SUPERIOR: ACCESOS ---------- */
 
+/* Ancho de los accesos y del botón de la navbar: los tres miden lo mismo.
+   En rem y no en ch porque los accesos llevan la letra más pequeña para
+   dejar sitio al icono, y ch depende del tamaño de la letra: en ch cada
+   botón saldría de un ancho distinto. */
+:root {
+  --cf-access-w: 11rem;
+}
+
 .cf-header__utility {
   background-color: var(--cf-primary-soft);
   font-size: var(--cf-text-sm);
@@ -56,20 +64,57 @@ section[id] {
 .cf-utility-list {
   list-style: none;
   margin: 0;
-  padding: var(--cf-space-2) 0;
+  padding: var(--cf-space-3) 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--cf-space-6);
+  gap: var(--cf-space-2);
 }
 
-.cf-utility-list a {
-  color: var(--cf-muted);
-  text-decoration: none;
-  transition: color var(--cf-transition);
-}
-
-.cf-utility-list a:hover {
+/* Los dos accesos son botones, no letra pequeña: con borde y fondo
+   blanco destacan sobre el crema de la barra. Comparten ancho mínimo,
+   alto y redondeo con "Reservar ahora", así que los tres caen alineados
+   a la derecha, uno debajo de otro. */
+.cf-access {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* gap y letra más pequeña: el icono entra sin ensanchar el botón. */
+  gap: var(--cf-space-2);
+  min-width: var(--cf-access-w);
+  font-size: 0.8125rem;
+  padding: var(--cf-space-2) var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
   color: var(--cf-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color var(--cf-transition),
+    border-color var(--cf-transition);
+}
+
+.cf-access:hover {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-access:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+}
+
+.cf-access i {
+  font-size: 0.875rem;
+  color: var(--cf-accent-dark);
+}
+
+/* El botón principal se iguala a los accesos. Solo dentro de la navbar:
+   el mismo .cf-btn--sm se usa en otras partes de la web. */
+.cf-navbar .cf-nav__cta .cf-btn {
+  min-width: var(--cf-access-w);
 }
 
 /* ---------- FILA PRINCIPAL ---------- */
@@ -247,7 +292,13 @@ section[id] {
 
   .cf-utility-list {
     justify-content: center;
-    gap: var(--cf-space-4);
+    gap: var(--cf-space-2);
+  }
+
+  /* Dos botones de 11rem no caben en un móvil: se reparten la fila. */
+  .cf-access {
+    flex: 1;
+    min-width: 0;
   }
 
   .cf-nav-toggle,

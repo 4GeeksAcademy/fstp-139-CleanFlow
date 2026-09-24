@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -395,14 +395,54 @@ def create_worker():
 @api.route("/workers", methods=["GET"])
 @role_required("manager")
 def get_workers():
-    workers = Worker.query.all()
+    """Todos los trabajadores y encargados, por nombre.
 
-    return jsonify({
-        "workers": [
-            worker.serialize()
-            for worker in workers
-        ]
-    }), 200
+    Además de sus datos: la foto, el horario del turno, la valoración media
+    de sus reservas y si tiene una ausencia hoy ("Baja en curso").
+    """
+    workers = db.session.execute(
+        db.select(Worker)
+        .join(User, Worker.user_id == User.user_id)
+        .options(
+            selectinload(Worker.user),
+            selectinload(Worker.shift),
+            selectinload(Worker.absences),
+        )
+        .order_by(User.name, User.last_name)
+    ).scalars().all()
+
+    # La valoración de cada trabajador es la media de las reseñas de sus
+    # reservas. UNA consulta agrupada para todos, no una por trabajador.
+    ratings = {
+        worker_id: (average, total)
+        for worker_id, average, total in db.session.execute(
+            db.select(Booking.worker_id, func.avg(Review.rating), func.count(Review.review_id))
+            .join(Review, Review.booking_id == Booking.booking_id)
+            .group_by(Booking.worker_id)
+        ).all()
+    }
+
+    today = madrid_now().date()
+
+    def list_item(worker):
+        average, total = ratings.get(worker.worker_id, (None, 0))
+        shift = worker.shift
+
+        return {
+            **worker.serialize(),
+            "avatar_url": worker.user.avatar_url if worker.user else None,
+            "shift_start": shift.start_time.strftime("%H:%M") if shift else None,
+            "shift_end": shift.end_time.strftime("%H:%M") if shift else None,
+            "rating": round(float(average), 1) if average is not None else None,
+            "reviews_count": total,
+            # Una ausencia que incluye hoy. Sin fecha de fin, sigue abierta.
+            "on_leave_today": any(
+                absence.starts_on <= today and (absence.ends_on is None or absence.ends_on >= today)
+                for absence in worker.absences
+            ),
+        }
+
+    return jsonify({"workers": [list_item(worker) for worker in workers]}), 200
 
 
 @api.route("/workers/<int:worker_id>", methods=["GET"])
@@ -584,6 +624,38 @@ def update_worker(worker_id):
         return jsonify({
             "message": "Error al actualizar el worker"
         }), 500
+
+
+@api.route("/workers/<int:worker_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_worker_status(worker_id):
+    """Activa o desactiva a un trabajador: el trabajador y su usuario a la vez.
+
+    Desactivado no aparece libre para reservar, no puede entrar, y sus
+    reservas pendientes pasan solas a Reservas afectadas (#15).
+    """
+    data = get_json_body()
+
+    if data is None or not isinstance(data.get("is_active"), bool):
+        return jsonify({"message": "Indica el estado: is_active tiene que ser true o false"}), 400
+
+    worker = db.session.get(Worker, worker_id)
+
+    if worker is None:
+        return jsonify({"message": "Trabajador no encontrado"}), 404
+
+    # Nadie puede desactivarse a sí mismo: se quedaría fuera de la aplicación.
+    if worker.user_id == current_user().user_id and not data["is_active"]:
+        return jsonify({"message": "No puedes desactivar tu propia cuenta"}), 403
+
+    worker.is_active = data["is_active"]
+
+    if worker.user:
+        worker.user.is_active = data["is_active"]
+
+    db.session.commit()
+
+    return jsonify({"worker": worker.serialize()}), 200
 
 
 # ----------------------------------------------------------------------
@@ -793,11 +865,17 @@ ACCOUNT_LAST_NAME_MAX_LENGTH = 150
 # El mismo mínimo que pide /register: una sola regla en toda la aplicación.
 PASSWORD_MIN_LENGTH = 6
 
-# Foto de perfil. 2 MB y 256x256 bastan para un avatar, y la cuenta
-# gratuita de Cloudinary tiene límite de espacio.
-AVATAR_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
+# Fotos. Los mismos tipos en todas partes; el tamaño cambia según para qué:
+# un avatar se ve pequeño, y la prueba de una tarea o de una incidencia
+# tiene que dejar ver el detalle.
+IMAGE_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
+PHOTO_MAX_BYTES = 5 * 1024 * 1024
 AVATAR_FOLDER = "cleanflow/avatars"
+# Estas dos aún no las usa nadie: las estrenan las fotos de tarea (#82)
+# y las de incidencia (#18), que ya solo tienen que llamar a upload_image().
+BOOKING_FOLDER = "cleanflow/bookings"
+INCIDENT_FOLDER = "cleanflow/incidents"
 
 # Números, espacios y un + inicial. Entre 9 y 15 dígitos: 9 son los de un
 # teléfono español y 15 el máximo internacional.
@@ -988,6 +1066,61 @@ def cloudinary_is_configured():
     return bool(config.cloud_name and config.api_key and config.api_secret)
 
 
+def upload_image(photo, folder, *, public_id=None, max_bytes=PHOTO_MAX_BYTES,
+                 transformation=None):
+    """Sube una imagen a Cloudinary y devuelve (url, error).
+
+    Uno de los dos siempre es None:
+      ("https://...", None)  -> subida correcta
+      (None, (mensaje, código)) -> algo falló, listo para jsonify
+
+    Se devuelve el error en vez de lanzarlo para que cada endpoint decida
+    qué contar al usuario, sin repetir aquí las comprobaciones.
+
+    photo: el archivo de request.files · folder: carpeta de Cloudinary
+    public_id: nombre fijo (sobrescribe el anterior); sin él, uno nuevo
+    """
+    if photo is None or not photo.filename:
+        return None, ("No se ha recibido ninguna foto", 400)
+
+    if photo.mimetype not in IMAGE_ALLOWED_TYPES:
+        return None, ("La foto tiene que ser JPG, PNG o WEBP", 400)
+
+    content = photo.read()
+
+    if not content:
+        return None, ("El archivo está vacío", 400)
+
+    if len(content) > max_bytes:
+        megas = max_bytes // (1024 * 1024)
+        return None, (f"La foto no puede pesar más de {megas} MB", 400)
+
+    # Sin claves, el fallo es de configuración y no del usuario: 503 y no
+    # 500, que sería "algo se ha roto".
+    if not cloudinary_is_configured():
+        return None, ("La subida de fotos no está configurada. Falta CLOUDINARY_URL", 503)
+
+    try:
+        result = cloudinary.uploader.upload(
+            content,
+            folder=None if public_id else folder,
+            public_id=public_id,
+            overwrite=bool(public_id),
+            # invalidate: borra la copia en caché de la imagen anterior.
+            invalidate=True,
+            resource_type="image",
+            transformation=transformation,
+        )
+    except Exception as error:
+        # Cloudinary caído, sin internet o claves mal: no es culpa de quien sube.
+        print("Fallo al subir la foto a Cloudinary:", error)
+        return None, ("No se ha podido subir la foto. Inténtalo de nuevo", 502)
+
+    # secure_url: la https y con número de versión, así el navegador no
+    # sigue enseñando la imagen anterior de su caché.
+    return result.get("secure_url"), None
+
+
 @api.route("/account/avatar", methods=["POST"])
 @jwt_required()
 def upload_account_avatar():
@@ -1007,47 +1140,23 @@ def upload_account_avatar():
     if request.content_length and request.content_length > AVATAR_MAX_BYTES + 8192:
         return jsonify({"message": "La foto no puede pesar más de 2 MB"}), 400
 
-    photo = request.files.get("avatar")
+    url, error = upload_image(
+        request.files.get("avatar"),
+        AVATAR_FOLDER,
+        # Nombre fijo por usuario: la foto nueva sobrescribe la anterior y
+        # no se acumulan imágenes sueltas que ya no usa nadie.
+        public_id=avatar_public_id(user),
+        max_bytes=AVATAR_MAX_BYTES,
+        # Cuadrada y centrada en la cara, que es lo que se ve en el avatar.
+        transformation=[{"width": 256, "height": 256,
+                         "crop": "fill", "gravity": "face"}],
+    )
 
-    if photo is None or not photo.filename:
-        return jsonify({"message": "Envía la foto en el campo avatar"}), 400
+    if error:
+        message, status = error
+        return jsonify({"message": message}), status
 
-    if photo.mimetype not in AVATAR_ALLOWED_TYPES:
-        return jsonify({"message": "La foto tiene que ser JPG, PNG o WEBP"}), 400
-
-    content = photo.read()
-
-    if not content:
-        return jsonify({"message": "El archivo está vacío"}), 400
-
-    if len(content) > AVATAR_MAX_BYTES:
-        return jsonify({"message": "La foto no puede pesar más de 2 MB"}), 400
-
-    # Antes de intentar subir: sin claves, el fallo es de configuración y no
-    # del usuario. 503 y no 500, que sería "algo se ha roto".
-    if not cloudinary_is_configured():
-        return jsonify({"message": "La subida de fotos no está configurada. Falta CLOUDINARY_URL"}), 503
-
-    try:
-        result = cloudinary.uploader.upload(
-            content,
-            public_id=avatar_public_id(user),
-            overwrite=True,
-            # invalidate: borra la copia en caché de la foto anterior.
-            invalidate=True,
-            resource_type="image",
-            # Cuadrada y centrada en la cara, que es lo que se ve en el avatar.
-            transformation=[{"width": 256, "height": 256,
-                             "crop": "fill", "gravity": "face"}],
-        )
-    except Exception as error:
-        # Cloudinary caído, sin internet o claves mal: no es culpa de quien sube.
-        print("Fallo al subir la foto a Cloudinary:", error)
-        return jsonify({"message": "No se ha podido subir la foto. Inténtalo de nuevo"}), 502
-
-    # secure_url: la https, y con el número de versión, así el navegador no
-    # sigue enseñando la foto anterior de su caché.
-    user.avatar_url = result.get("secure_url")
+    user.avatar_url = url
     db.session.commit()
 
     return jsonify({
@@ -2294,25 +2403,6 @@ def cancel_booking(booking_id):
     return jsonify({"booking": booking.serialize_detail()}), 200
 
 
-@api.route("/manage/bookings", methods=["GET"])
-@role_required("manager")
-def list_managed_bookings():
-    bookings = db.session.execute(
-        db.select(Booking).options(
-            selectinload(Booking.worker).selectinload(Worker.user),
-            selectinload(Booking.days),
-            selectinload(Booking.service),
-            selectinload(Booking.address),
-            selectinload(Booking.tasks),
-        ).order_by(
-            Booking.scheduled_start.desc(),
-            Booking.booking_id.desc(),
-        )
-    ).scalars().all()
-
-    return jsonify({
-        "bookings": [booking.serialize_detail() for booking in bookings]
-    })
 
 
 @api.route("/bookings", methods=["GET"])
@@ -2371,7 +2461,11 @@ def my_bookings():
             selectinload(Booking.days),
             selectinload(Booking.service),
             selectinload(Booking.address),
-            selectinload(Booking.tasks),
+            # Las tareas con sus fotos y las incidencias con las suyas: el
+            # detalle las pinta todas, y sin precargarlas sería una consulta
+            # por cada tarea y otra por cada incidencia.
+            selectinload(Booking.tasks).selectinload(BookingTask.photos),
+            selectinload(Booking.incidents).selectinload(Incident.media),
         ).where(
             booking_filter
         ).order_by(
