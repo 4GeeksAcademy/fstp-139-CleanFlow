@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -865,11 +865,17 @@ ACCOUNT_LAST_NAME_MAX_LENGTH = 150
 # El mismo mínimo que pide /register: una sola regla en toda la aplicación.
 PASSWORD_MIN_LENGTH = 6
 
-# Foto de perfil. 2 MB y 256x256 bastan para un avatar, y la cuenta
-# gratuita de Cloudinary tiene límite de espacio.
-AVATAR_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
+# Fotos. Los mismos tipos en todas partes; el tamaño cambia según para qué:
+# un avatar se ve pequeño, y la prueba de una tarea o de una incidencia
+# tiene que dejar ver el detalle.
+IMAGE_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
+PHOTO_MAX_BYTES = 5 * 1024 * 1024
 AVATAR_FOLDER = "cleanflow/avatars"
+# Estas dos aún no las usa nadie: las estrenan las fotos de tarea (#82)
+# y las de incidencia (#18), que ya solo tienen que llamar a upload_image().
+BOOKING_FOLDER = "cleanflow/bookings"
+INCIDENT_FOLDER = "cleanflow/incidents"
 
 # Números, espacios y un + inicial. Entre 9 y 15 dígitos: 9 son los de un
 # teléfono español y 15 el máximo internacional.
@@ -1060,6 +1066,61 @@ def cloudinary_is_configured():
     return bool(config.cloud_name and config.api_key and config.api_secret)
 
 
+def upload_image(photo, folder, *, public_id=None, max_bytes=PHOTO_MAX_BYTES,
+                 transformation=None):
+    """Sube una imagen a Cloudinary y devuelve (url, error).
+
+    Uno de los dos siempre es None:
+      ("https://...", None)  -> subida correcta
+      (None, (mensaje, código)) -> algo falló, listo para jsonify
+
+    Se devuelve el error en vez de lanzarlo para que cada endpoint decida
+    qué contar al usuario, sin repetir aquí las comprobaciones.
+
+    photo: el archivo de request.files · folder: carpeta de Cloudinary
+    public_id: nombre fijo (sobrescribe el anterior); sin él, uno nuevo
+    """
+    if photo is None or not photo.filename:
+        return None, ("No se ha recibido ninguna foto", 400)
+
+    if photo.mimetype not in IMAGE_ALLOWED_TYPES:
+        return None, ("La foto tiene que ser JPG, PNG o WEBP", 400)
+
+    content = photo.read()
+
+    if not content:
+        return None, ("El archivo está vacío", 400)
+
+    if len(content) > max_bytes:
+        megas = max_bytes // (1024 * 1024)
+        return None, (f"La foto no puede pesar más de {megas} MB", 400)
+
+    # Sin claves, el fallo es de configuración y no del usuario: 503 y no
+    # 500, que sería "algo se ha roto".
+    if not cloudinary_is_configured():
+        return None, ("La subida de fotos no está configurada. Falta CLOUDINARY_URL", 503)
+
+    try:
+        result = cloudinary.uploader.upload(
+            content,
+            folder=None if public_id else folder,
+            public_id=public_id,
+            overwrite=bool(public_id),
+            # invalidate: borra la copia en caché de la imagen anterior.
+            invalidate=True,
+            resource_type="image",
+            transformation=transformation,
+        )
+    except Exception as error:
+        # Cloudinary caído, sin internet o claves mal: no es culpa de quien sube.
+        print("Fallo al subir la foto a Cloudinary:", error)
+        return None, ("No se ha podido subir la foto. Inténtalo de nuevo", 502)
+
+    # secure_url: la https y con número de versión, así el navegador no
+    # sigue enseñando la imagen anterior de su caché.
+    return result.get("secure_url"), None
+
+
 @api.route("/account/avatar", methods=["POST"])
 @jwt_required()
 def upload_account_avatar():
@@ -1079,47 +1140,23 @@ def upload_account_avatar():
     if request.content_length and request.content_length > AVATAR_MAX_BYTES + 8192:
         return jsonify({"message": "La foto no puede pesar más de 2 MB"}), 400
 
-    photo = request.files.get("avatar")
+    url, error = upload_image(
+        request.files.get("avatar"),
+        AVATAR_FOLDER,
+        # Nombre fijo por usuario: la foto nueva sobrescribe la anterior y
+        # no se acumulan imágenes sueltas que ya no usa nadie.
+        public_id=avatar_public_id(user),
+        max_bytes=AVATAR_MAX_BYTES,
+        # Cuadrada y centrada en la cara, que es lo que se ve en el avatar.
+        transformation=[{"width": 256, "height": 256,
+                         "crop": "fill", "gravity": "face"}],
+    )
 
-    if photo is None or not photo.filename:
-        return jsonify({"message": "Envía la foto en el campo avatar"}), 400
+    if error:
+        message, status = error
+        return jsonify({"message": message}), status
 
-    if photo.mimetype not in AVATAR_ALLOWED_TYPES:
-        return jsonify({"message": "La foto tiene que ser JPG, PNG o WEBP"}), 400
-
-    content = photo.read()
-
-    if not content:
-        return jsonify({"message": "El archivo está vacío"}), 400
-
-    if len(content) > AVATAR_MAX_BYTES:
-        return jsonify({"message": "La foto no puede pesar más de 2 MB"}), 400
-
-    # Antes de intentar subir: sin claves, el fallo es de configuración y no
-    # del usuario. 503 y no 500, que sería "algo se ha roto".
-    if not cloudinary_is_configured():
-        return jsonify({"message": "La subida de fotos no está configurada. Falta CLOUDINARY_URL"}), 503
-
-    try:
-        result = cloudinary.uploader.upload(
-            content,
-            public_id=avatar_public_id(user),
-            overwrite=True,
-            # invalidate: borra la copia en caché de la foto anterior.
-            invalidate=True,
-            resource_type="image",
-            # Cuadrada y centrada en la cara, que es lo que se ve en el avatar.
-            transformation=[{"width": 256, "height": 256,
-                             "crop": "fill", "gravity": "face"}],
-        )
-    except Exception as error:
-        # Cloudinary caído, sin internet o claves mal: no es culpa de quien sube.
-        print("Fallo al subir la foto a Cloudinary:", error)
-        return jsonify({"message": "No se ha podido subir la foto. Inténtalo de nuevo"}), 502
-
-    # secure_url: la https, y con el número de versión, así el navegador no
-    # sigue enseñando la foto anterior de su caché.
-    user.avatar_url = result.get("secure_url")
+    user.avatar_url = url
     db.session.commit()
 
     return jsonify({
@@ -2368,7 +2405,11 @@ def my_bookings():
             selectinload(Booking.days),
             selectinload(Booking.service),
             selectinload(Booking.address),
-            selectinload(Booking.tasks),
+            # Las tareas con sus fotos y las incidencias con las suyas: el
+            # detalle las pinta todas, y sin precargarlas sería una consulta
+            # por cada tarea y otra por cada incidencia.
+            selectinload(Booking.tasks).selectinload(BookingTask.photos),
+            selectinload(Booking.incidents).selectinload(Incident.media),
         ).where(
             booking_filter
         ).order_by(
