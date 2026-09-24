@@ -16,7 +16,8 @@
         cf-worker-form__*, cf-absences__*, cf-affected__*)
      9. Mis servicios del cliente y el detalle de una reserva
         (cf-myservices__*, cf-bookcard__*, cf-bookdetail__*)
-    10. Movimiento reducido
+    10. Mis tareas del trabajador (cf-mytasks__*, cf-wcard__*)
+    11. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -6270,7 +6271,220 @@ textarea.cf-dash-input {
 
 
 /* ======================================================================
-   10. MOVIMIENTO REDUCIDO
+   10. PÁGINA: MIS TAREAS DEL TRABAJADOR
+       (MisReservasTrabajador.jsx y los componentes de
+        components/dashboard/worker)
+   ======================================================================
+
+   Lo que el trabajador tiene asignado. Es la única pantalla del panel
+   que se usa sobre todo desde el móvil, de pie y en casa del cliente:
+   se diseña a 360px y lo demás viene después.
+
+   container-type: el diseño estrecho lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final). */
+
+.cf-mytasks {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-mytasks__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-mytasks__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+}
+
+.cf-mytasks__lede {
+  margin: var(--cf-space-2) 0 0;
+  max-width: 62ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-mytasks__list {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- TARJETA ----------
+   Fecha a la izquierda y, debajo de todo, el estado con el progreso. */
+
+.cf-wcard {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--cf-space-3);
+  width: 100%;
+  padding: var(--cf-space-3);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--cf-transition), box-shadow var(--cf-transition);
+}
+
+.cf-wcard:hover {
+  border-color: var(--cf-primary);
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-wcard:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+/* El de hoy manda: va el primero y se distingue sin leer nada. */
+.cf-wcard--today {
+  border-color: var(--cf-primary);
+}
+
+.cf-wcard__date {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: var(--cf-space-2) 0;
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-wcard__day {
+  font-family: var(--cf-font-heading);
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-wcard__month {
+  font-family: var(--cf-font-brand);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-wcard__service {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cf-wcard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px var(--cf-space-3);
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-wcard__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* El pie ocupa las dos columnas: estado a un lado, progreso al otro. */
+.cf-wcard__foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-1);
+  padding-top: var(--cf-space-2);
+  border-top: 1px solid var(--cf-border);
+}
+
+/* ---------- PROGRESO DE TAREAS ----------
+   Una barra fina y "3 de 5". Nada de porcentajes: lo que importa es
+   cuántas quedan, no el número redondo. */
+
+.cf-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-progress__track {
+  width: 84px;
+  height: 5px;
+  border-radius: 999px;
+  background-color: var(--cf-border);
+  overflow: hidden;
+}
+
+.cf-progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  background-color: var(--cf-primary);
+  transition: width var(--cf-transition);
+}
+
+/* ---------- CARGANDO ---------- */
+
+.cf-wcard--skel {
+  cursor: default;
+}
+
+.cf-wcard--skel:hover {
+  border-color: var(--cf-border);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-wcard__skel-date {
+  height: 48px;
+}
+
+.cf-wcard__skel-title {
+  width: 46%;
+  height: 16px;
+}
+
+.cf-wcard__skel-meta {
+  width: 68%;
+  height: 12px;
+  margin-top: var(--cf-space-2);
+}
+
+.cf-wcard__skel-foot {
+  grid-column: 1 / -1;
+  height: 14px;
+  margin-top: var(--cf-space-2);
+}
+
+
+/* ======================================================================
+   11. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
@@ -6292,7 +6506,8 @@ textarea.cf-dash-input {
   .cf-side__collapse i,
   .cf-side__collapse svg,
   .cf-side__theme-knob,
-  .cf-bookcard {
+  .cf-bookcard,
+  .cf-progress__fill {
     transition: none;
   }
 }

@@ -1,41 +1,65 @@
+/**
+ * MIS TAREAS · el listado del trabajador.
+ *
+ * Lo que tiene asignado, empezando por lo de hoy. Al pulsar un servicio
+ * se abre su detalle, que es donde se trabaja: empezar, cerrar tareas
+ * con sus fotos y finalizar.
+ *
+ * Aquí solo se mira. Marcar tareas y finalizar vivían antes en esta
+ * misma pantalla; ahora están en el detalle, con su línea de tiempo.
+ *
+ * Estilos: dashboard.css, sección 10 (cf-mytasks y cf-wcard).
+ */
+
 import "../../dashboard.css";
-import "../../bookingTracking.css";
 import { useCallback, useEffect, useState } from "react";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
-import {
-    getWorkerBookings,
-    completeBookingTask,
-    completeBooking,
-} from "../../services/bookingService";
-import { formatInterval } from "../../services/bookingService";
+import { getWorkerBookings } from "../../services/bookingService";
+import { WorkerBookingCard } from "../../components/dashboard/worker/WorkerBookingCard";
 
-const statuses = {
-    pending: "Pendiente",
-    confirmed: "Confirmada",
-    completed: "Completada",
-    cancelled: "Cancelada",
-};
+// Las dos pestañas, en el orden en que se enseñan, con lo que dice cada
+// una cuando se queda vacía.
+const TABS = [
+    { value: "upcoming", label: "Próximos", empty: "No tienes ningún servicio asignado." },
+    { value: "done", label: "Realizados", empty: "Aquí aparecerán tus servicios en cuanto los cierres." },
+];
 
-const money = new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-});
+// Cuántas barras grises se pintan mientras llega la respuesta.
+const SKELETON_ROWS = 3;
 
-// Compare calendar days in Madrid, matching the backend's date rule.
+/**
+ * Hoy, en hora de Madrid y como "2026-09-24".
+ *
+ * Se calcula con la zona horaria y no con el reloj del navegador: un
+ * trabajador de vacaciones fuera vería el día cambiado, y el backend
+ * decide con la hora de Madrid.
+ */
 const madridToday = () => {
-    const parts = new Intl.DateTimeFormat("en", {
-        timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit",
-    }).formatToParts(new Date());
-    const value = (type) => parts.find(part => part.type === type).value;
-    return `${value("year")}-${value("month")}-${value("day")}`;
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Madrid",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date());
+
+    return parts;
 };
+
+/** A qué pestaña va cada estado. En curso todavía es un próximo. */
+const tabOf = (status) =>
+    status === "completed" || status === "not_done" || status === "cancelled"
+        ? "done"
+        : "upcoming";
 
 export const MisReservasTrabajador = () => {
     const { store, dispatch } = useGlobalReducer();
+
     const [bookings, setBookings] = useState([]);
+    const [tab, setTab] = useState("upcoming");
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+
+    const today = madridToday();
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -43,254 +67,120 @@ export const MisReservasTrabajador = () => {
 
         const result = await getWorkerBookings(store.token);
 
+        // Sesión caducada: se cierra aquí y ProtectedRoutes hace el resto.
         if (result.status === 401) {
             setLoading(false);
-            setSaving(false);
             dispatch({ type: "LOGOUT" });
             return;
         }
 
-        if (result.ok) {
-            setBookings(result.data.bookings);
-        } else {
-            setBookings([]);
-            setError(result.data.message);
-        }
+        if (result.ok) setBookings(result.data.bookings);
+        else setError(result.data.message);
 
         setLoading(false);
     }, [store.token, dispatch]);
 
-    useEffect(() => {
-        load();
-    }, [load]);
+    useEffect(() => { load(); }, [load]);
 
-    const handleTaskComplete = async (bookingId, taskId, completed) => {
-        setSaving(true);
-        setError("");
+    // Próximos: primero el de hoy, que es el único que se puede empezar,
+    // y después por fecha. Realizados: al revés, lo último arriba.
+    const shown = bookings
+        .filter((booking) => tabOf(booking.status) === tab)
+        .sort((one, two) => {
+            const a = one.days[0].starts_at;
+            const b = two.days[0].starts_at;
 
-        const result = await completeBookingTask(
-            taskId,
-            store.token,
-            completed
-        );
+            if (tab === "done") return b.localeCompare(a);
 
-        if (result.status === 401) {
-            setLoading(false);
-            setSaving(false);
-            dispatch({ type: "LOGOUT" });
-            return;
-        }
+            const aToday = a.slice(0, 10) === today;
+            const bToday = b.slice(0, 10) === today;
 
-        if (result.ok) {
-            setBookings(current => current.map(booking =>
-                booking.booking_id === bookingId
-                    ? {
-                        ...booking,
-                        tasks: booking.tasks.map(task =>
-                            task.booking_task_id === taskId
-                                ? result.data.task
-                                : task
-                        ),
-                    }
-                    : booking
-            ));
-        } else {
-            setError(result.data.message);
-        }
+            if (aToday !== bToday) return aToday ? -1 : 1;
 
-        setSaving(false);
-    };
+            return a.localeCompare(b);
+        });
 
-    const handleBookingComplete = async (bookingId) => {
-        setSaving(true);
-        setError("");
-
-        const result = await completeBooking(bookingId, store.token);
-
-        if (result.status === 401) {
-            setLoading(false);
-            setSaving(false);
-            dispatch({ type: "LOGOUT" });
-            return;
-        }
-
-        if (result.ok) {
-            setBookings(current => current.map(booking =>
-                booking.booking_id === bookingId
-                    ? result.data.booking
-                    : booking
-            ));
-        } else {
-            setError(result.data.message);
-        }
-
-        setSaving(false);
-    };
+    const counts = bookings.reduce(
+        (total, booking) => ({ ...total, [tabOf(booking.status)]: total[tabOf(booking.status)] + 1 }),
+        { upcoming: 0, done: 0 }
+    );
 
     return (
-        <div className="cf-dash-bookings">
-            <div className="cf-dash-bookings__header">
-                <h1>Mis reservas asignadas</h1>
-                <button
-                    type="button"
-                    className="cf-dash-btn cf-dash-btn--ghost"
-                    disabled={loading || saving}
-                    onClick={load}
-                >
-                    Actualizar
-                </button>
+        <div className="cf-mytasks">
+
+            {/* ---------- CABECERA ---------- */}
+
+            <div className="cf-mytasks__header">
+                <div>
+                    {/* El grupo del sidebar al que pertenece la página. */}
+                    <p className="cf-dash-eyebrow">Mi trabajo</p>
+                    <h1 className="cf-mytasks__title">Mis tareas</h1>
+                    <p className="cf-mytasks__lede">
+                        Lo que tienes asignado, empezando por lo de hoy.
+                    </p>
+                </div>
             </div>
 
-            {error && (
-                <div className="cf-dash-alert" role="alert">
-                    {error}
-                </div>
-            )}
+            {error && <p className="cf-dash-alert" role="alert">{error}</p>}
 
-            {saving && <p role="status">Guardando cambios…</p>}
+            {/* ---------- PESTAÑAS ----------
+                Las mismas del catálogo. aria-pressed y no role="tab":
+                son filtros de una sola lista. */}
+
+            <div className="cf-services__tabs">
+                {TABS.map((option) => (
+                    <button
+                        key={option.value}
+                        type="button"
+                        className="cf-services__tab"
+                        aria-pressed={tab === option.value}
+                        onClick={() => setTab(option.value)}
+                    >
+                        {option.label}
+                        <span className="cf-services__count">{counts[option.value]}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* ---------- LISTA ---------- */}
 
             {loading ? (
-                <p role="status">Cargando reservas…</p>
+                <ul className="cf-mytasks__list">
+                    {Array.from({ length: SKELETON_ROWS }, (_, row) => (
+                        <li key={row} aria-hidden="true">
+                            <div className="cf-wcard cf-wcard--skel">
+                                <div className="cf-dash-skel cf-wcard__skel-date"></div>
+                                <div>
+                                    <div className="cf-dash-skel cf-wcard__skel-title"></div>
+                                    <div className="cf-dash-skel cf-wcard__skel-meta"></div>
+                                </div>
+                                <div className="cf-dash-skel cf-wcard__skel-foot"></div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            ) : shown.length === 0 ? (
+                <div className="cf-dash-state">
+                    <span className="cf-dash-state__icon">
+                        <i className="fa-regular fa-calendar" aria-hidden="true"></i>
+                    </span>
+                    <p className="cf-dash-state__title">Nada por aquí</p>
+                    <p className="cf-dash-state__text">
+                        {TABS.find((option) => option.value === tab).empty}
+                    </p>
+                </div>
             ) : (
-                <>
-                    {!error && bookings.length === 0 && (
-                        <p>No tienes reservas asignadas.</p>
-                    )}
-
-                    {bookings.map(booking => {
-                        const tasks = booking.tasks || [];
-                        const completedCount = tasks.filter(
-                            task => task.status === "completed"
-                        ).length;
-                        const allCompleted = completedCount === tasks.length;
-                        const confirmed = booking.status === "confirmed";
-                        const address = booking.address;
-                        const today = madridToday();
-                        const firstDay = booking.scheduled_start?.slice(0, 10);
-                        const lastDay = (booking.days || []).reduce(
-                            (latest, day) => day.starts_at.slice(0, 10) > latest
-                                ? day.starts_at.slice(0, 10) : latest,
-                            firstDay || ""
-                        );
-                        const canEditTasks = confirmed && Boolean(firstDay) && firstDay <= today;
-                        const canFinish = confirmed && Boolean(lastDay) && lastDay <= today;
-
-                        return (
-                            <article
-                                key={booking.booking_id}
-                                className="cf-dash-bookings__card"
-                            >
-                                <h2 className="cf-dash-bookings__title">
-                                    Reserva #{booking.booking_id}
-                                </h2>
-
-                                <p className="cf-dash-bookings__service">{booking.service?.name || "Servicio no disponible"}</p>
-
-                                <p>
-                                    Dirección: {address
-                                        ? [
-                                            `${address.street}, ${address.number}`,
-                                            address.floor && `Piso ${address.floor}`,
-                                            `${address.postal_code} ${address.city}`,
-                                        ].filter(Boolean).join(" · ")
-                                        : "Dirección no disponible"}
-                                </p>
-
-                                <p>
-                                    Precio total: {money.format(booking.total_price)}
-                                </p>
-
-                                <p>
-                                    Estado: <span className={`cf-dash-bookings__badge cf-dash-bookings__badge--${booking.status}`}>{statuses[booking.status] || booking.status}</span>
-                                </p>
-
-                                <ul>
-                                    {(booking.days || []).map(day => (
-                                        <li key={day.booking_day_id}>
-                                            {formatInterval(day)}
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <h3 className="cf-dash-bookings__subtitle">
-                                    Checklist: {completedCount}/{tasks.length}
-                                </h3>
-
-                                {tasks.length === 0 && (
-                                    <p>Esta reserva no tiene tareas de checklist.</p>
-                                )}
-
-                                {confirmed && !canEditTasks && (
-                                    <p className="cf-dash-bookings__hint">
-                                        Podrás marcar las tareas a partir del día de inicio del servicio.
-                                    </p>
-                                )}
-
-                                {tasks.map(task => {
-                                    const completed = task.status === "completed";
-                                    const inputId = `booking-task-${task.booking_task_id}`;
-
-                                    return (
-                                        <div
-                                            className="cf-dash-check cf-dash-bookings__check"
-                                            key={task.booking_task_id}
-                                        >
-                                            <input
-                                                id={inputId}
-                                                className="cf-dash-bookings__checkbox"
-                                                type="checkbox"
-                                                checked={completed}
-                                                disabled={saving || !canEditTasks}
-                                                onChange={(event) => handleTaskComplete(
-                                                    booking.booking_id,
-                                                    task.booking_task_id,
-                                                    event.target.checked
-                                                )}
-                                            />
-                                            <label
-                                                className="cf-dash-bookings__check-label"
-                                                htmlFor={inputId}
-                                            >
-                                                {task.task_name}
-                                                {completed && (
-                                                    <span className="cf-dash-bookings__done">
-                                                        {" "}— Completada
-                                                    </span>
-                                                )}
-                                            </label>
-                                        </div>
-                                    );
-                                })}
-
-                                {confirmed && (
-                                    <div className="cf-dash-bookings__actions">
-                                        {!canFinish && (
-                                            <p className="cf-dash-bookings__hint">
-                                                La reserva podrá finalizarse a partir de su último día de servicio.
-                                            </p>
-                                        )}
-                                        {!allCompleted && (
-                                            <p className="cf-dash-bookings__hint">
-                                                Completa todas las tareas para finalizar la reserva.
-                                            </p>
-                                        )}
-                                        <button
-                                            type="button"
-                                            className="cf-dash-btn"
-                                            disabled={saving || !allCompleted || !canFinish}
-                                            onClick={() => handleBookingComplete(
-                                                booking.booking_id
-                                            )}
-                                        >
-                                            Completar reserva
-                                        </button>
-                                    </div>
-                                )}
-                            </article>
-                        );
-                    })}
-                </>
+                <ul className="cf-mytasks__list">
+                    {shown.map((booking) => (
+                        <WorkerBookingCard
+                            key={booking.booking_id}
+                            booking={booking}
+                            today={today}
+                        />
+                    ))}
+                </ul>
             )}
+
         </div>
     );
 };
