@@ -2316,23 +2316,30 @@ def complete_booking_task(task_id):
             "message": "Solo puedes modificar tareas de tus reservas asignadas."
         }), 403
 
-    if booking.status != BookingStatus.CONFIRMED:
+    # En curso: las tareas se marcan mientras se trabaja. Esto sustituye
+    # a la comprobación de la fecha, que ya hace "Empezar".
+    if booking.status != BookingStatus.IN_PROGRESS:
         return jsonify({
-            "message": "Solo puedes modificar tareas de reservas confirmadas."
+            "message": "Tienes que empezar el servicio antes de marcar tareas."
         }), 409
 
     now = madrid_now()
-
-    if booking.scheduled_start.date() > now.date():
-        return jsonify({
-            "message": "No puedes modificar tareas antes del día de inicio de la reserva."
-        }), 409
 
     task = db.session.get(BookingTask, task_id)
     if task is None:
         return jsonify({"message": "Tarea no encontrada."}), 404
 
     new_status = BookingTaskStatus(data["status"])
+
+    # El antes y el después son obligatorios para cerrar una tarea: son
+    # la prueba de cómo quedó. Desmarcarla no pide nada y las conserva.
+    if new_status == BookingTaskStatus.COMPLETED:
+        kinds = {photo.kind for photo in task.photos}
+
+        if not {MediaKind.BEFORE, MediaKind.AFTER} <= kinds:
+            return jsonify({
+                "message": "Sube la foto del antes y la del después para cerrar la tarea."
+            }), 409
 
     # Repetir la misma petición conserva la fecha original.
     if task.status != new_status:
@@ -2447,9 +2454,10 @@ def complete_booking(booking_id):
     if booking.status == BookingStatus.COMPLETED:
         return jsonify({"booking": booking.serialize_detail()}), 200
 
-    if booking.status != BookingStatus.CONFIRMED:
+    # En curso y no confirmada: para finalizar hay que haber empezado.
+    if booking.status != BookingStatus.IN_PROGRESS:
         return jsonify({
-            "message": "Solo puedes completar reservas confirmadas."
+            "message": "Tienes que empezar el servicio antes de finalizarlo."
         }), 409
 
     now = madrid_now()
@@ -2477,6 +2485,16 @@ def complete_booking(booking_id):
 
     booking.status = BookingStatus.COMPLETED
     booking.updated_at = now
+
+    # De completed_at salen los 3 días que tiene el cliente para
+    # confirmar (#83). Sin esta fecha no se le puede pedir nada.
+    booking.completed_at = now
+
+    # El último día se cierra solo al finalizar: el trabajador no tiene
+    # que pulsar "Terminar el día" y además "Finalizar servicio".
+    for day in booking.days:
+        if day.started_at and not day.finished_at:
+            day.finished_at = now
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 200
