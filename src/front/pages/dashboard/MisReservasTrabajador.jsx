@@ -13,6 +13,7 @@
 
 import "../../dashboard.css";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getWorkerBookings } from "../../services/bookingService";
 import { WorkerBookingCard } from "../../components/dashboard/worker/WorkerBookingCard";
@@ -53,6 +54,7 @@ const tabOf = (status) =>
 
 export const MisReservasTrabajador = () => {
     const { store, dispatch } = useGlobalReducer();
+    const navigate = useNavigate();
 
     const [bookings, setBookings] = useState([]);
     const [tab, setTab] = useState("upcoming");
@@ -176,6 +178,7 @@ export const MisReservasTrabajador = () => {
                             key={booking.booking_id}
                             booking={booking}
                             today={today}
+                            onOpen={() => navigate(`/dashboard/tasks/${booking.booking_id}`)}
                         />
                     ))}
                 </ul>

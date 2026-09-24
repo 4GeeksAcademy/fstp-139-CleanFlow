@@ -15,6 +15,7 @@ import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
 import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
+import { WorkerBookingDetail } from "./pages/dashboard/WorkerBookingDetail";
 import { Login } from "./pages/web/Login";
 import { WorkWithUs } from "./pages/web/WorkWithUs";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
@@ -89,6 +90,9 @@ export const router = createBrowserRouter(
           {/* ---- SECCIONES DE WORKER ---- */}
           <Route element={<RoleRoute allowed={["worker"]} />}>
             <Route path="tasks" element={<MisReservasTrabajador />} />
+            {/* El detalle, dentro del mismo RoleRoute: si se declara
+                fuera, se cuela cualquier rol. */}
+            <Route path="tasks/:bookingId" element={<WorkerBookingDetail />} />
           </Route>
 
           {/* ---- SECCIONES DE MANAGER ----
