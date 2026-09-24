@@ -49,7 +49,7 @@ const stepsOf = (booking) => {
 
 export const WorkerTimeline = ({ booking }) => (
     <section className="cf-wblock">
-        <h2 className="cf-wblock__title">Cómo va</h2>
+        <h2 className="cf-wblock__title">Progreso</h2>
 
         <div className="cf-wtrack">
             {stepsOf(booking).map((step) => (

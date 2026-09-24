@@ -6596,7 +6596,11 @@ textarea.cf-dash-input {
   background-color: var(--cf-border);
 }
 
+/* position y z-index: la línea es un ::before del paso y, sin esto, se
+   pinta por encima de la bola y la cruza por la mitad. */
 .cf-wtrack__mark {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 26px;
@@ -6943,8 +6947,16 @@ textarea.cf-dash-input {
   outline-offset: 2px;
 }
 
+/* Deshabilitado no es "espera": es que ahora no toca. */
 .cf-wshot[disabled] {
-  cursor: wait;
+  border-style: solid;
+  color: var(--cf-border);
+  cursor: not-allowed;
+}
+
+.cf-wshot[disabled]:hover {
+  border-color: var(--cf-border);
+  color: var(--cf-border);
 }
 
 /* Con foto: borde entero y la imagen llenando el hueco. */

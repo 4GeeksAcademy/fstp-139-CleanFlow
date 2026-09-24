@@ -13,7 +13,7 @@ import { longDate, timeOf } from "../bookings/bookingFormat";
 export const WorkerDays = ({ booking, today }) => (
     <section className="cf-wblock">
         <h2 className="cf-wblock__title">
-            {booking.days.length > 1 ? `Los ${booking.days.length} días` : "Cuándo"}
+            Fecha{booking.days.length > 1 && `s · ${booking.days.length} días`}
         </h2>
 
         {booking.days.map((day) => {

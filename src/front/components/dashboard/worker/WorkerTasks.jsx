@@ -47,9 +47,10 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
     const running = booking.status === "in_progress";
     const done = tasks.filter((task) => task.status === "completed").length;
 
-    // Sin empezar: solo hace falta saber qué hay que hacer. Las tareas se
-    // agrupan y no se enseñan los huecos de foto, que todavía no tocan.
-    if (booking.status === "confirmed" || booking.status === "pending") {
+    // Sin empezar, cancelado o no realizado: las tareas se agrupan y no
+    // se enseñan los huecos de foto. En el primer caso porque todavía no
+    // tocan; en los otros dos porque ese trabajo ya no se va a hacer.
+    if (!running && booking.status !== "completed") {
         return (
             <section className="cf-wblock">
                 <h2 className="cf-wblock__title">Qué hay que hacer</h2>

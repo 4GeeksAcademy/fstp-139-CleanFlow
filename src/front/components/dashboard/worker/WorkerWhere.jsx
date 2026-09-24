@@ -17,7 +17,7 @@ const streetOf = (address) =>
 
 export const WorkerWhere = ({ booking }) => (
     <section className="cf-wblock">
-        <h2 className="cf-wblock__title">Dónde y con quién</h2>
+        <h2 className="cf-wblock__title">Información del cliente</h2>
 
         <dl style={{ display: "grid", margin: 0 }}>
             <div className="cf-wrow">
