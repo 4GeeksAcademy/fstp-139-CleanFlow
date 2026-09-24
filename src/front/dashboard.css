@@ -1215,6 +1215,7 @@ textarea.cf-dash-input {
   font-family: var(--cf-font-body);
   font-size: 0.82rem;
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color var(--cf-transition),
@@ -5234,6 +5235,216 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-sm);
 }
 
+/* ---------- BARRA DE FILTROS ----------
+   Una sola línea: el estado a la izquierda, buscar y fechas a la
+   derecha. Los campos de fecha viven dentro de un panel que solo se abre
+   al pulsar, para que la barra en reposo no sea un formulario. */
+
+.cf-myservices__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-2) var(--cf-space-6);
+  margin-bottom: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+/* Las pestañas son las del catálogo; la línea la pone la barra. */
+.cf-myservices__toolbar .cf-services__tabs {
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-myservices__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-2);
+}
+
+.cf-myservices__tools .cf-dash-search {
+  width: min(260px, 100%);
+  margin-bottom: 0;
+}
+
+/* ---------- FECHAS ---------- */
+
+.cf-dates {
+  position: relative;
+}
+
+/* Misma altura y mismo redondeo que el buscador de al lado. */
+.cf-dates__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  height: 40px;
+  padding: 0 var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
+}
+
+.cf-dates__btn:hover {
+  border-color: var(--cf-primary);
+}
+
+.cf-dates__btn:focus-visible {
+  outline: none;
+  border-color: var(--cf-primary);
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+/* Abierto, o con un rango puesto: encendido y diciendo cuál. */
+.cf-dates__btn[aria-expanded="true"],
+.cf-dates__btn--on {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 500;
+}
+
+.cf-dates__panel {
+  position: absolute;
+  top: calc(100% + var(--cf-space-2));
+  right: 0;
+  z-index: 20;
+  width: 260px;
+  padding: var(--cf-space-2);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-md);
+}
+
+/* Los atajos resuelven lo habitual; el rango a mano, el resto. */
+.cf-dates__quick {
+  display: grid;
+  gap: 2px;
+}
+
+.cf-dates__quick button {
+  padding: var(--cf-space-2) 10px;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  background: none;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cf-dates__quick button:hover {
+  background-color: var(--cf-bg);
+}
+
+.cf-dates__quick button[aria-pressed="true"] {
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 500;
+}
+
+.cf-dates__range {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-2);
+  padding: var(--cf-space-3) 10px var(--cf-space-1);
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-dates__field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cf-dates__field span {
+  width: 44px;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-dates__field .cf-dash-input {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+}
+
+/* ---------- LO QUE SE ESTÁ FILTRANDO ----------
+   Solo aparece con algún filtro puesto: cada pastilla se quita por su
+   cuenta, y "Quitar todo" lo deja como estaba. */
+
+.cf-myservices__active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0 0 var(--cf-space-4);
+}
+
+.cf-myservices__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px 4px var(--cf-space-3);
+  border-radius: 999px;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.cf-myservices__chip button {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-myservices__chip button:hover {
+  background-color: rgba(46, 59, 38, 0.12);
+}
+
+.cf-myservices__count {
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-myservices__clear {
+  margin-left: auto;
+  padding: var(--cf-space-1);
+  border: 0;
+  background: none;
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cf-myservices__clear:hover {
+  color: var(--cf-primary);
+}
+
 /* ---------- LISTA ---------- */
 
 .cf-myservices__list {
@@ -6041,6 +6252,19 @@ textarea.cf-dash-input {
 
   .cf-bookdetail__grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cf-myservices__tools {
+    width: 100%;
+  }
+
+  .cf-myservices__tools .cf-dash-search {
+    flex: 1;
+  }
+
+  .cf-dates__panel {
+    right: auto;
+    left: 0;
   }
 }
 
