@@ -32,10 +32,9 @@ import { AccountLayout } from "./pages/dashboard/account/AccountLayout";
 import { AccountDetails } from "./pages/dashboard/account/AccountDetails";
 import { AccountSecurity } from "./pages/dashboard/account/AccountSecurity";
 import { AccountAddresses } from "./pages/dashboard/account/AccountAddresses";
-
-
 import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
 import { MyBookings } from "./pages/dashboard/MyBookings";
+import { BookingDetail } from "./pages/dashboard/BookingDetail";
 import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
 
 export const router = createBrowserRouter(
@@ -87,6 +86,9 @@ export const router = createBrowserRouter(
                 con ?servicio=<slug>. */}
             <Route path="book" element={<BookingPanel />} />
             <Route path="contracted-services" element={<MyBookings />} />
+            {/* El detalle de una reserva, dentro del mismo RoleRoute: si
+                se declara fuera, se cuela cualquier rol. */}
+            <Route path="contracted-services/:bookingId" element={<BookingDetail />} />
           </Route>
 
           {/* ---- SECCIONES DE WORKER ---- */}

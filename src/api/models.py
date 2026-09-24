@@ -837,6 +837,13 @@ class Booking(db.Model):
             "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
             "incidents": [incident.serialize() for incident in self.incidents],
+            # La foto del trabajador, solo aquí: el listado se apaña con
+            # las iniciales y no tiene por qué cargar con ella.
+            "worker_avatar_url": (
+                self.worker.user.avatar_url
+                if self.worker and self.worker.user
+                else None
+            ),
 
             # Lo que pasó de verdad, frente a lo previsto en scheduled_*.
             "started_at": (

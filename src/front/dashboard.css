@@ -14,7 +14,9 @@
      7. Panel de contratación del cliente (cf-booking__*)
      8. Trabajadores, ausencias y reservas afectadas (cf-workers__*,
         cf-worker-form__*, cf-absences__*, cf-affected__*)
-     9. Movimiento reducido
+     9. Mis servicios del cliente y el detalle de una reserva
+        (cf-myservices__*, cf-bookcard__*, cf-bookdetail__*)
+    10. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -1213,6 +1215,7 @@ textarea.cf-dash-input {
   font-family: var(--cf-font-body);
   font-size: 0.82rem;
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color var(--cf-transition),
@@ -5188,7 +5191,1114 @@ textarea.cf-dash-input {
 
 
 /* ======================================================================
-   9. MOVIMIENTO REDUCIDO
+   9. PÁGINAS: MIS SERVICIOS DEL CLIENTE Y EL DETALLE DE UNA RESERVA
+      (MyBookings.jsx, BookingDetail.jsx y los componentes de
+       components/dashboard/bookings)
+   ======================================================================
+
+   El listado de lo que ha contratado el cliente y la ficha de cada
+   servicio. La cabecera y las pestañas son las de Servicios; lo propio
+   de aquí son la tarjeta, la línea de tiempo y las fotos.
+
+   container-type: el diseño estrecho lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final). */
+
+.cf-myservices {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-myservices__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-myservices__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+}
+
+.cf-myservices__lede {
+  margin: var(--cf-space-2) 0 0;
+  max-width: 62ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- BARRA DE FILTROS ----------
+   Una sola línea: el estado a la izquierda, buscar y fechas a la
+   derecha. Los campos de fecha viven dentro de un panel que solo se abre
+   al pulsar, para que la barra en reposo no sea un formulario. */
+
+.cf-myservices__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-2) var(--cf-space-6);
+  margin-bottom: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+/* Las pestañas son las del catálogo; la línea la pone la barra. */
+.cf-myservices__toolbar .cf-services__tabs {
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-myservices__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-2);
+}
+
+.cf-myservices__tools .cf-dash-search {
+  width: min(260px, 100%);
+  margin-bottom: 0;
+}
+
+/* ---------- FECHAS ---------- */
+
+.cf-dates {
+  position: relative;
+}
+
+/* Misma altura y mismo redondeo que el buscador de al lado. */
+.cf-dates__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  height: 40px;
+  padding: 0 var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
+}
+
+.cf-dates__btn:hover {
+  border-color: var(--cf-primary);
+}
+
+.cf-dates__btn:focus-visible {
+  outline: none;
+  border-color: var(--cf-primary);
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+/* Abierto, o con un rango puesto: encendido y diciendo cuál. */
+.cf-dates__btn[aria-expanded="true"],
+.cf-dates__btn--on {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 500;
+}
+
+.cf-dates__panel {
+  position: absolute;
+  top: calc(100% + var(--cf-space-2));
+  right: 0;
+  z-index: 20;
+  width: 260px;
+  padding: var(--cf-space-2);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-md);
+}
+
+/* Los atajos resuelven lo habitual; el rango a mano, el resto. */
+.cf-dates__quick {
+  display: grid;
+  gap: 2px;
+}
+
+.cf-dates__quick button {
+  padding: var(--cf-space-2) 10px;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  background: none;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cf-dates__quick button:hover {
+  background-color: var(--cf-bg);
+}
+
+.cf-dates__quick button[aria-pressed="true"] {
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 500;
+}
+
+.cf-dates__range {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-2);
+  padding: var(--cf-space-3) 10px var(--cf-space-1);
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-dates__field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cf-dates__field span {
+  width: 44px;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-dates__field .cf-dash-input {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+}
+
+/* ---------- LO QUE SE ESTÁ FILTRANDO ----------
+   Solo aparece con algún filtro puesto: cada pastilla se quita por su
+   cuenta, y "Quitar todo" lo deja como estaba. */
+
+.cf-myservices__active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0 0 var(--cf-space-4);
+}
+
+.cf-myservices__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px 4px var(--cf-space-3);
+  border-radius: 999px;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.cf-myservices__chip button {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-myservices__chip button:hover {
+  background-color: rgba(46, 59, 38, 0.12);
+}
+
+.cf-myservices__count {
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-myservices__clear {
+  margin-left: auto;
+  padding: var(--cf-space-1);
+  border: 0;
+  background: none;
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cf-myservices__clear:hover {
+  color: var(--cf-primary);
+}
+
+/* ---------- LISTA ---------- */
+
+.cf-myservices__list {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- TARJETA ----------
+   Tres columnas: fecha, servicio y, a la derecha, estado y precio. El
+   aviso de confirmación pendiente ocupa una fila entera debajo. */
+
+.cf-bookcard {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cf-space-5, 20px);
+  width: 100%;
+  padding: var(--cf-space-4) var(--cf-space-5, 20px);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--cf-transition), box-shadow var(--cf-transition),
+    transform var(--cf-transition);
+}
+
+.cf-bookcard:hover {
+  border-color: var(--cf-primary);
+  box-shadow: var(--cf-shadow-md);
+  transform: translateY(-1px);
+}
+
+.cf-bookcard:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+/* El bloque de fecha ancla la tarjeta: es lo primero que se busca. */
+.cf-bookcard__date {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: var(--cf-space-2) 0;
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-bookcard__day {
+  font-family: var(--cf-font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-bookcard__month {
+  font-family: var(--cf-font-brand);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-bookcard__main {
+  min-width: 0;
+}
+
+.cf-bookcard__service {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.cf-bookcard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-1) var(--cf-space-4);
+  margin-top: 5px;
+  color: var(--cf-muted);
+  font-size: 0.8438rem;
+}
+
+.cf-bookcard__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-1);
+}
+
+.cf-bookcard__meta i,
+.cf-bookcard__meta svg {
+  font-size: 0.8125rem;
+}
+
+/* Iniciales del trabajador: el mismo círculo terracota del avatar. */
+.cf-bookcard__worker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.cf-bookcard__side {
+  display: grid;
+  justify-items: end;
+  gap: var(--cf-space-1);
+}
+
+.cf-bookcard__price {
+  font-family: var(--cf-font-heading);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aviso de que la pelota está en el tejado del cliente. Va en su propia
+   fila para no competir con el estado, que está justo encima. */
+.cf-bookcard__notice {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: var(--cf-space-2) var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.8438rem;
+  font-weight: 500;
+}
+
+/* ---------- ESTADO ----------
+   Texto en color con un punto, como "Activo / Desactivado" del catálogo.
+   Sin fondo: la única excepción es "pendiente de confirmar", que lleva
+   el mismo tratamiento que "Baja en curso" en Trabajadores. */
+
+.cf-bookstate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-1);
+  font-size: 0.8438rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-bookstate--live,
+.cf-bookstate--done {
+  color: var(--cf-primary);
+}
+
+.cf-bookstate--fail {
+  color: var(--cf-accent-dark);
+}
+
+.cf-bookstate--wait {
+  color: var(--cf-muted);
+  font-weight: 500;
+}
+
+.cf-bookstate--action {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.75rem;
+}
+
+.cf-bookstate__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.cf-bookstate--fail .cf-bookstate__dot {
+  background-color: var(--cf-accent);
+}
+
+/* El punto late mientras el trabajador está en la casa. */
+.cf-bookstate--live .cf-bookstate__dot {
+  animation: cf-bookstate-beat 1.8s ease-in-out infinite;
+}
+
+@keyframes cf-bookstate-beat {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+/* ---------- CARGANDO ----------
+   Barras grises con la forma de la tarjeta, como en el resto del panel. */
+
+.cf-bookcard--skel {
+  cursor: default;
+}
+
+.cf-bookcard--skel:hover {
+  transform: none;
+  border-color: var(--cf-border);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-bookcard__skel-date {
+  height: 52px;
+}
+
+.cf-bookcard__skel-title {
+  width: 42%;
+  height: 17px;
+}
+
+.cf-bookcard__skel-meta {
+  width: 64%;
+  height: 13px;
+  margin-top: var(--cf-space-2);
+}
+
+.cf-bookcard__skel-state {
+  width: 88px;
+  height: 17px;
+}
+
+.cf-bookcard__skel-price {
+  width: 66px;
+  height: 17px;
+  margin-top: var(--cf-space-2);
+}
+
+/* ---------- DETALLE DE UNA RESERVA ----------
+   La página que abre cada tarjeta. Dos columnas en escritorio: a la
+   izquierda lo que se lee en orden, a la derecha lo que se consulta de
+   un vistazo. */
+
+.cf-bookdetail {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* Vuelta al listado. Es un enlace, pero sin subrayado: la flecha ya dice
+   lo que hace. */
+.cf-bookdetail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-decoration: none;
+}
+
+.cf-bookdetail__back:hover {
+  color: var(--cf-primary);
+}
+
+.cf-bookdetail__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding-bottom: var(--cf-space-5, 20px);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-bookdetail__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.cf-bookdetail__sub {
+  margin: var(--cf-space-2) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- DETALLE: REJILLA Y BLOQUES ----------
+   La columna ancha lleva lo que se lee en orden (línea de tiempo, qué se
+   contrató, cómo quedó); la estrecha, lo que se consulta de un vistazo. */
+
+.cf-bookdetail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: var(--cf-space-4);
+  margin-top: var(--cf-space-5, 20px);
+}
+
+.cf-bookdetail__col {
+  display: grid;
+  gap: var(--cf-space-4);
+  align-content: start;
+}
+
+.cf-bookblock {
+  padding: var(--cf-space-5, 20px) var(--cf-space-5, 22px);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+}
+
+.cf-bookblock__title {
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-brand);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---------- LÍNEA DE TIEMPO ----------
+   Vertical: cada hito lleva debajo su fecha y su hora reales, y en
+   horizontal no cabrían. */
+
+.cf-timeline__step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: var(--cf-space-3);
+}
+
+.cf-timeline__rail {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+}
+
+.cf-timeline__mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-size: 0.6875rem;
+}
+
+.cf-timeline__line {
+  width: 2px;
+  min-height: 26px;
+  background-color: var(--cf-primary);
+}
+
+/* Lo que aún no ha pasado: contorno de puntos y nada de relleno. */
+.cf-timeline__step--todo .cf-timeline__mark {
+  border: 2px dashed var(--cf-border);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+}
+
+.cf-timeline__step--todo .cf-timeline__line {
+  background-color: var(--cf-border);
+}
+
+/* El camino cortado: no se pudo hacer, o se canceló. */
+.cf-timeline__step--fail .cf-timeline__mark {
+  background-color: var(--cf-accent);
+  color: var(--cf-surface);
+}
+
+.cf-timeline__body {
+  padding-bottom: var(--cf-space-4);
+}
+
+.cf-timeline__step:last-child .cf-timeline__body {
+  padding-bottom: 0;
+}
+
+.cf-timeline__name {
+  margin: 3px 0 0;
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cf-timeline__step--todo .cf-timeline__name {
+  color: var(--cf-muted);
+  font-weight: 500;
+}
+
+.cf-timeline__when {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- FILAS DE DATOS ----------
+   Etiqueta a la izquierda, valor a la derecha. Lo usa el precio. */
+
+.cf-bookrows {
+  display: grid;
+  margin: 0;
+}
+
+.cf-bookrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-2) 0;
+  border-bottom: 1px solid var(--cf-border);
+  font-size: 0.9063rem;
+}
+
+.cf-bookrow:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-bookrow dt {
+  color: var(--cf-muted);
+}
+
+.cf-bookrow dd {
+  margin: 0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El total se separa con una línea más gruesa y crece de tamaño. */
+.cf-bookrow--total {
+  margin-top: 5px;
+  padding-top: var(--cf-space-3);
+  border-top: 2px solid var(--cf-border);
+  border-bottom: 0;
+}
+
+.cf-bookrow--total dt {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+.cf-bookrow--total dd {
+  font-family: var(--cf-font-heading);
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+
+/* ---------- TAREAS ---------- */
+
+.cf-booktasks {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-booktask {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-2) var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  font-size: 0.9063rem;
+}
+
+.cf-booktask__check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 0.625rem;
+}
+
+.cf-booktask--todo {
+  color: var(--cf-muted);
+}
+
+.cf-booktask--todo .cf-booktask__check {
+  border: 1.5px dashed var(--cf-border);
+  background-color: transparent;
+}
+
+.cf-booktask__count {
+  margin-left: auto;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Las notas que escribió el cliente al contratar, tal cual las escribió. */
+.cf-booknotes {
+  margin: var(--cf-space-3) 0 0;
+  padding: var(--cf-space-3);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-bg);
+  font-size: var(--cf-text-sm);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+/* ---------- DÍAS Y DIRECCIÓN ---------- */
+
+.cf-bookday {
+  display: grid;
+  gap: 3px;
+  padding: var(--cf-space-3) 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-bookday:first-of-type {
+  padding-top: 0;
+}
+
+.cf-bookday:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-bookday__when {
+  font-size: 0.9063rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La hora real, cuando la hay: es la que de verdad importa. */
+.cf-bookday__real {
+  color: var(--cf-primary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-bookplace {
+  display: flex;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 0;
+  padding-top: var(--cf-space-3);
+  border-top: 1px solid var(--cf-border);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- TRABAJADOR ---------- */
+
+.cf-bookworker {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+}
+
+.cf-bookworker__photo {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.cf-bookworker__initials {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-family: var(--cf-font-heading);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.cf-bookworker__name {
+  margin: 0;
+  font-size: var(--cf-text-base);
+  font-weight: 600;
+}
+
+.cf-bookworker__role {
+  margin: 1px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---------- POR QUÉ SE CANCELÓ ----------
+   El motivo va en su propio bloque y no en una línea de la línea de
+   tiempo: cuando cancela CleanFlow, es lo primero que el cliente quiere
+   leer. Mismo borde terracota que las incidencias, porque es lo mismo:
+   algo que no salió como estaba previsto. */
+
+.cf-bookcancel {
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-md) var(--cf-radius-md) 0;
+}
+
+.cf-bookcancel__who {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.9063rem;
+  font-weight: 600;
+}
+
+/* pre-wrap: el motivo se enseña tal y como se escribió, con sus saltos. */
+.cf-bookcancel__reason {
+  margin: var(--cf-space-2) 0 0;
+  font-size: 0.9063rem;
+  white-space: pre-wrap;
+}
+
+/* ---------- CÓMO QUEDÓ: FOTOS ----------
+   El antes y el después de cada tarea, en parejas. Al pulsar una se
+   abre en grande, que en miniatura no se aprecia nada. */
+
+.cf-bookshots {
+  display: grid;
+  gap: var(--cf-space-4);
+}
+
+.cf-bookshots__task {
+  margin: 0 0 var(--cf-space-2);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+.cf-bookshots__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cf-space-2);
+}
+
+.cf-bookshot {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  overflow: hidden;
+  background: none;
+  cursor: zoom-in;
+}
+
+.cf-bookshot:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+.cf-bookshot__img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+/* Verde de marca y no un negro translúcido: la etiqueta tiene que
+   leerse igual sobre una foto clara que sobre una oscura. */
+.cf-bookshot__tag {
+  position: absolute;
+  top: var(--cf-space-2);
+  left: var(--cf-space-2);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-family: var(--cf-font-brand);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* ---------- FOTO AMPLIADA ----------
+   <dialog> con showModal(): el navegador la centra, oscurece el fondo y
+   bloquea la página, y Escape la cierra sin escribir una línea. */
+
+.cf-bookzoom {
+  width: min(720px, 92vw);
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+}
+
+.cf-bookzoom::backdrop {
+  background-color: rgba(38, 38, 31, 0.66);
+}
+
+.cf-bookzoom__img {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  background-color: var(--cf-bg);
+}
+
+.cf-bookzoom__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-3) var(--cf-space-4);
+}
+
+.cf-bookzoom__text {
+  margin: 0;
+  font-size: var(--cf-text-sm);
+  font-weight: 500;
+}
+
+/* ---------- INCIDENCIAS ----------
+   Solo lectura: abrirlas es la #18 y resolverlas la #19. */
+
+.cf-bookincidents {
+  display: grid;
+  gap: var(--cf-space-3);
+}
+
+.cf-bookincident {
+  display: grid;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-3) var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-bg);
+}
+
+.cf-bookincident__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-bookincident__when {
+  margin-left: auto;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-bookincident__text {
+  margin: 0;
+  font-size: 0.9063rem;
+  white-space: pre-wrap;
+}
+
+/* Lo que escribió el encargado al cerrarla: el cliente lo lee tal cual. */
+.cf-bookincident__fix {
+  margin: 0;
+  padding: var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-bookincident__fix strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.75rem;
+}
+
+/* Las fotos de la incidencia son más pequeñas: acompañan al texto. */
+.cf-bookincident__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-bookincident__shots .cf-bookshot {
+  width: 96px;
+}
+
+.cf-bookincident__shots .cf-bookshot__img {
+  aspect-ratio: 1 / 1;
+}
+
+/* ---------- ESTRECHO ----------
+   Sin sitio para tres columnas: el estado y el precio bajan a su fila. */
+
+@container (max-width: 640px) {
+  .cf-bookcard {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: var(--cf-space-3);
+    padding: var(--cf-space-3);
+  }
+
+  .cf-bookcard__side {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: var(--cf-space-3);
+  }
+
+  .cf-myservices__header .cf-dash-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cf-bookdetail__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cf-myservices__tools {
+    width: 100%;
+  }
+
+  .cf-myservices__tools .cf-dash-search {
+    flex: 1;
+  }
+
+  .cf-dates__panel {
+    right: auto;
+    left: 0;
+  }
+}
+
+
+/* ======================================================================
+   10. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
@@ -5196,7 +6306,8 @@ textarea.cf-dash-input {
 @media (prefers-reduced-motion: reduce) {
   .cf-dash-skel,
   .cf-tasks__row--flash,
-  .cf-services__row--flash {
+  .cf-services__row--flash,
+  .cf-bookstate--live .cf-bookstate__dot {
     animation: none;
   }
 
@@ -5208,7 +6319,8 @@ textarea.cf-dash-input {
   .cf-side__chevron,
   .cf-side__collapse i,
   .cf-side__collapse svg,
-  .cf-side__theme-knob {
+  .cf-side__theme-knob,
+  .cf-bookcard {
     transition: none;
   }
 }
