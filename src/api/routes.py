@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -2763,6 +2763,175 @@ def delete_task_photo(media_id):
 
     return jsonify({"message": "Foto borrada."}), 200
 
+
+
+# ----------------------------------------------------------------------
+# INCIDENCIAS DEL TRABAJADOR (#18)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/incidents   trabajador asignado
+#
+# Lo que sale mal durante un servicio, con su tipo y su foto. Nacen
+# abiertas y las cierra el encargado (#19). Una incidencia abierta NO
+# impide terminar el día ni finalizar: si bloqueara, un trabajador con
+# una figura rota se quedaría sin poder cerrar su jornada.
+
+
+# Lo que cabe en una descripción. Más que eso no es una incidencia, es
+# un parte, y se cuenta por teléfono.
+INCIDENT_TEXT_MAX_LENGTH = 500
+
+
+def worker_booking(booking_id):
+    """La reserva, si es de quien pregunta y todavía admite incidencias.
+
+    Devuelve (booking, None) o (None, (respuesta, código)).
+    """
+    user_id = int(get_jwt_identity())
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return None, (jsonify({"message": "Reserva no encontrada."}), 404)
+
+    worker = db.session.get(Worker, booking.worker_id)
+
+    if worker is None or worker.user_id != user_id:
+        return None, (jsonify({
+            "message": "Solo puedes abrir incidencias de tus reservas asignadas."
+        }), 403)
+
+    # Una reserva cancelada ya no tiene servicio del que informar.
+    if booking.status == BookingStatus.CANCELLED:
+        return None, (jsonify({
+            "message": "Esta reserva está cancelada."
+        }), 409)
+
+    return booking, None
+
+
+def read_incident_form(booking):
+    """Valida el formulario y devuelve (datos, None) o (None, error).
+
+    Llega como multipart porque puede traer foto, así que los campos se
+    leen de request.form y no de un JSON.
+    """
+    kind = request.form.get("incident_type")
+
+    if kind not in ("client", "company"):
+        return None, (jsonify({
+            "message": 'El tipo debe ser "client" o "company".'
+        }), 400)
+
+    description = (request.form.get("description") or "").strip()
+
+    if not description:
+        return None, (jsonify({
+            "message": "Cuenta qué ha pasado."
+        }), 400)
+
+    if len(description) > INCIDENT_TEXT_MAX_LENGTH:
+        return None, (jsonify({
+            "message": f"La descripción no puede pasar de {INCIDENT_TEXT_MAX_LENGTH} caracteres."
+        }), 400)
+
+    # La tarea es opcional, pero si viene tiene que ser de esta reserva:
+    # con el id de otra se colgaría la incidencia donde no toca.
+    task_id = request.form.get("booking_task_id")
+
+    if task_id:
+        task = db.session.get(BookingTask, int(task_id)) if task_id.isdigit() else None
+
+        if task is None or task.booking_id != booking.booking_id:
+            return None, (jsonify({
+                "message": "Esa tarea no es de esta reserva."
+            }), 400)
+
+    return {
+        "incident_type": IncidentType(kind),
+        "description": description,
+        "booking_task_id": int(task_id) if task_id else None,
+    }, None
+
+
+def add_incident(booking, data, incident_type=None):
+    """Crea la incidencia y le cuelga la foto, si la hay.
+
+    incident_type fuerza el tipo: lo usa "no realizado", donde siempre es
+    de cliente y no se pregunta.
+
+    Devuelve (incidencia, None) o (None, error).
+    """
+    photo = request.files.get("photo")
+    url = None
+
+    if photo and photo.filename:
+        url, error = upload_image(photo, INCIDENT_FOLDER)
+
+        if error:
+            message, status = error
+            return None, (jsonify({"message": message}), status)
+
+    now = madrid_now()
+
+    incident = Incident(
+        booking_id=booking.booking_id,
+        worker_id=booking.worker_id,
+        booking_task_id=data["booking_task_id"],
+        incident_type=incident_type or data["incident_type"],
+        source=IncidentSource.WORKER,
+        reported_by=int(get_jwt_identity()),
+        description=data["description"],
+        resolved=False,
+        created_at=now,
+    )
+
+    db.session.add(incident)
+
+    # flush: hace falta el id de la incidencia para colgarle la foto.
+    db.session.flush()
+
+    if url:
+        db.session.add(Media(
+            incident_id=incident.incident_id,
+            kind=MediaKind.INCIDENT,
+            media_url=url,
+            media_type=MediaType.IMAGE,
+            uploaded_by=int(get_jwt_identity()),
+            uploaded_at=now,
+        ))
+
+    booking.updated_at = now
+
+    return incident, None
+
+
+@api.route("/bookings/<int:booking_id>/incidents", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def create_incident(booking_id):
+    """Abre una incidencia en un servicio. Multipart, con foto opcional."""
+    booking, error = worker_booking(booking_id)
+
+    if error:
+        return error
+
+    data, error = read_incident_form(booking)
+
+    if error:
+        return error
+
+    incident, error = add_incident(booking, data)
+
+    if error:
+        return error
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 201
 
 # ----------------------------------------------------------------------
 # FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
