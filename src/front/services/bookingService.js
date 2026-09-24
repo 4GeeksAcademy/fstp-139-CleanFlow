@@ -100,6 +100,40 @@ export const deleteTaskPhoto = (mediaId, token) =>
     token,
   });
 
+// ----------------------------------------------------------------------
+// LA RESPUESTA DEL CLIENTE (#83)
+// ----------------------------------------------------------------------
+// Las dos devuelven la reserva entera, con su confirmation ya calculada,
+// para que la pantalla se repinte sin volver a pedirla.
+
+/** El cliente da el servicio por bueno. */
+export const confirmBooking = (bookingId, token) =>
+  apiRequest(`/api/bookings/${bookingId}/confirm`, {
+    method: "POST",
+    token,
+  });
+
+/**
+ * El cliente dice que algo no fue bien.
+ *
+ * data: { description, photos } · photos: hasta cinco File.
+ *
+ * Las fotos van todas en el mismo campo "photo": el backend las lee con
+ * getlist(), así que repetir el nombre es justo lo que espera.
+ */
+export const claimBooking = (bookingId, { description, photos = [] }, token) => {
+  const body = new FormData();
+
+  body.append("description", description);
+  photos.forEach((photo) => body.append("photo", photo));
+
+  return apiRequest(`/api/bookings/${bookingId}/claim`, {
+    method: "POST",
+    token,
+    body,
+  });
+};
+
 // Fechas de Madrid sin convertirlas al huso horario del navegador.
 export const formatInterval = (day) => {
     const date = day.starts_at.slice(0, 10).split("-").reverse().join("/");
