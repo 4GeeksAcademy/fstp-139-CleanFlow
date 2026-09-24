@@ -6689,6 +6689,75 @@ textarea.cf-dash-input {
   white-space: pre-wrap;
 }
 
+/* ---------- LOS DÍAS DEL SERVICIO ----------
+   Lo previsto y, debajo, lo que se hizo de verdad. Con un solo día
+   apenas se mira; con varios es la referencia para organizarse. */
+
+.cf-wday {
+  display: grid;
+  gap: 2px;
+  padding: var(--cf-space-2) 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-wday:first-of-type {
+  padding-top: 0;
+}
+
+.cf-wday:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-wday__when {
+  font-size: var(--cf-text-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El día que toca hoy, para encontrarlo entre varios sin leerlos todos. */
+.cf-wday--today .cf-wday__when {
+  color: var(--cf-primary);
+  font-weight: 600;
+}
+
+.cf-wday__real {
+  color: var(--cf-primary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- RESUMEN DEL FINAL ----------
+   Lo que se trabajó, en cuatro números. Se enseña solo cuando el
+   servicio ya está cerrado: antes, todos serían provisionales. */
+
+.cf-wrecap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-4) var(--cf-space-6);
+}
+
+.cf-wrecap__item {
+  display: grid;
+  gap: 1px;
+}
+
+.cf-wrecap__n {
+  font-family: var(--cf-font-heading);
+  font-size: 1.3125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-wrecap__label {
+  color: var(--cf-muted);
+  font-family: var(--cf-font-brand);
+  font-size: 0.5938rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 /* ---------- LA ACCIÓN DEL MOMENTO ----------
    Empezar, cerrar el día o finalizar: solo una de las tres tiene sentido
    en cada instante, así que solo se enseña una.

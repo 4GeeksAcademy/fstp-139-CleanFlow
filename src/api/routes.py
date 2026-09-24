@@ -2354,8 +2354,6 @@ def complete_booking_task(task_id):
     return jsonify({"task": task.serialize()}), 200
 
 
-
-
 @api.route("/bookings", methods=["GET"])
 @api.route("/my/bookings", methods=["GET"])
 @role_required("client", "worker")
@@ -2616,7 +2614,6 @@ def finish_booking_day(booking_id, day_id):
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 200
-
 
 
 # ----------------------------------------------------------------------

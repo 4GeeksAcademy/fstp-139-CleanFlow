@@ -29,6 +29,8 @@ import { WorkerToday } from "../../components/dashboard/worker/WorkerToday";
 import { WorkerWhere } from "../../components/dashboard/worker/WorkerWhere";
 import { WorkerTasks } from "../../components/dashboard/worker/WorkerTasks";
 import { WorkerActions } from "../../components/dashboard/worker/WorkerActions";
+import { WorkerDays } from "../../components/dashboard/worker/WorkerDays";
+import { WorkerRecap } from "../../components/dashboard/worker/WorkerRecap";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
 
 const LIST_PATH = "/dashboard/tasks";
@@ -295,6 +297,7 @@ export const WorkerBookingDetail = () => {
 
                 <div className="cf-wdetail__col">
                     <WorkerToday booking={booking} today={madridToday()} />
+                    <WorkerRecap booking={booking} />
                     <WorkerTasks
                         booking={booking}
                         busyTaskId={busyTaskId}
@@ -307,6 +310,7 @@ export const WorkerBookingDetail = () => {
 
                 <div className="cf-wdetail__col">
                     <WorkerTimeline booking={booking} />
+                    <WorkerDays booking={booking} today={madridToday()} />
                     <WorkerWhere booking={booking} />
                     <WorkerActions
                         booking={booking}

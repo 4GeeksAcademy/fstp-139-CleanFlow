@@ -19,6 +19,17 @@ import { WorkerShot } from "./WorkerShot";
 const photoOf = (task, kind) =>
     task.photos?.find((photo) => photo.kind === kind) || null;
 
+/** Agrupa por nombre: [{ name, total }]. Tres habitaciones son una fila. */
+const groupTasks = (tasks) => {
+    const groups = new Map();
+
+    tasks.forEach((task) => {
+        groups.set(task.task_name, (groups.get(task.task_name) || 0) + 1);
+    });
+
+    return [...groups].map(([name, total]) => ({ name, total }));
+};
+
 export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePhoto, onToggle }) => {
     const { tasks } = booking;
 
@@ -35,6 +46,28 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
     // el backend: ni antes de llegar ni después de finalizar.
     const running = booking.status === "in_progress";
     const done = tasks.filter((task) => task.status === "completed").length;
+
+    // Sin empezar: solo hace falta saber qué hay que hacer. Las tareas se
+    // agrupan y no se enseñan los huecos de foto, que todavía no tocan.
+    if (booking.status === "confirmed" || booking.status === "pending") {
+        return (
+            <section className="cf-wblock">
+                <h2 className="cf-wblock__title">Qué hay que hacer</h2>
+
+                {groupTasks(tasks).map((group) => (
+                    <article key={group.name} className="cf-wtask">
+                        <div className="cf-wtask__top">
+                            <span className="cf-wtask__check"></span>
+                            <span className="cf-wtask__name">
+                                {group.name}
+                                {group.total > 1 && ` ×${group.total}`}
+                            </span>
+                        </div>
+                    </article>
+                ))}
+            </section>
+        );
+    }
 
     return (
         <section className="cf-wblock">
