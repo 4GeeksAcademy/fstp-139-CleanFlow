@@ -18,11 +18,11 @@ import { useActiveSection } from "../../hooks/useActiveSection";
 // Las dos puertas de acceso. Ambas llevan al mismo formulario: solo
 // cambia lo que se le ofrece a quien todavía no tiene cuenta.
 //
-// Provisional: las dos van a /login hasta que existan /login-clients y
-// /login-workers (WEB-10, #44). Antes daban "Not found!".
+// Los nombres van sin "de" a propósito: así los dos miden casi lo mismo y
+// quedan del ancho de "Reservar ahora" (ver .cf-access en web.css).
 const ACCESS_LINKS = [
-    { label: "Área de clientes", to: "/login" },
-    { label: "Área de empleados", to: "/login" },
+    { label: "Área clientes", to: "/login-clients", icon: "fa-user" },
+    { label: "Área empleados", to: "/login-workers", icon: "fa-briefcase" },
 ]
 
 
@@ -126,10 +126,11 @@ export const Navbar = () => {
                 <div className="cf-container">
                     <ul className="cf-utility-list">
                         {ACCESS_LINKS.map((link) => (
-                            // key por el texto y no por el destino: mientras
-                            // no exista WEB-10, los dos van a /login.
-                            <li key={link.label}>
-                                <Link to={link.to}>{link.label}</Link>
+                            <li key={link.to}>
+                                <Link to={link.to} className="cf-access">
+                                    <i className={`fa-solid ${link.icon}`} aria-hidden="true" />
+                                    {link.label}
+                                </Link>
                             </li>
                         ))}
                     </ul>
