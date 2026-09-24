@@ -18,6 +18,7 @@ import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { Avatar } from "./Avatar"
 import { Logo } from "../Logo"
 import { AffectedCount } from "./absences/AffectedCount"
+import { IncidentCount } from "./incidents/IncidentCount"
 // Estilos del menú (cf-side__*).
 import "../../dashboard.css"
 import { loginPathForRole } from "../../authPaths";
@@ -374,6 +375,7 @@ export const Sidebar = () => {
                                         <i className={`fa-solid ${link.icon}`} aria-hidden="true" />
                                         <span>{link.label}</span>
                                         {link.affected && <AffectedCount token={store.token} pathname={pathname} />}
+                                        {link.incidents && <IncidentCount token={store.token} pathname={pathname} />}
                                         {/* Plegado, el nombre sale al pasar por encima. */}
                                         <span className="cf-side__tip">{link.label}</span>
                                     </NavLink>

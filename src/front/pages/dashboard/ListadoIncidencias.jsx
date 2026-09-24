@@ -15,9 +15,11 @@
 import "../../dashboard.css";
 import { useCallback, useEffect, useState } from "react";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
-import { getIncidents } from "../../services/incidentService";
+import { getIncidents, resolveIncident } from "../../services/incidentService";
+import { INCIDENTS_CHANGED } from "../../components/dashboard/incidents/IncidentCount";
 import { IncidentCard } from "../../components/dashboard/incidents/IncidentCard";
 import { BookingZoom } from "../../components/dashboard/bookings/BookingZoom";
+import { ResolveForm } from "../../components/dashboard/incidents/ResolveForm";
 
 // Las dos pestañas, con lo que dice cada una cuando se queda vacía.
 const TABS = [
@@ -91,6 +93,47 @@ export const ListadoIncidencias = () => {
     }, [store.token]);
 
     useEffect(() => { loadCounts(); }, [loadCounts]);
+
+
+    // ---------- CERRAR UNA INCIDENCIA ----------
+
+    // Cuál se está resolviendo (null = el diálogo cerrado) y si hay una
+    // llamada en marcha.
+    const [resolving, setResolving] = useState(null);
+    const [saving, setSaving] = useState(false);
+
+    /**
+     * Guarda la nota y cierra la incidencia.
+     *
+     * Al resolver la reclamación de un cliente, su reserva sale de "en
+     * revisión" sola: Booking.confirmation mira las que siguen abiertas,
+     * así que aquí no hay que tocar la reserva.
+     */
+    const handleResolve = async (incident, resolution) => {
+        setSaving(true);
+        setError("");
+
+        const result = await resolveIncident(incident.incident_id, resolution, store.token);
+
+        setSaving(false);
+
+        if (result.status === 401) {
+            dispatch({ type: "LOGOUT" });
+            return;
+        }
+
+        if (!result.ok) {
+            setError(result.data.message);
+            return;
+        }
+
+        // Se cierra el diálogo, se recarga la lista y se avisa al menú
+        // para que el número baje sin esperar a su próximo repaso.
+        setResolving(null);
+        await load();
+        await loadCounts();
+        window.dispatchEvent(new Event(INCIDENTS_CHANGED));
+    };
 
     const filtering = Boolean(type || source);
 
@@ -201,6 +244,8 @@ export const ListadoIncidencias = () => {
                         <IncidentCard
                             key={incident.incident_id}
                             incident={incident}
+                            busy={saving}
+                            onResolve={setResolving}
                             onZoom={setZoomed}
                         />
                     ))}
@@ -208,6 +253,13 @@ export const ListadoIncidencias = () => {
             )}
 
             <BookingZoom photo={zoomed} onClose={() => setZoomed(null)} />
+
+            <ResolveForm
+                incident={resolving}
+                saving={saving}
+                onSubmit={handleResolve}
+                onClose={() => setResolving(null)}
+            />
 
         </div>
     );
