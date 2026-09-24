@@ -5482,6 +5482,59 @@ textarea.cf-dash-input {
   margin-top: var(--cf-space-2);
 }
 
+/* ---------- DETALLE DE UNA RESERVA ----------
+   La página que abre cada tarjeta. Dos columnas en escritorio: a la
+   izquierda lo que se lee en orden, a la derecha lo que se consulta de
+   un vistazo. */
+
+.cf-bookdetail {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* Vuelta al listado. Es un enlace, pero sin subrayado: la flecha ya dice
+   lo que hace. */
+.cf-bookdetail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-decoration: none;
+}
+
+.cf-bookdetail__back:hover {
+  color: var(--cf-primary);
+}
+
+.cf-bookdetail__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding-bottom: var(--cf-space-5, 20px);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-bookdetail__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.cf-bookdetail__sub {
+  margin: var(--cf-space-2) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- ESTRECHO ----------
    Sin sitio para tres columnas: el estado y el precio bajan a su fila. */
 
