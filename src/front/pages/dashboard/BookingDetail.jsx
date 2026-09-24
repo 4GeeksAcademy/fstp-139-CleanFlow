@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getMyBookings } from "../../services/bookingService";
-import { BookingStatusPill } from "../../components/dashboard/bookings/BookingStatusPill";
+import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
 import { BookingWhat } from "../../components/dashboard/bookings/BookingWhat";
 import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
@@ -78,6 +78,8 @@ export const BookingDetail = () => {
         return () => { active = false; };
     }, [bookingId, store.token, dispatch]);
 
+    // ---------- MIENTRAS LLEGA LA RESERVA ----------
+
     if (loading) {
         return (
             <div className="cf-bookdetail" aria-busy="true">
@@ -91,6 +93,8 @@ export const BookingDetail = () => {
             </div>
         );
     }
+
+    // ---------- LO QUE PUEDE SALIR MAL ----------
 
     // Un fallo de red o del servidor: se cuenta y se deja la vuelta.
     if (error) {
@@ -124,6 +128,8 @@ export const BookingDetail = () => {
         );
     }
 
+    // ---------- LA RESERVA ----------
+
     const [first] = booking.days;
 
     return (
@@ -147,7 +153,12 @@ export const BookingDetail = () => {
                     </p>
                 </div>
 
-                <BookingStatusPill status={booking.status} />
+                {/* Aquí no hay sitio para un aviso aparte, así que es la
+                    propia pastilla la que pide la confirmación. */}
+                <BookingStatusPill
+                    status={booking.status}
+                    awaitingConfirmation={awaitsConfirmation(booking)}
+                />
             </div>
 
             {/* La columna ancha se lee en orden; la estrecha se consulta. */}

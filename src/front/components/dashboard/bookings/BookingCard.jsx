@@ -10,31 +10,14 @@
  * Estilos: dashboard.css (cf-bookcard).
  */
 
-import { BookingStatusPill } from "./BookingStatusPill";
-
-const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun",
-                "jul", "ago", "sep", "oct", "nov", "dic"];
-
-// Las fechas llegan en hora de Madrid y sin zona ("2026-09-24T08:00:00").
-// Se recortan a mano: convertirlas a Date las movería al huso del navegador.
-const dayOf = (isoDate) => isoDate.slice(8, 10);
-const monthOf = (isoDate) => MONTHS[Number(isoDate.slice(5, 7)) - 1];
-const timeOf = (isoDate) => isoDate.slice(11, 16);
-
-const EUROS = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
-
-// "Ana G." -> "AG". Sirve mientras no haya foto del trabajador.
-const initialsOf = (name) =>
-    (name || "")
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((word) => word[0].toUpperCase())
-        .join("");
+import { BookingStatusPill, awaitsConfirmation } from "./BookingStatusPill";
+import { EUROS, dayOf, monthOf, timeOf, initialsOf, daysLeft } from "./bookingFormat";
 
 export const BookingCard = ({ booking, onOpen }) => {
     const [first] = booking.days;
     const moreDays = booking.days.length - 1;
+    const waiting = awaitsConfirmation(booking);
+    const left = waiting ? daysLeft(booking.completed_at) : 0;
 
     // Enter y Espacio abren el detalle: la tarjeta es un enlace, y un
     // enlace tiene que responder al teclado como tal.
@@ -90,6 +73,16 @@ export const BookingCard = ({ booking, onOpen }) => {
                         {EUROS.format(booking.total_price)}
                     </span>
                 </div>
+
+                {/* El aviso ocupa su propia fila: al lado del estado, los
+                    dos competirían y no se leería ninguno. */}
+                {waiting && (
+                    <p className="cf-bookcard__notice">
+                        <i className="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                        Esperando tu confirmación
+                        {left > 0 && ` · ${left === 1 ? "queda 1 día" : `quedan ${left} días`}`}
+                    </p>
+                )}
             </article>
         </li>
     );

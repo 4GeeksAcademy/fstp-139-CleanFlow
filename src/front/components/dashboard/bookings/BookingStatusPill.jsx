@@ -31,6 +31,10 @@ const AWAITING = {
     icon: "fa-clock",
 };
 
+/** ¿Este servicio está esperando a que el cliente diga algo? */
+export const awaitsConfirmation = (booking) =>
+    booking.status === "completed" && !booking.client_confirmed_at;
+
 export const BookingStatusPill = ({ status, awaitingConfirmation = false }) => {
     // Un estado desconocido no debe romper la pantalla: se enseña tal cual.
     const state = awaitingConfirmation

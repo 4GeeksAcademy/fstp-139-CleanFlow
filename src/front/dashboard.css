@@ -14,7 +14,9 @@
      7. Panel de contratación del cliente (cf-booking__*)
      8. Trabajadores, ausencias y reservas afectadas (cf-workers__*,
         cf-worker-form__*, cf-absences__*, cf-affected__*)
-     9. Movimiento reducido
+     9. Mis servicios del cliente y el detalle de una reserva
+        (cf-myservices__*, cf-bookcard__*, cf-bookdetail__*)
+    10. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -5188,12 +5190,14 @@ textarea.cf-dash-input {
 
 
 /* ======================================================================
-   9. PÁGINA: MIS SERVICIOS DEL CLIENTE
-      (MyBookings.jsx y los componentes de components/dashboard/bookings)
+   9. PÁGINAS: MIS SERVICIOS DEL CLIENTE Y EL DETALLE DE UNA RESERVA
+      (MyBookings.jsx, BookingDetail.jsx y los componentes de
+       components/dashboard/bookings)
    ======================================================================
 
-   El listado de lo que ha contratado el cliente. Misma cabecera y mismas
-   pestañas que Servicios; lo propio de aquí es la tarjeta.
+   El listado de lo que ha contratado el cliente y la ficha de cada
+   servicio. La cabecera y las pestañas son las de Servicios; lo propio
+   de aquí son la tarjeta, la línea de tiempo y las fotos.
 
    container-type: el diseño estrecho lo decide el hueco que deja el
    sidebar, no el ancho de la ventana (ver @container al final). */

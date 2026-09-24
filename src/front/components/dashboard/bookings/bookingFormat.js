@@ -13,6 +13,13 @@ const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles",
 const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
                 "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
+// Los mismos, recortados para el bloque de fecha de la tarjeta.
+const SHORT_MONTHS = MONTHS.map((month) => month.slice(0, 3));
+
+// Días que tiene el cliente para responder antes de que el servicio se
+// dé por bueno solo (#83). Aquí solo se cuentan: confirmar es cosa suya.
+export const CONFIRM_DAYS = 3;
+
 export const EUROS = new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",
@@ -20,6 +27,19 @@ export const EUROS = new Intl.NumberFormat("es-ES", {
 
 // "08:00"
 export const timeOf = (isoDate) => isoDate.slice(11, 16);
+
+// "24" y "sep": las dos piezas del bloque de fecha.
+export const dayOf = (isoDate) => isoDate.slice(8, 10);
+export const monthOf = (isoDate) => SHORT_MONTHS[Number(isoDate.slice(5, 7)) - 1];
+
+// "Ana G." -> "AG", para cuando el trabajador no tiene foto.
+export const initialsOf = (name) =>
+    (name || "")
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((word) => word[0].toUpperCase())
+        .join("");
 
 // "Martes 23 de septiembre". El Date se arma con los números sueltos,
 // que para eso no tiene zona: solo se usa para saber el día de la semana.
@@ -36,4 +56,25 @@ export const shortMoment = (isoDate) => {
     const month = MONTHS[Number(isoDate.slice(5, 7)) - 1].slice(0, 3);
 
     return `${day} ${month} · ${timeOf(isoDate)}`;
+};
+
+// La fecha sin zona, sumándole días. Solo se usa para el plazo de
+// confirmación, así que basta con el día.
+const plusDays = (isoDate, days) => {
+    const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
+
+    return new Date(year, month - 1, day + days);
+};
+
+// "26 de septiembre": el día en que el servicio se dará por bueno solo.
+export const deadlineOf = (isoDate, days = CONFIRM_DAYS) =>
+    plusDays(isoDate, days).toLocaleDateString("es-ES", { day: "numeric", month: "long" });
+
+// Cuántos días enteros quedan para ese plazo. Nunca menos de cero.
+export const daysLeft = (isoDate, days = CONFIRM_DAYS) => {
+    const today = new Date();
+    const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const left = Math.ceil((plusDays(isoDate, days) - midnight) / 86400000);
+
+    return Math.max(left, 0);
 };

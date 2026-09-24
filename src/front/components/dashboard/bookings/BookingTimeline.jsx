@@ -13,24 +13,12 @@
  * Estilos: dashboard.css (cf-timeline).
  */
 
-import { shortMoment } from "./bookingFormat";
-
-// Días que tiene el cliente para responder antes de que se dé por bueno
-// (#83). Aquí solo se usa para contarlo, no para confirmar nada.
-const CONFIRM_DAYS = 3;
+import { shortMoment, deadlineOf } from "./bookingFormat";
 
 // El hito se dibuja según su marca: hecho, pendiente o cortado.
 const CHECK = { icon: "fa-check", tone: "" };
 const WAITING = { icon: "fa-circle", tone: "--todo" };
 const STOPPED = { icon: "fa-xmark", tone: "--fail" };
-
-// Suma días a una fecha sin zona y la devuelve escrita en largo.
-const deadline = (isoDate, days) => {
-    const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
-    const limit = new Date(year, month - 1, day + days);
-
-    return limit.toLocaleDateString("es-ES", { day: "numeric", month: "long" });
-};
 
 /** Los hitos de esta reserva, en orden. */
 const stepsOf = (booking) => {
@@ -92,7 +80,7 @@ const stepsOf = (booking) => {
         steps.push({
             ...WAITING,
             name: "Esperando tu confirmación",
-            when: `Se confirma solo el ${deadline(booking.completed_at, CONFIRM_DAYS)}`,
+            when: `Se confirma solo el ${deadlineOf(booking.completed_at)}`,
         });
     }
 

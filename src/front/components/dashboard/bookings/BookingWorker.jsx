@@ -10,14 +10,7 @@
  * Estilos: dashboard.css (cf-bookworker).
  */
 
-// "Ana G." -> "AG"
-const initialsOf = (name) =>
-    (name || "")
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((word) => word[0].toUpperCase())
-        .join("");
+import { initialsOf } from "./bookingFormat";
 
 export const BookingWorker = ({ booking }) => (
     <section className="cf-bookblock">
