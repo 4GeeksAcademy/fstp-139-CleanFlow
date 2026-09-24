@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -2597,6 +2597,155 @@ def finish_booking_day(booking_id, day_id):
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+
+# ----------------------------------------------------------------------
+# FOTOS DE UNA TAREA (#82)
+# ----------------------------------------------------------------------
+#   POST    /api/booking-tasks/<id>/photos    trabajador asignado
+#   DELETE  /api/media/<id>                   trabajador asignado
+#
+# El antes y el después que el trabajador sube para cerrar cada tarea.
+# Son la prueba de cómo quedó la casa: de ellas vive la confirmación del
+# cliente (#83) y, si reclama, la respuesta del encargado (#19).
+
+
+def task_in_progress(task_id):
+    """La tarea y su reserva, si es de quien pregunta y está en curso.
+
+    Devuelve (task, booking, None), o (None, None, (respuesta, código)).
+    Las fotos solo se tocan con el servicio en marcha: ni antes de llegar
+    ni después de finalizarlo.
+    """
+    user_id = int(get_jwt_identity())
+
+    task = db.session.get(BookingTask, task_id)
+
+    if task is None:
+        return None, None, (jsonify({"message": "Tarea no encontrada."}), 404)
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == task.booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return None, None, (jsonify({"message": "Reserva no encontrada."}), 404)
+
+    worker = db.session.get(Worker, booking.worker_id)
+
+    if worker is None or worker.user_id != user_id:
+        return None, None, (jsonify({
+            "message": "Solo puedes subir fotos de tus reservas asignadas."
+        }), 403)
+
+    if booking.status != BookingStatus.IN_PROGRESS:
+        return None, None, (jsonify({
+            "message": "Solo puedes tocar las fotos con el servicio en curso."
+        }), 409)
+
+    return task, booking, None
+
+
+@api.route("/booking-tasks/<int:task_id>/photos", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def upload_task_photo(task_id):
+    """Sube el antes o el después de una tarea.
+
+    Llega como archivo (multipart/form-data): el campo `photo` con la
+    imagen y `kind` con "before" o "after".
+    """
+    task, booking, error = task_in_progress(task_id)
+
+    if error:
+        return error
+
+    kind_value = request.form.get("kind")
+
+    if kind_value not in ("before", "after"):
+        return jsonify({
+            "message": 'La foto debe ser "before" o "after".'
+        }), 400
+
+    # Antes de leer nada: un archivo enorme no se carga en memoria solo
+    # para caducar. El margen cubre las cabeceras del multipart.
+    if request.content_length and request.content_length > PHOTO_MAX_BYTES + 8192:
+        return jsonify({"message": "La foto no puede pesar más de 5 MB"}), 400
+
+    url, error = upload_image(request.files.get("photo"), BOOKING_FOLDER)
+
+    if error:
+        message, status = error
+        return jsonify({"message": message}), status
+
+    kind = MediaKind(kind_value)
+
+    # Repetir el antes sustituye al anterior: dos "antes" de la misma
+    # tarea no significan nada, y el segundo sería el bueno.
+    previous = db.session.execute(
+        db.select(Media).where(
+            Media.booking_task_id == task_id,
+            Media.kind == kind,
+        )
+    ).scalars().all()
+
+    for photo in previous:
+        db.session.delete(photo)
+
+    media = Media(
+        booking_task_id=task_id,
+        kind=kind,
+        media_url=url,
+        media_type=MediaType.IMAGE,
+        uploaded_by=int(get_jwt_identity()),
+        uploaded_at=madrid_now(),
+    )
+
+    db.session.add(media)
+    booking.updated_at = madrid_now()
+
+    db.session.commit()
+
+    return jsonify({"media": media.serialize()}), 201
+
+
+@api.route("/media/<int:media_id>", methods=["DELETE"])
+@role_required("worker")
+@booking_transaction
+def delete_task_photo(media_id):
+    """Borra una foto mal hecha, mientras la tarea sigue abierta."""
+    media = db.session.get(Media, media_id)
+
+    if media is None:
+        return jsonify({"message": "Foto no encontrada."}), 404
+
+    # Las de una incidencia no se borran desde aquí: son de la #18.
+    if media.booking_task_id is None:
+        return jsonify({
+            "message": "Esta foto no es de una tarea."
+        }), 409
+
+    task, booking, error = task_in_progress(media.booking_task_id)
+
+    if error:
+        return error
+
+    # Con la tarea cerrada, las fotos son su prueba y no se tocan:
+    # primero hay que desmarcarla.
+    if task.status == BookingTaskStatus.COMPLETED:
+        return jsonify({
+            "message": "Desmarca la tarea para cambiar sus fotos."
+        }), 409
+
+    db.session.delete(media)
+    booking.updated_at = madrid_now()
+
+    db.session.commit()
+
+    return jsonify({"message": "Foto borrada."}), 200
 
 
 # ----------------------------------------------------------------------
