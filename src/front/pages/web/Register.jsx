@@ -80,7 +80,8 @@ export const Register = () => {
             // La cuenta existe, pero la sesión no se pudo abrir: al login,
             // con el destino, el correo ya escrito y el aviso de que solo le
             // falta entrar. La contraseña no viaja: la vuelve a escribir.
-            navigate("/login", {
+            // A la puerta de clientes: por aquí solo se registran ellos.
+            navigate("/login-clients", {
                 replace: true,
                 state: { from: location.state?.from, registered: true, email: formData.email },
             });
@@ -224,7 +225,7 @@ export const Register = () => {
             {/* El mismo destino de vuelta, por si se arrepiente y prefiere
                 entrar con una cuenta que ya tiene. */}
             <p className="auth-foot">
-                ¿Ya tienes una cuenta? <Link to="/login" state={location.state}>Inicia sesión</Link>
+                ¿Ya tienes una cuenta? <Link to="/login-clients" state={location.state}>Inicia sesión</Link>
             </p>
         </div>
     );

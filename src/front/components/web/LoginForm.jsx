@@ -1,20 +1,25 @@
 /**
- * Pantalla de inicio de sesión.
+ * FORMULARIO DE INICIO DE SESIÓN.
  *
- * Solo el contenido de la tarjeta: el marco (fondo, logo, centrado y el
- * enlace de vuelta al inicio) lo pone AuthLayout, que es su layout en
- * routes.jsx. Por eso el login no tiene navbar ni footer.
+ * Lo usan las dos puertas (/login-clients y /login-workers), que
+ * autentican igual: el mismo POST /api/login, que no mira el rol. Solo
+ * cambian los textos, y por eso llegan por props:
  *
- * Los estilos son las clases auth-* de auth.css.
+ *   title / subtitle: la cabecera de la tarjeta
+ *   foot(state):      el pie, al que se le pasa el state de la navegación
+ *                     para que el enlace conserve el destino (WEB-15)
+ *
+ * El marco (fondo, logo, centrado y "Volver al inicio") lo pone
+ * AuthLayout. Estilos: las clases auth-* de auth.css.
  */
 
 import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../services/authService.js";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
 
 
-export const Login = () => {
+export const LoginForm = ({ title, subtitle, foot }) => {
 
     const { dispatch } = useGlobalReducer()
     const navigate = useNavigate();
@@ -26,7 +31,7 @@ export const Login = () => {
     //
     // `from`: la ruta que intentaba abrir. Si llegó al login por su
     // cuenta no hay state, y se usa /dashboard. El ?. es imprescindible:
-    // entrando directo a /login, state y from son undefined.
+    // entrando directo a una puerta, state y from son undefined.
     const from = location.state?.from?.pathname || "/dashboard";
 
     // Inputs controlados: React guarda lo que se escribe en su estado y
@@ -97,8 +102,8 @@ export const Login = () => {
 
     return (
         <div className="auth-card">
-            <h1 className="auth-title">Iniciar sesión</h1>
-            <p className="auth-subtitle">Accede a tu panel de CleanFlow</p>
+            <h1 className="auth-title">{title}</h1>
+            <p className="auth-subtitle">{subtitle}</p>
 
             {/* Aviso de sesión caducada. Solo aparece si el usuario llega
                 aquí porque su token dejó de valer, no al entrar al login
@@ -182,11 +187,14 @@ export const Login = () => {
                 <button type="submit" className="auth-btn">Iniciar sesión</button>
             </form>
 
-            {/* state={location.state}: el destino viaja al registro, y tras
-                el alta se vuelve a donde quería ir (WEB-15). */}
-            <p className="auth-foot">
-                ¿No tienes una cuenta? <Link to="/register" state={location.state}>Regístrate</Link>
-            </p>
+            {/* Hueco para los accesos externos ("Entrar con Google"), que
+                van en su propia issue. Va aquí, entre el botón y el pie. */}
+
+            {/* El pie lo pone cada puerta: no es lo mismo lo que se le
+                ofrece a un cliente que a alguien del equipo.
+                state={location.state}: el destino viaja con el enlace, y
+                tras el alta se vuelve a donde quería ir (WEB-15). */}
+            <p className="auth-foot">{foot(location.state)}</p>
         </div>
     );
 };

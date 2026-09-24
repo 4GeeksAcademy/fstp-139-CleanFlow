@@ -16,7 +16,8 @@ import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
 import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
 import { WorkerBookingDetail } from "./pages/dashboard/WorkerBookingDetail";
-import { Login } from "./pages/web/Login";
+import { LoginClients } from "./pages/web/LoginClients";
+import { LoginWorkers } from "./pages/web/LoginWorkers";
 import { WorkWithUs } from "./pages/web/WorkWithUs";
 import { ProtectedRoutes } from "./pages/dashboard/ProtectedRoutes";
 import { DashboardLayout } from "./pages/dashboard/DashboardLayout";
@@ -46,9 +47,13 @@ export const router = createBrowserRouter(
         <Route path="work-with-us" element={<WorkWithUs />} />
       </Route>
 
-      {/* ---------- LOGIN Y REGISTRO: layout propio, sin navbar ni footer ---------- */}
+      {/* ---------- ACCESO Y REGISTRO: layout propio, sin navbar ni footer ----------
+          Dos puertas y un solo formulario: las dos llaman al mismo
+          POST /api/login. Cambian el título y lo que se le ofrece a quien
+          todavía no tiene cuenta (WEB-10). */}
       <Route element={<AuthLayout />}>
-        <Route path="/login" element={<Login />} />
+        <Route path="login-clients" element={<LoginClients />} />
+        <Route path="login-workers" element={<LoginWorkers />} />
         <Route path="register" element={<Register />} />
       </Route>
 

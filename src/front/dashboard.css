@@ -6058,6 +6058,34 @@ textarea.cf-dash-input {
   font-size: 0.8125rem;
 }
 
+/* ---------- POR QUÉ SE CANCELÓ ----------
+   El motivo va en su propio bloque y no en una línea de la línea de
+   tiempo: cuando cancela CleanFlow, es lo primero que el cliente quiere
+   leer. Mismo borde terracota que las incidencias, porque es lo mismo:
+   algo que no salió como estaba previsto. */
+
+.cf-bookcancel {
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-md) var(--cf-radius-md) 0;
+}
+
+.cf-bookcancel__who {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.9063rem;
+  font-weight: 600;
+}
+
+/* pre-wrap: el motivo se enseña tal y como se escribió, con sus saltos. */
+.cf-bookcancel__reason {
+  margin: var(--cf-space-2) 0 0;
+  font-size: 0.9063rem;
+  white-space: pre-wrap;
+}
+
 /* ---------- CÓMO QUEDÓ: FOTOS ----------
    El antes y el después de cada tarea, en parejas. Al pulsar una se
    abre en grande, que en miniatura no se aprecia nada. */
