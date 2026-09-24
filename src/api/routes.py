@@ -3209,6 +3209,64 @@ def list_incidents():
     }), 200
 
 
+# Lo que cabe en una nota de resolución. Más que esto no es una nota,
+# es un informe, y el cliente no lo va a leer.
+RESOLUTION_MAX_LENGTH = 500
+
+
+@api.route("/incidents/<int:incident_id>/resolve", methods=["PATCH"])
+@role_required("manager")
+@booking_transaction
+def resolve_incident(incident_id):
+    """Cierra una incidencia con la nota de lo que se ha hecho.
+
+    Si la abrió el cliente, esa nota la va a leer él en su detalle, así
+    que es obligatoria: cerrar sin explicar deja las cosas peor que
+    antes.
+
+    Cuando se resuelve la reclamación de un cliente, su reserva sale de
+    "en revisión" sola: Booking.confirmation mira las que siguen
+    abiertas, así que aquí no hay nada más que tocar.
+    """
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos válidos"}), 400
+
+    resolution = (data.get("resolution") or "").strip()
+
+    if not resolution:
+        return jsonify({"message": "Explica qué se ha hecho."}), 400
+
+    if len(resolution) > RESOLUTION_MAX_LENGTH:
+        return jsonify({
+            "message": f"La nota no puede pasar de {RESOLUTION_MAX_LENGTH} caracteres."
+        }), 400
+
+    incident = db.session.get(Incident, incident_id)
+
+    if incident is None:
+        return jsonify({"message": "Incidencia no encontrada."}), 404
+
+    # Una resuelta no se reabre ni se reescribe: si hay más que decir, se
+    # abre otra. Así queda el rastro de las dos decisiones.
+    if incident.resolved:
+        return jsonify({"message": "Esta incidencia ya está resuelta."}), 409
+
+    now = madrid_now()
+
+    incident.resolution = resolution
+    incident.resolved = True
+    incident.resolved_at = now
+
+    if incident.booking:
+        incident.booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"incident": incident.serialize_managed()}), 200
+
+
 # ----------------------------------------------------------------------
 # FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
 # ----------------------------------------------------------------------
