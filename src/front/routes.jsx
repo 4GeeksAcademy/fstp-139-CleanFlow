@@ -32,8 +32,10 @@ import { AccountSecurity } from "./pages/dashboard/account/AccountSecurity";
 import { AccountAddresses } from "./pages/dashboard/account/AccountAddresses";
 
 
+
 import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
 import { MyBookings } from "./pages/dashboard/MyBookings";
+import { Applications } from "./pages/dashboard/Applications";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
@@ -91,6 +93,7 @@ export const router = createBrowserRouter(
               Un mismo RoleRoute envuelve varias rutas.
               tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
+            <Route path="applications" element={<Applications />} />
             <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="affected-bookings" element={<AffectedBookings />} />
             <Route

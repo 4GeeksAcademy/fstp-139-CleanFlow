@@ -40,27 +40,28 @@ import { AffectedCount } from "./AffectedCount";
 
 const LINKS = [
     // --- Comunes a todos los roles ---
-    { to: "/dashboard",                    label: "Inicio",        roles: ["client", "worker", "manager"], end: true },
+    { to: "/dashboard", label: "Inicio", roles: ["client", "worker", "manager"], end: true },
 
     // --- Solo CLIENT ---
-    { to: "/dashboard/service-catalog",    label: "Catálogo de servicios", roles: ["client"] },
+    { to: "/dashboard/service-catalog", label: "Catálogo de servicios", roles: ["client"] },
     { to: "/dashboard/contracted-services", label: "Mis servicios", roles: ["client"] },
 
     // --- Solo WORKER ---
-    { to: "/dashboard/tasks",              label: "Mis tareas",    roles: ["worker"] },
+    { to: "/dashboard/tasks", label: "Mis tareas", roles: ["worker"] },
 
     // --- Solo MANAGER ---
+    { to: "/dashboard/applications", label: "Candidaturas", roles: ["manager"] },
     { to: "/dashboard/affected-bookings", label: "Reservas afectadas", roles: ["manager"], affected: true },
-    { to: "/dashboard/workers",            label: "Trabajadores",  roles: ["manager"] },
+    { to: "/dashboard/workers", label: "Trabajadores", roles: ["manager"] },
     {
         label: "Administrar catálogo",
         roles: ["manager"],
         children: [
-            { to: "/dashboard/services-catalog",       label: "Servicios" },
-            { to: "/dashboard/tasks-catalog",   label: "Tareas de servicios" },
+            { to: "/dashboard/services-catalog", label: "Servicios" },
+            { to: "/dashboard/tasks-catalog", label: "Tareas de servicios" },
         ],
     },
-    { to: "/dashboard/shifts",             label: "Turnos",        roles: ["manager"] },
+    { to: "/dashboard/shifts", label: "Turnos", roles: ["manager"] },
 ]
 
 // Mismo corte que el bloque "SIDEBAR EN MÓVIL" de dashboard.css.
