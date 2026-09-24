@@ -17,11 +17,12 @@ import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getMyBookings } from "../../services/bookingService";
 import { BookingCard } from "../../components/dashboard/bookings/BookingCard";
 
-// Las tres pestañas, en el orden en que se enseñan.
+// Las tres pestañas, en el orden en que se enseñan, con lo que dice
+// cada una cuando se queda vacía.
 const TABS = [
-    { value: "upcoming", label: "Próximos" },
-    { value: "done", label: "Realizados" },
-    { value: "cancelled", label: "Cancelados" },
+    { value: "upcoming", label: "Próximos", empty: "No tienes ningún servicio por delante." },
+    { value: "done", label: "Realizados", empty: "Aquí aparecerán tus servicios en cuanto se hagan." },
+    { value: "cancelled", label: "Cancelados", empty: "No has cancelado ningún servicio." },
 ];
 
 // Cuántas barras grises se pintan mientras llega la respuesta.
@@ -135,7 +136,7 @@ export const MyBookings = () => {
                         </li>
                     ))}
                 </ul>
-            ) : shown.length === 0 ? (
+            ) : bookings.length === 0 ? (
                 <div className="cf-dash-state">
                     <span className="cf-dash-state__icon">
                         <i className="fa-regular fa-calendar" aria-hidden="true"></i>
@@ -148,6 +149,16 @@ export const MyBookings = () => {
                         <i className="fa-solid fa-plus" aria-hidden="true"></i>
                         Contratar un servicio
                     </button>
+                </div>
+            ) : shown.length === 0 ? (
+                <div className="cf-dash-state">
+                    <span className="cf-dash-state__icon">
+                        <i className="fa-regular fa-folder-open" aria-hidden="true"></i>
+                    </span>
+                    <p className="cf-dash-state__title">Nada en esta pestaña</p>
+                    <p className="cf-dash-state__text">
+                        {TABS.find((option) => option.value === tab).empty}
+                    </p>
                 </div>
             ) : (
                 <ul className="cf-myservices__list">

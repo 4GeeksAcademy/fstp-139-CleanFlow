@@ -48,7 +48,11 @@ export const BookingDetail = () => {
 
             if (!active) return;
 
+            // Sesión caducada: se apaga la carga antes de salir, o la
+            // pantalla se queda con las barras grises si la redirección
+            // de ProtectedRoutes tarda un instante.
             if (result.status === 401) {
+                setLoading(false);
                 dispatch({ type: "LOGOUT" });
                 return;
             }
