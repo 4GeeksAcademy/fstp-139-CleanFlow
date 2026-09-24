@@ -14,6 +14,7 @@ import { PublicLayout } from "./pages/web/PublicLayout";
 import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
+import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
 import { LoginClients } from "./pages/web/LoginClients";
 import { LoginWorkers } from "./pages/web/LoginWorkers";
 import { WorkWithUs } from "./pages/web/WorkWithUs";
@@ -35,6 +36,7 @@ import { AccountAddresses } from "./pages/dashboard/account/AccountAddresses";
 
 import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
 import { MyBookings } from "./pages/dashboard/MyBookings";
+import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
@@ -89,7 +91,7 @@ export const router = createBrowserRouter(
 
           {/* ---- SECCIONES DE WORKER ---- */}
           <Route element={<RoleRoute allowed={["worker"]} />}>
-            <Route path="tasks" element={<h1>Mis tareas</h1>} />
+            <Route path="tasks" element={<MisReservasTrabajador />} />
           </Route>
 
           {/* ---- SECCIONES DE MANAGER ----
@@ -101,6 +103,10 @@ export const router = createBrowserRouter(
             <Route
               path="workers/:workerId/edit"
               element={<EditarTrabajador />}
+            />
+            <Route
+              path="workers/:workerId/absences"
+              element={<WorkerAbsencesPage />}
             />
             <Route
               path="workers/new"
