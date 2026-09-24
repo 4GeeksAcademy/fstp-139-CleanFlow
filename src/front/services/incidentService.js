@@ -56,3 +56,40 @@ export const markNotDone = (bookingId, data, token) =>
         token,
         body: incidentBody(data),
     });
+
+
+// ----------------------------------------------------------------------
+// LO QUE USA EL ENCARGADO (#19)
+// ----------------------------------------------------------------------
+
+/**
+ * Las incidencias, filtradas.
+ *
+ * filters: { resolved, type, source } · los vacíos no se envían, porque
+ * el backend distingue "no me lo has dicho" de "me has dicho nada".
+ *
+ * countOnly devuelve solo el número, para la pastilla del menú.
+ */
+export const getIncidents = (filters = {}, token, countOnly = false) => {
+    const query = new URLSearchParams();
+
+    Object.entries(filters).forEach(([name, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+            query.append(name, value);
+        }
+    });
+
+    if (countOnly) query.append("count_only", "1");
+
+    const search = query.toString();
+
+    return apiRequest(`/api/incidents${search ? `?${search}` : ""}`, { token });
+};
+
+/** Cierra una incidencia con la nota de lo que se ha hecho. */
+export const resolveIncident = (incidentId, resolution, token) =>
+    apiRequest(`/api/incidents/${incidentId}/resolve`, {
+        method: "PATCH",
+        token,
+        body: { resolution },
+    });
