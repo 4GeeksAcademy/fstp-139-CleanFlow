@@ -15,7 +15,7 @@ import "../../dashboard.css";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
-import { getMyBookings, confirmBooking } from "../../services/bookingService";
+import { getMyBookings, confirmBooking, claimBooking } from "../../services/bookingService";
 import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
 import { BookingCancelled } from "../../components/dashboard/bookings/BookingCancelled";
@@ -25,6 +25,7 @@ import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker
 import { BookingWhen } from "../../components/dashboard/bookings/BookingWhen";
 import { BookingPhotos } from "../../components/dashboard/bookings/BookingPhotos";
 import { BookingConfirm } from "../../components/dashboard/bookings/BookingConfirm";
+import { ClaimForm } from "../../components/dashboard/bookings/ClaimForm";
 import { BookingIncidents } from "../../components/dashboard/bookings/BookingIncidents";
 import { BookingZoom } from "../../components/dashboard/bookings/BookingZoom";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
@@ -111,6 +112,34 @@ export const BookingDetail = () => {
         // la que llega y el bloque cambia solo.
         if (result.ok) setBooking(result.data.booking);
         else setError(result.data.message);
+    };
+
+
+    /**
+     * El cliente dice que algo no fue bien.
+     *
+     * Crea la incidencia que resolverá el encargado (#19) y devuelve la
+     * reserva con confirmation en "in_review": el bloque cambia solo.
+     */
+    const handleClaim = async (data) => {
+        setAnswering(true);
+        setError("");
+
+        const result = await claimBooking(booking.booking_id, data, store.token);
+
+        setAnswering(false);
+
+        if (expired(result)) return;
+
+        if (!result.ok) {
+            setError(result.data.message);
+            return;
+        }
+
+        // Se cierra solo si salió bien: con un error, lo escrito y las
+        // fotos siguen ahí y se puede reintentar sin empezar de cero.
+        setBooking(result.data.booking);
+        setClaiming(false);
     };
 
     // ---------- MIENTRAS LLEGA LA RESERVA ----------
@@ -222,6 +251,13 @@ export const BookingDetail = () => {
             </div>
 
             <BookingZoom photo={zoomed} onClose={() => setZoomed(null)} />
+
+            <ClaimForm
+                open={claiming}
+                saving={answering}
+                onSubmit={handleClaim}
+                onClose={() => setClaiming(false)}
+            />
 
         </div>
     );

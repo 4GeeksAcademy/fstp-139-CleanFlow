@@ -7562,6 +7562,83 @@ textarea.cf-dash-input {
   background-color: var(--cf-accent-dark);
 }
 
+/* ---------- RECLAMAR: LAS FOTOS ----------
+   El formulario reutiliza el diálogo de las incidencias (cf-inc-sheet);
+   lo propio de aquí es la rejilla, que admite hasta cinco. */
+
+.cf-claim__shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--cf-space-2);
+}
+
+.cf-claim__shot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1.5px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.7188rem;
+  font-weight: 500;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cf-claim__shot:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-claim__shot--full {
+  border-style: solid;
+  cursor: default;
+}
+
+.cf-claim__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cf-claim__del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(38, 38, 31, 0.7);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-claim__del:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+/* Cuántas van. Solo aparece con alguna puesta: con la rejilla vacía
+   sobra, y al llegar al tope dice que no caben más en vez de dejar un
+   botón que solo sirve para dar error. */
+.cf-claim__count {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- AVISO DE LO QUE NO SE DESHACE ---------- */
 
 .cf-inc-warn {
