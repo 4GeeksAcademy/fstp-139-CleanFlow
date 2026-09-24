@@ -5188,7 +5188,326 @@ textarea.cf-dash-input {
 
 
 /* ======================================================================
-   9. MOVIMIENTO REDUCIDO
+   9. PÁGINA: MIS SERVICIOS DEL CLIENTE
+      (MyBookings.jsx y los componentes de components/dashboard/bookings)
+   ======================================================================
+
+   El listado de lo que ha contratado el cliente. Misma cabecera y mismas
+   pestañas que Servicios; lo propio de aquí es la tarjeta.
+
+   container-type: el diseño estrecho lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final). */
+
+.cf-myservices {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-myservices__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-myservices__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+}
+
+.cf-myservices__lede {
+  margin: var(--cf-space-2) 0 0;
+  max-width: 62ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- LISTA ---------- */
+
+.cf-myservices__list {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- TARJETA ----------
+   Tres columnas: fecha, servicio y, a la derecha, estado y precio. El
+   aviso de confirmación pendiente ocupa una fila entera debajo. */
+
+.cf-bookcard {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cf-space-5, 20px);
+  width: 100%;
+  padding: var(--cf-space-4) var(--cf-space-5, 20px);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--cf-transition), box-shadow var(--cf-transition),
+    transform var(--cf-transition);
+}
+
+.cf-bookcard:hover {
+  border-color: var(--cf-primary);
+  box-shadow: var(--cf-shadow-md);
+  transform: translateY(-1px);
+}
+
+.cf-bookcard:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+/* El bloque de fecha ancla la tarjeta: es lo primero que se busca. */
+.cf-bookcard__date {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: var(--cf-space-2) 0;
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-bookcard__day {
+  font-family: var(--cf-font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-bookcard__month {
+  font-family: var(--cf-font-brand);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-bookcard__main {
+  min-width: 0;
+}
+
+.cf-bookcard__service {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.cf-bookcard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-1) var(--cf-space-4);
+  margin-top: 5px;
+  color: var(--cf-muted);
+  font-size: 0.8438rem;
+}
+
+.cf-bookcard__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-1);
+}
+
+.cf-bookcard__meta i,
+.cf-bookcard__meta svg {
+  font-size: 0.8125rem;
+}
+
+/* Iniciales del trabajador: el mismo círculo terracota del avatar. */
+.cf-bookcard__worker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.cf-bookcard__side {
+  display: grid;
+  justify-items: end;
+  gap: var(--cf-space-1);
+}
+
+.cf-bookcard__price {
+  font-family: var(--cf-font-heading);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aviso de que la pelota está en el tejado del cliente. Va en su propia
+   fila para no competir con el estado, que está justo encima. */
+.cf-bookcard__notice {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: var(--cf-space-2) var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.8438rem;
+  font-weight: 500;
+}
+
+/* ---------- ESTADO ----------
+   Texto en color con un punto, como "Activo / Desactivado" del catálogo.
+   Sin fondo: la única excepción es "pendiente de confirmar", que lleva
+   el mismo tratamiento que "Baja en curso" en Trabajadores. */
+
+.cf-bookstate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-1);
+  font-size: 0.8438rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-bookstate--live,
+.cf-bookstate--done {
+  color: var(--cf-primary);
+}
+
+.cf-bookstate--fail {
+  color: var(--cf-accent-dark);
+}
+
+.cf-bookstate--wait {
+  color: var(--cf-muted);
+  font-weight: 500;
+}
+
+.cf-bookstate--action {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.75rem;
+}
+
+.cf-bookstate__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.cf-bookstate--fail .cf-bookstate__dot {
+  background-color: var(--cf-accent);
+}
+
+/* El punto late mientras el trabajador está en la casa. */
+.cf-bookstate--live .cf-bookstate__dot {
+  animation: cf-bookstate-beat 1.8s ease-in-out infinite;
+}
+
+@keyframes cf-bookstate-beat {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+/* ---------- CARGANDO ----------
+   Barras grises con la forma de la tarjeta, como en el resto del panel. */
+
+.cf-bookcard--skel {
+  cursor: default;
+}
+
+.cf-bookcard--skel:hover {
+  transform: none;
+  border-color: var(--cf-border);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-bookcard__skel-date {
+  height: 52px;
+}
+
+.cf-bookcard__skel-title {
+  width: 42%;
+  height: 17px;
+}
+
+.cf-bookcard__skel-meta {
+  width: 64%;
+  height: 13px;
+  margin-top: var(--cf-space-2);
+}
+
+.cf-bookcard__skel-state {
+  width: 88px;
+  height: 17px;
+}
+
+.cf-bookcard__skel-price {
+  width: 66px;
+  height: 17px;
+  margin-top: var(--cf-space-2);
+}
+
+/* ---------- ESTRECHO ----------
+   Sin sitio para tres columnas: el estado y el precio bajan a su fila. */
+
+@container (max-width: 640px) {
+  .cf-bookcard {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: var(--cf-space-3);
+    padding: var(--cf-space-3);
+  }
+
+  .cf-bookcard__side {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: var(--cf-space-3);
+  }
+
+  .cf-myservices__header .cf-dash-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+
+/* ======================================================================
+   10. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
@@ -5196,7 +5515,8 @@ textarea.cf-dash-input {
 @media (prefers-reduced-motion: reduce) {
   .cf-dash-skel,
   .cf-tasks__row--flash,
-  .cf-services__row--flash {
+  .cf-services__row--flash,
+  .cf-bookstate--live .cf-bookstate__dot {
     animation: none;
   }
 
@@ -5208,7 +5528,8 @@ textarea.cf-dash-input {
   .cf-side__chevron,
   .cf-side__collapse i,
   .cf-side__collapse svg,
-  .cf-side__theme-knob {
+  .cf-side__theme-knob,
+  .cf-bookcard {
     transition: none;
   }
 }
