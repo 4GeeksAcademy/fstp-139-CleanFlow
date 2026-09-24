@@ -8,6 +8,10 @@
  * Decide lo mismo que el backend, pero el backend manda: si responde
  * 409, la página enseña su mensaje. Esto solo evita el viaje.
  *
+ * Debajo van las dos salidas de la #18: abrir una incidencia, que no
+ * cambia nada del servicio, y darlo por no realizado, que lo cierra
+ * para siempre.
+ *
  * Solo pinta y avisa: quien llama a la API es la página.
  *
  * Estilos: dashboard.css, sección 10 (cf-wact).
@@ -73,16 +77,26 @@ const nextAction = (booking, today) => {
     };
 };
 
-export const WorkerActions = ({ booking, today, busy, onAction }) => {
+export const WorkerActions = ({ booking, today, busy, onAction, onIncident, onNotDone }) => {
     const next = nextAction(booking, today);
 
-    if (!next) return null;
+    // Una incidencia se puede abrir mientras el servicio siga vivo.
+    const canReport = booking.status !== "cancelled";
+
+    // Darlo por no realizado, solo el día y antes de cerrarlo: las mismas
+    // reglas que el backend.
+    const canGiveUp =
+        ["confirmed", "pending", "in_progress"].includes(booking.status)
+        && booking.days.some((day) => day.starts_at.slice(0, 10) === today);
+
+    // Sin acción y sin nada que contar, el bloque entero sobra.
+    if (!next && !canReport) return null;
 
     return (
         <div className="cf-wact">
-            {next.note && <p className="cf-wact__note">{next.note}</p>}
+            {next?.note && <p className="cf-wact__note">{next.note}</p>}
 
-            {next.label && (
+            {next?.label && (
                 <button
                     type="button"
                     className={`cf-dash-btn${next.ghost ? " cf-dash-btn--ghost" : ""}`}
@@ -92,6 +106,37 @@ export const WorkerActions = ({ booking, today, busy, onAction }) => {
                     <i className={`fa-solid ${next.icon}`} aria-hidden="true"></i>
                     {next.label}
                 </button>
+            )}
+
+            {canReport && (
+                <>
+                    <p className="cf-wact__sep">¿ha pasado algo?</p>
+
+                    <div className="cf-wact__more">
+                        <button
+                            type="button"
+                            className="cf-dash-btn cf-dash-btn--ghost cf-dash-btn--sm"
+                            disabled={busy}
+                            onClick={onIncident}
+                        >
+                            <i className="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                            Abrir incidencia
+                        </button>
+
+                        {/* Cierra el servicio para siempre: sin botón
+                            llamativo, y con su confirmación detrás. */}
+                        {canGiveUp && (
+                            <button
+                                type="button"
+                                className="cf-dash-btn cf-dash-btn--sm cf-wact__quiet"
+                                disabled={busy}
+                                onClick={onNotDone}
+                            >
+                                No se ha podido hacer el servicio
+                            </button>
+                        )}
+                    </div>
+                </>
             )}
         </div>
     );

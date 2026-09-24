@@ -23,6 +23,7 @@ import {
     finishBookingDay,
     completeBooking,
 } from "../../services/bookingService";
+import { createIncident, markNotDone } from "../../services/incidentService";
 import { WorkerStatus } from "../../components/dashboard/worker/WorkerStatus";
 import { WorkerTimeline } from "../../components/dashboard/worker/WorkerTimeline";
 import { WorkerToday } from "../../components/dashboard/worker/WorkerToday";
@@ -31,6 +32,8 @@ import { WorkerTasks } from "../../components/dashboard/worker/WorkerTasks";
 import { WorkerActions } from "../../components/dashboard/worker/WorkerActions";
 import { WorkerDays } from "../../components/dashboard/worker/WorkerDays";
 import { WorkerRecap } from "../../components/dashboard/worker/WorkerRecap";
+import { WorkerIncidents } from "../../components/dashboard/incidents/WorkerIncidents";
+import { IncidentForm } from "../../components/dashboard/incidents/IncidentForm";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
 
 const LIST_PATH = "/dashboard/tasks";
@@ -181,6 +184,46 @@ export const WorkerBookingDetail = () => {
         else setError(result.data.message);
     };
 
+    // ---------- CONTAR LO QUE HA PASADO ----------
+
+    // Qué formulario está abierto: "incident", "notDone" o ninguno. Un
+    // solo estado y no dos booleanos: no pueden estar los dos a la vez.
+    const [sheet, setSheet] = useState(null);
+    const [reporting, setReporting] = useState(false);
+
+    /**
+     * Envía el formulario, sea cual sea de los dos.
+     *
+     * Las dos llamadas devuelven la reserva entera, así que la pantalla
+     * se repinta con la respuesta: la incidencia aparece en su lista y,
+     * si era un "no realizado", el estado ya viene cambiado.
+     */
+    const handleReport = async (data) => {
+        const notDone = sheet === "notDone";
+
+        setReporting(true);
+        setError("");
+
+        const result = notDone
+            ? await markNotDone(booking.booking_id, data, store.token)
+            : await createIncident(booking.booking_id, data, store.token);
+
+        setReporting(false);
+
+        if (expired(result)) return;
+
+        if (!result.ok) {
+            setError(result.data.message);
+            return;
+        }
+
+        // Se cierra solo si salió bien: con un error, lo escrito sigue en
+        // el formulario y se puede reintentar sin volver a teclearlo.
+        setBooking(result.data.booking);
+        setSheet(null);
+    };
+
+
     // ---------- MIENTRAS LLEGA EL SERVICIO ----------
 
     if (loading) {
@@ -306,6 +349,7 @@ export const WorkerBookingDetail = () => {
                         onDeletePhoto={handleDeletePhoto}
                         onToggle={handleToggle}
                     />
+                    <WorkerIncidents incidents={booking.incidents} />
                 </div>
 
                 <div className="cf-wdetail__col">
@@ -317,10 +361,22 @@ export const WorkerBookingDetail = () => {
                         today={madridToday()}
                         busy={acting}
                         onAction={handleAction}
+                        onIncident={() => setSheet("incident")}
+                        onNotDone={() => setSheet("notDone")}
                     />
                 </div>
 
             </div>
+
+            {/* Fuera de la rejilla: es un diálogo, no una columna más. */}
+            <IncidentForm
+                open={sheet !== null}
+                notDone={sheet === "notDone"}
+                tasks={booking.tasks}
+                saving={reporting}
+                onSubmit={handleReport}
+                onClose={() => setSheet(null)}
+            />
 
         </div>
     );

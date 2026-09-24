@@ -6838,6 +6838,44 @@ textarea.cf-dash-input {
   }
 }
 
+/* Separador entre la acción del servicio y las salidas de emergencia:
+   "¿ha pasado algo?" no es una acción más, es otra conversación. */
+.cf-wact__sep {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: 0.7188rem;
+}
+
+.cf-wact__sep::before,
+.cf-wact__sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--cf-border);
+}
+
+.cf-wact__more {
+  display: grid;
+  gap: 6px;
+}
+
+/* Lo que cierra el servicio para siempre no lleva botón llamativo: va
+   en gris y solo se enciende al pasar por encima. */
+.cf-wact__quiet {
+  border-color: transparent;
+  background: none;
+  color: var(--cf-muted);
+}
+
+.cf-wact__quiet:hover {
+  border-color: var(--cf-border);
+  background-color: var(--cf-surface);
+  color: var(--cf-accent-dark);
+}
+
 /* ---------- TAREAS Y SUS FOTOS ----------
    Lo que el trabajador toca de verdad. Cada tarea lleva dos huecos: el
    antes y el después. Sin las dos fotos no se puede cerrar, así que el
