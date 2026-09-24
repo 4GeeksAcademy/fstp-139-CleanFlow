@@ -5863,6 +5863,21 @@ textarea.cf-dash-input {
   font-variant-numeric: tabular-nums;
 }
 
+/* El motivo de un servicio que no se pudo hacer, bajo su hito. Lo
+   escribió el trabajador al marcarlo (#18) y es lo que el cliente
+   quiere leer: a él nadie se lo ha contado. */
+.cf-timeline__why {
+  margin: var(--cf-space-2) 0 0;
+  padding: var(--cf-space-2) var(--cf-space-3);
+  border-left: 2px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+  font-size: 0.8125rem;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
 /* ---------- FILAS DE DATOS ----------
    Etiqueta a la izquierda, valor a la derecha. Lo usa el precio. */
 

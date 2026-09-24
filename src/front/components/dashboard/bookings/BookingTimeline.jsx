@@ -20,6 +20,10 @@ const CHECK = { icon: "fa-check", tone: "" };
 const WAITING = { icon: "fa-circle", tone: "--todo" };
 const STOPPED = { icon: "fa-xmark", tone: "--fail" };
 
+/** Por qué no se pudo hacer: lo contó el trabajador al marcarlo (#18). */
+const notDoneReason = (booking) =>
+    booking.incidents?.find((incident) => incident.source === "worker")?.description || null;
+
 /** Los hitos de esta reserva, en orden. */
 const stepsOf = (booking) => {
     const firstName = (booking.worker_name || "").split(" ")[0];
@@ -48,6 +52,7 @@ const stepsOf = (booking) => {
             ...STOPPED,
             name: "No se pudo hacer",
             when: booking.started_at && shortMoment(booking.started_at),
+            why: notDoneReason(booking),
         });
 
         return steps;
@@ -112,6 +117,10 @@ export const BookingTimeline = ({ booking }) => {
                         <div className="cf-timeline__body">
                             <p className="cf-timeline__name">{step.name}</p>
                             {step.when && <p className="cf-timeline__when">{step.when}</p>}
+
+                            {/* El motivo, aquí mismo: es lo que el cliente
+                                quiere leer, y nadie se lo ha contado. */}
+                            {step.why && <p className="cf-timeline__why">«{step.why}»</p>}
                         </div>
                     </div>
                 ))}
