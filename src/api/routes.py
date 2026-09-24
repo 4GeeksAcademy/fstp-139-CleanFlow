@@ -2480,6 +2480,125 @@ def complete_booking(booking_id):
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+# ----------------------------------------------------------------------
+# EL DÍA DE TRABAJO (#82)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/days/<day_id>/start    trabajador asignado
+#   POST  /api/bookings/<id>/days/<day_id>/finish   trabajador asignado
+#
+# Lo previsto vive en starts_at y ends_at; aquí se guarda lo que pasó de
+# verdad. Un servicio de varios días se empieza y se cierra cada día, así
+# que las horas reales van en el tramo y no en la reserva.
+
+
+def worker_day(booking_id, day_id):
+    """La reserva y el tramo, comprobando que son de quien pregunta.
+
+    Devuelve (booking, day, None) si todo está en orden, o
+    (None, None, (respuesta, código)) con el motivo del rechazo.
+
+    La reserva se bloquea con with_for_update: dos móviles pulsando
+    "Empezar" a la vez no pueden escribir dos horas distintas.
+    """
+    user_id = int(get_jwt_identity())
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return None, None, (jsonify({"message": "Reserva no encontrada."}), 404)
+
+    worker = db.session.get(Worker, booking.worker_id)
+
+    if worker is None or worker.user_id != user_id:
+        return None, None, (jsonify({
+            "message": "Solo puedes trabajar en tus reservas asignadas."
+        }), 403)
+
+    day = db.session.get(BookingDay, day_id)
+
+    # El tramo tiene que ser de esta reserva: con el id de otra se podría
+    # escribir en una reserva ajena.
+    if day is None or day.booking_id != booking_id:
+        return None, None, (jsonify({"message": "Día no encontrado."}), 404)
+
+    return booking, day, None
+
+
+@api.route("/bookings/<int:booking_id>/days/<int:day_id>/start", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def start_booking_day(booking_id, day_id):
+    """Marca la llegada. El primer día pone la reserva en curso."""
+    booking, day, error = worker_day(booking_id, day_id)
+
+    if error:
+        return error
+
+    # Repetir la petición no reescribe la hora: la primera es la buena.
+    if day.started_at:
+        return jsonify({"booking": booking.serialize_detail()}), 200
+
+    if booking.status not in (BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS):
+        return jsonify({
+            "message": "Esta reserva ya no se puede empezar."
+        }), 409
+
+    now = madrid_now()
+
+    # Solo el día del tramo: empezar la víspera falsearía la hora real.
+    if day.starts_at.date() != now.date():
+        return jsonify({
+            "message": "Solo puedes empezar el día del servicio."
+        }), 409
+
+    day.started_at = now
+
+    # started_at de la reserva es el del primer día que se empieza.
+    if booking.started_at is None:
+        booking.started_at = now
+
+    booking.status = BookingStatus.IN_PROGRESS
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+@api.route("/bookings/<int:booking_id>/days/<int:day_id>/finish", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def finish_booking_day(booking_id, day_id):
+    """Cierra el día. El servicio se finaliza aparte, el último día."""
+    booking, day, error = worker_day(booking_id, day_id)
+
+    if error:
+        return error
+
+    if day.finished_at:
+        return jsonify({"booking": booking.serialize_detail()}), 200
+
+    if day.started_at is None:
+        return jsonify({
+            "message": "Este día todavía no se ha empezado."
+        }), 409
+
+    now = madrid_now()
+
+    day.finished_at = now
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
 # ----------------------------------------------------------------------
 # FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
 # ----------------------------------------------------------------------
