@@ -9,7 +9,7 @@ Modelos de la base de datos de CleanFlow.
 Lo que tiene `is_active` no se borra: se desactiva.
 """
 
-from datetime import time, datetime, date
+from datetime import time, datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, Boolean, Text, Float, Integer, Time, Date, DateTime, ForeignKey, func
@@ -24,6 +24,12 @@ db = SQLAlchemy()
 # para saber si un servicio es hoy; el resto del cálculo vive en
 # availability.py, que no se importa para no cruzar los dos módulos.
 MADRID = ZoneInfo("Europe/Madrid")
+
+
+# Días que tiene el cliente para responder antes de que el servicio se dé
+# por bueno solo (#83). El front lo repite en bookingFormat.js para pintar
+# el plazo; quien manda es este.
+CONFIRM_DAYS = 3
 
 
 # ==================================================================
@@ -777,6 +783,48 @@ class Booking(db.Model):
         seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
         return int(seconds // 3600)
 
+    
+    @property
+    def confirmation(self):
+        """En qué punto está la respuesta del cliente (#83).
+
+            in_review       reclamó y todavía se está mirando
+            confirmed       dijo que sí
+            auto_confirmed  no dijo nada y pasaron los 3 días
+            pending         está en plazo y aún no ha respondido
+            None            el servicio no ha llegado a finalizarse
+
+        Se calcula al leer y no se guarda: una tarea programada para esto
+        sería infraestructura que hay que vigilar, y con completed_at y la
+        fecha de hoy sale solo.
+
+        El orden de las comprobaciones importa. Una reclamación gana al
+        plazo: si el cliente reclamó el día 2, el día 4 no puede aparecer
+        como confirmada sola.
+        """
+        if self.status != BookingStatus.COMPLETED:
+            return None
+
+        reclamó = any(
+            incident.source == IncidentSource.CLIENT and not incident.resolved
+            for incident in self.incidents
+        )
+
+        if reclamó:
+            return "in_review"
+
+        if self.client_confirmed_at:
+            return "confirmed"
+
+        # Sin fecha de fin no hay plazo que contar: las reservas
+        # anteriores a la #81 se finalizaron sin ella.
+        if not self.completed_at:
+            return "pending"
+
+        limite = self.completed_at.date() + timedelta(days=CONFIRM_DAYS)
+
+        return "pending" if datetime.now(MADRID).date() <= limite else "auto_confirmed"
+
     # ---- SERIALIZADORES ----
 
     def serialize(self):
@@ -885,6 +933,10 @@ class Booking(db.Model):
                 if self.completed_at
                 else None
             ),
+            # En qué punto está la respuesta del cliente (#83). Se calcula
+            # al leer, así que no hace falta ninguna tarea programada.
+            "confirmation": self.confirmation,
+            
             "client_confirmed_at": (
                 self.client_confirmed_at.isoformat()
                 if self.client_confirmed_at
