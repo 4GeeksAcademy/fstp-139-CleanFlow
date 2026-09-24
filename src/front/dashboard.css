@@ -6689,6 +6689,53 @@ textarea.cf-dash-input {
   white-space: pre-wrap;
 }
 
+/* ---------- LA ACCIÓN DEL MOMENTO ----------
+   Empezar, cerrar el día o finalizar: solo una de las tres tiene sentido
+   en cada instante, así que solo se enseña una.
+
+   En el móvil va pegada abajo, al alcance del pulgar, y no al final de
+   una lista de ocho tareas. Encima, el motivo por el que no se puede
+   pulsar todavía: un botón apagado sin explicación desespera. */
+
+.cf-wact {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: var(--cf-space-4);
+  padding: var(--cf-space-3) 0 var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+  background-color: var(--cf-bg);
+}
+
+.cf-wact__note {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.cf-wact .cf-dash-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* En escritorio no hace falta perseguir el pulgar: la acción vive en su
+   bloque, dentro de la columna estrecha. */
+@container (min-width: 721px) {
+  .cf-wact {
+    position: static;
+    margin-top: 0;
+    padding: var(--cf-space-4);
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius-md);
+    background-color: var(--cf-surface);
+  }
+
+  .cf-wact__note {
+    text-align: left;
+  }
+}
+
 /* ---------- TAREAS Y SUS FOTOS ----------
    Lo que el trabajador toca de verdad. Cada tarea lleva dos huecos: el
    antes y el después. Sin las dos fotos no se puede cerrar, así que el

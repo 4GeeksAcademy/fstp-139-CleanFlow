@@ -19,12 +19,16 @@ import {
     uploadTaskPhoto,
     deleteTaskPhoto,
     completeBookingTask,
+    startBookingDay,
+    finishBookingDay,
+    completeBooking,
 } from "../../services/bookingService";
 import { WorkerStatus } from "../../components/dashboard/worker/WorkerStatus";
 import { WorkerTimeline } from "../../components/dashboard/worker/WorkerTimeline";
 import { WorkerToday } from "../../components/dashboard/worker/WorkerToday";
 import { WorkerWhere } from "../../components/dashboard/worker/WorkerWhere";
 import { WorkerTasks } from "../../components/dashboard/worker/WorkerTasks";
+import { WorkerActions } from "../../components/dashboard/worker/WorkerActions";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
 
 const LIST_PATH = "/dashboard/tasks";
@@ -137,6 +141,44 @@ export const WorkerBookingDetail = () => {
         else setError(result.data.message);
     };
 
+
+    // ---------- EMPEZAR, CERRAR EL DÍA Y FINALIZAR ----------
+
+    // Un solo "ocupado" para las tres: no se puede empezar y finalizar a
+    // la vez, y así el botón no se puede pulsar dos veces con mala red.
+    const [acting, setActing] = useState(false);
+
+    /**
+     * Las tres acciones que mueven el servicio por su línea de tiempo.
+     *
+     * El día es el de hoy, que es el único que se puede trabajar: el
+     * backend rechaza cualquier otro.
+     */
+    const handleAction = async (action) => {
+        const today = madridToday();
+        const day = booking.days.find((row) => row.starts_at.slice(0, 10) === today);
+
+        if (!day) return;
+
+        setActing(true);
+        setError("");
+
+        const result = action === "start"
+            ? await startBookingDay(booking.booking_id, day.booking_day_id, store.token)
+            : action === "finishDay"
+                ? await finishBookingDay(booking.booking_id, day.booking_day_id, store.token)
+                : await completeBooking(booking.booking_id, store.token);
+
+        setActing(false);
+
+        if (expired(result)) return;
+
+        // Las tres devuelven la reserva entera: se pinta la que llega y
+        // no hace falta volver a pedirla.
+        if (result.ok) setBooking(result.data.booking);
+        else setError(result.data.message);
+    };
+
     // ---------- MIENTRAS LLEGA EL SERVICIO ----------
 
     if (loading) {
@@ -235,6 +277,12 @@ export const WorkerBookingDetail = () => {
                 <div className="cf-wdetail__col">
                     <WorkerTimeline booking={booking} />
                     <WorkerWhere booking={booking} />
+                    <WorkerActions
+                        booking={booking}
+                        today={madridToday()}
+                        busy={acting}
+                        onAction={handleAction}
+                    />
                 </div>
 
             </div>
