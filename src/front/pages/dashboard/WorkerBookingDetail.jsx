@@ -16,9 +16,21 @@ import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getWorkerBookings } from "../../services/bookingService";
 import { WorkerStatus } from "../../components/dashboard/worker/WorkerStatus";
+import { WorkerTimeline } from "../../components/dashboard/worker/WorkerTimeline";
+import { WorkerToday } from "../../components/dashboard/worker/WorkerToday";
+import { WorkerWhere } from "../../components/dashboard/worker/WorkerWhere";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
 
 const LIST_PATH = "/dashboard/tasks";
+
+/** Hoy en Madrid, como "2026-09-24". El backend decide con esa hora. */
+const madridToday = () =>
+    new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Madrid",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date());
 
 export const WorkerBookingDetail = () => {
     const { bookingId } = useParams();
@@ -134,6 +146,20 @@ export const WorkerBookingDetail = () => {
                 </div>
 
                 <WorkerStatus status={booking.status} />
+            </div>
+
+            {/* La columna ancha es donde se toca; la estrecha se consulta. */}
+            <div className="cf-wdetail__grid">
+
+                <div className="cf-wdetail__col">
+                    <WorkerToday booking={booking} today={madridToday()} />
+                </div>
+
+                <div className="cf-wdetail__col">
+                    <WorkerTimeline booking={booking} />
+                    <WorkerWhere booking={booking} />
+                </div>
+
             </div>
 
         </div>

@@ -6450,6 +6450,245 @@ textarea.cf-dash-input {
   transition: width var(--cf-transition);
 }
 
+/* ---------- DETALLE DE UN SERVICIO ----------
+   Donde el trabajador trabaja. En el móvil se lee de arriba abajo; en
+   escritorio, dos columnas: a la izquierda las tareas, que es lo que se
+   toca, y a la derecha lo que solo se consulta. */
+
+.cf-wdetail {
+  container-type: inline-size;
+  max-width: 1000px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+.cf-wdetail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-decoration: none;
+}
+
+.cf-wdetail__back:hover {
+  color: var(--cf-primary);
+}
+
+.cf-wdetail__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding-bottom: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-wdetail__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.cf-wdetail__sub {
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-wdetail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--cf-space-3);
+  margin-top: var(--cf-space-3);
+}
+
+.cf-wdetail__col {
+  display: grid;
+  gap: var(--cf-space-3);
+  align-content: start;
+}
+
+.cf-wblock {
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+}
+
+.cf-wblock__title {
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-brand);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---------- LÍNEA DE TIEMPO ----------
+   Tumbada y con tres hitos. En vertical se comería media pantalla del
+   móvil, que es donde se usa esto. */
+
+.cf-wtrack {
+  display: flex;
+  align-items: flex-start;
+}
+
+.cf-wtrack__step {
+  position: relative;
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+/* La línea une los hitos por detrás de las bolas. */
+.cf-wtrack__step::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: -50%;
+  width: 100%;
+  height: 2px;
+  background-color: var(--cf-primary);
+}
+
+.cf-wtrack__step:first-child::before {
+  display: none;
+}
+
+.cf-wtrack__step--todo::before {
+  background-color: var(--cf-border);
+}
+
+.cf-wtrack__mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-size: 0.6875rem;
+}
+
+.cf-wtrack__step--todo .cf-wtrack__mark {
+  border: 2px dashed var(--cf-border);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+}
+
+.cf-wtrack__step--fail .cf-wtrack__mark {
+  background-color: var(--cf-accent);
+  color: var(--cf-surface);
+}
+
+.cf-wtrack__name {
+  font-size: 0.7188rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.cf-wtrack__step--todo .cf-wtrack__name {
+  color: var(--cf-muted);
+  font-weight: 500;
+}
+
+.cf-wtrack__when {
+  color: var(--cf-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- HOY ----------
+   El bloque verde: en qué punto está el día que se está trabajando. */
+
+.cf-wtoday {
+  display: grid;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-primary);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-wtoday__when {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-base);
+  font-weight: 600;
+}
+
+.cf-wtoday__note {
+  margin: 0;
+  color: var(--cf-primary);
+  font-size: 0.7813rem;
+  opacity: 0.85;
+}
+
+/* ---------- DÓNDE Y CON QUIÉN ---------- */
+
+.cf-wrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-2) 0;
+  border-bottom: 1px solid var(--cf-border);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-wrow:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-wrow dt {
+  color: var(--cf-muted);
+}
+
+.cf-wrow dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.cf-wrow a {
+  color: var(--cf-primary);
+}
+
+/* Lo que todavía no se puede ver, dicho sin alarmar. */
+.cf-wrow__locked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-1);
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+  font-weight: 400;
+}
+
+/* Las notas del cliente, tal y como las escribió. */
+.cf-wnotes {
+  margin: var(--cf-space-3) 0 0;
+  padding: var(--cf-space-3);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-bg);
+  font-size: var(--cf-text-sm);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
 /* ---------- CARGANDO ---------- */
 
 .cf-wcard--skel {
@@ -6480,6 +6719,15 @@ textarea.cf-dash-input {
   grid-column: 1 / -1;
   height: 14px;
   margin-top: var(--cf-space-2);
+}
+
+/* ---------- ESTRECHO ----------
+   Es el ancho normal de esta pantalla, no la excepción. */
+
+@container (max-width: 720px) {
+  .cf-wdetail__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 

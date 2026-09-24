@@ -10,6 +10,7 @@ Lo que tiene `is_active` no se borra: se desactiva.
 """
 
 from datetime import time, datetime, date
+from zoneinfo import ZoneInfo
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, Boolean, Text, Float, Integer, Time, Date, DateTime, ForeignKey, func
 from sqlalchemy import Enum as SQLEnum
@@ -18,6 +19,11 @@ from enum import Enum
 from flask_bcrypt import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
+
+# Las fechas se guardan en hora de Madrid y sin zona. Aquí solo se usa
+# para saber si un servicio es hoy; el resto del cálculo vive en
+# availability.py, que no se importa para no cruzar los dos módulos.
+MADRID = ZoneInfo("Europe/Madrid")
 
 
 # ==================================================================
@@ -735,6 +741,9 @@ class Booking(db.Model):
     service = db.relationship("Service")
     address = db.relationship("Address")
 
+    # Quién contrató: el trabajador necesita saber a quién va a ver.
+    client = db.relationship("User")
+
     # Los tramos, en orden. Con booking.days.append(...) se guardan
     # junto con la reserva.
     days = db.relationship(
@@ -837,6 +846,26 @@ class Booking(db.Model):
             "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
             "incidents": [incident.serialize() for incident in self.incidents],
+            # Los datos del cliente, para quien va a su casa. El nombre
+            # siempre, con la inicial del apellido como el del trabajador.
+            "client_name": (
+                self.client.name + (
+                    " " + self.client.last_name.strip()[0] + "."
+                    if self.client.last_name.strip() else ""
+                ) if self.client else None
+            ),
+
+            # El teléfono, solo el día del servicio: hace falta para avisar
+            # de que se llega, no el resto del mes.
+            "client_phone": (
+                self.client.phone
+                if self.client and any(
+                    day.starts_at.date() == datetime.now(MADRID).date()
+                    for day in self.days
+                )
+                else None
+            ),
+
             # La foto del trabajador, solo aquí: el listado se apaña con
             # las iniciales y no tiene por qué cargar con ella.
             "worker_avatar_url": (

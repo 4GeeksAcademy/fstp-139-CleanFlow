@@ -2409,6 +2409,7 @@ def my_bookings():
     bookings = db.session.execute(
         db.select(Booking).options(
             selectinload(Booking.worker).selectinload(Worker.user),
+            selectinload(Booking.client),
             selectinload(Booking.days),
             selectinload(Booking.service),
             selectinload(Booking.address),
