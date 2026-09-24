@@ -17,7 +17,8 @@
      9. Mis servicios del cliente y el detalle de una reserva
         (cf-myservices__*, cf-bookcard__*, cf-bookdetail__*)
     10. Mis tareas del trabajador (cf-mytasks__*, cf-wcard__*)
-    11. Incidencias (cf-inc-sheet__*, cf-inc-type__*)
+    11. Incidencias: formulario y pantalla del encargado
+        (cf-inc-sheet__*, cf-incidents__*, cf-incard__*)
     12. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
@@ -7661,6 +7662,266 @@ textarea.cf-dash-input {
   margin: 0;
   color: var(--cf-accent-dark);
   font-size: 0.7813rem;
+}
+
+
+/* ---------- PANTALLA DEL ENCARGADO ----------
+   Todo lo que ha salido mal, venga del trabajador (#18) o del cliente
+   (#83). Es la pantalla que cierra el círculo: hasta la #19, se
+   registraban problemas que nadie podía resolver. */
+
+.cf-incidents {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+.cf-incidents__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-incidents__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+}
+
+.cf-incidents__lede {
+  margin: var(--cf-space-2) 0 0;
+  max-width: 62ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* La barra: las pestañas del catálogo y, a la derecha, los dos
+   desplegables. Misma estructura que Mis servicios. */
+.cf-incidents__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-2) var(--cf-space-6);
+  margin-bottom: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-incidents__toolbar .cf-services__tabs {
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-incidents__picks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-2);
+}
+
+/* Desplegable en píldora, a juego con el buscador del panel. La flecha
+   se dibuja con dos degradados porque la nativa no se puede teñir. */
+.cf-incidents__pick {
+  height: 38px;
+  padding: 0 34px 0 var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  cursor: pointer;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--cf-muted) 50%),
+    linear-gradient(135deg, var(--cf-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 17px, calc(100% - 13px) 17px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.cf-incidents__pick:focus-visible {
+  outline: none;
+  border-color: var(--cf-primary);
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+/* Con un filtro puesto se enciende, para saber que la lista está
+   recortada sin tener que leer los desplegables. */
+.cf-incidents__pick--on {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 500;
+}
+
+.cf-incidents__list {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- LA FICHA ---------- */
+
+.cf-incard {
+  display: grid;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4) var(--cf-space-5, 18px);
+  border: 1px solid var(--cf-border);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-md) var(--cf-radius-md) 0;
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+/* Resuelta: el borde se apaga, ya no pide nada. */
+.cf-incard--done {
+  border-left-color: var(--cf-primary-soft);
+}
+
+/* No realizada: borde más grueso. No es una figura rota, es un cliente
+   sin servicio y un hueco que decidir qué hacer con él. */
+.cf-incard--notdone {
+  border-left-width: 5px;
+}
+
+.cf-incard__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-incard__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-incard__tag--client {
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+}
+
+.cf-incard__tag--company {
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+/* La etiqueta que lo cambia todo: el servicio no llegó a hacerse. */
+.cf-incard__tag--notdone {
+  background-color: var(--cf-accent-dark);
+  color: var(--cf-on-primary);
+}
+
+.cf-incard__who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+}
+
+.cf-incard__when {
+  margin-left: auto;
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* De qué servicio habla: sin esto la incidencia no dice nada. */
+.cf-incard__ref {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--cf-space-1) var(--cf-space-4);
+  padding-bottom: var(--cf-space-2);
+  border-bottom: 1px solid var(--cf-border);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-incard__service {
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-base);
+  font-weight: 600;
+}
+
+.cf-incard__meta {
+  color: var(--cf-muted);
+}
+
+.cf-incard__text {
+  margin: 0;
+  font-size: 0.9063rem;
+  white-space: pre-wrap;
+}
+
+.cf-incard__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-incard__shots .cf-bookshot {
+  width: 72px;
+}
+
+.cf-incard__shots .cf-bookshot__img {
+  aspect-ratio: 1 / 1;
+}
+
+.cf-incard__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+}
+
+.cf-incard__fix {
+  margin: 0;
+  padding: var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+  white-space: pre-wrap;
+}
+
+.cf-incard__fix strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.7188rem;
+}
+
+/* ---------- CARGANDO ---------- */
+
+.cf-incard__skel-top {
+  width: 40%;
+  height: 16px;
+}
+
+.cf-incard__skel-ref {
+  width: 66%;
+  height: 14px;
+}
+
+.cf-incard__skel-text {
+  width: 84%;
+  height: 13px;
 }
 
 
