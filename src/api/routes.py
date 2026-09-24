@@ -2988,6 +2988,82 @@ def mark_booking_not_done(booking_id):
     return jsonify({"booking": booking.serialize_detail()}), 200
 
 
+
+# ----------------------------------------------------------------------
+# LA RESPUESTA DEL CLIENTE (#83)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/confirm   cliente de la reserva
+#
+# Cuando el trabajador finaliza, el cliente tiene 3 días para decir si
+# quedó bien. Si no dice nada, se da por bueno solo: el estado lo calcula
+# Booking.confirmation al leer, así que aquí no hay nada que programar.
+
+
+def client_booking(booking_id):
+    """La reserva, si es de quien pregunta y ya está finalizada.
+
+    Devuelve (booking, None) o (None, (respuesta, código)).
+    """
+    user_id = int(get_jwt_identity())
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    # Mismo mensaje para "no existe" y "no es tuya": decir cuál es
+    # confirmaría que la otra existe.
+    if booking is None or booking.client_id != user_id:
+        return None, (jsonify({"message": "Reserva no encontrada."}), 404)
+
+    if booking.status != BookingStatus.COMPLETED:
+        return None, (jsonify({
+            "message": "Este servicio todavía no ha terminado."
+        }), 409)
+
+    return booking, None
+
+
+@api.route("/bookings/<int:booking_id>/confirm", methods=["POST"])
+@role_required("client")
+@booking_transaction
+def confirm_booking(booking_id):
+    """El cliente da el servicio por bueno."""
+    booking, error = client_booking(booking_id)
+
+    if error:
+        return error
+
+    # confirmation ya sabe en qué punto está: aquí solo se mira si queda
+    # algo que decir. Repetir la regla sería tenerla en dos sitios.
+    state = booking.confirmation
+
+    if state == "confirmed":
+        return jsonify({
+            "message": "Ya habías dado este servicio por bueno."
+        }), 409
+
+    if state == "auto_confirmed":
+        return jsonify({
+            "message": "El plazo ya pasó y el servicio se dio por bueno."
+        }), 409
+
+    if state == "in_review":
+        return jsonify({
+            "message": "Estamos revisando lo que nos contaste."
+        }), 409
+
+    now = madrid_now()
+
+    booking.client_confirmed_at = now
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
 # ----------------------------------------------------------------------
 # FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
 # ----------------------------------------------------------------------
