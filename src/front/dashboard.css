@@ -17,7 +17,8 @@
      9. Mis servicios del cliente y el detalle de una reserva
         (cf-myservices__*, cf-bookcard__*, cf-bookdetail__*)
     10. Mis tareas del trabajador (cf-mytasks__*, cf-wcard__*)
-    11. Movimiento reducido
+    11. Incidencias (cf-inc-sheet__*, cf-inc-type__*)
+    12. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -7090,7 +7091,286 @@ textarea.cf-dash-input {
 
 
 /* ======================================================================
-   11. MOVIMIENTO REDUCIDO
+   11. INCIDENCIAS (components/dashboard/incidents)
+   ======================================================================
+
+   El formulario con el que el trabajador cuenta lo que ha pasado, y la
+   lista de lo que ya se ha contado. Lo estrena la #18; lo reutilizarán
+   el encargado al resolver (#19) y el cliente al reclamar (#83).
+
+   Es un <dialog> de verdad y no un div: el navegador ya oscurece el
+   fondo, atrapa el foco dentro y cierra con Escape. */
+
+.cf-inc-sheet {
+  width: min(460px, 92vw);
+  max-height: 88vh;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  overflow: hidden;
+}
+
+.cf-inc-sheet::backdrop {
+  background-color: rgba(38, 38, 31, 0.6);
+}
+
+.cf-inc-sheet__form {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: 88vh;
+}
+
+.cf-inc-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4) var(--cf-space-4) var(--cf-space-3);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-inc-sheet__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cf-inc-sheet__sub {
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-inc-sheet__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+
+.cf-inc-sheet__close:hover {
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+}
+
+/* El cuerpo scrollea y la cabecera y el pie se quedan: en un móvil con
+   el teclado abierto, los botones tienen que seguir a la vista. */
+.cf-inc-sheet__body {
+  display: grid;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-4);
+  overflow-y: auto;
+}
+
+.cf-inc-sheet__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-3) var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+  background-color: var(--cf-bg);
+}
+
+.cf-inc-sheet__foot .cf-dash-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* ---------- CAMPOS ---------- */
+
+.cf-inc-field {
+  display: grid;
+  gap: 7px;
+}
+
+.cf-inc-field__label {
+  font-size: 0.8438rem;
+  font-weight: 600;
+}
+
+.cf-inc-field__hint {
+  color: var(--cf-muted);
+  font-weight: 400;
+}
+
+/* cf-dash-input está pensada para <input>: a un <textarea> hay que
+   decirle que solo crece hacia abajo y que el padding va por dentro. */
+.cf-inc-field textarea.cf-dash-input {
+  min-height: 96px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.cf-inc-field__count {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- EL TIPO ----------
+   Dos tarjetas con ejemplos, no un desplegable: "cliente" y "empresa"
+   son las palabras del modelo, no las de quien acaba de pasar veinte
+   minutos en un rellano. Se elige por lo que pasó. */
+
+.cf-inc-types {
+  display: grid;
+  gap: var(--cf-space-2);
+}
+
+.cf-inc-type {
+  display: grid;
+  gap: 2px;
+  padding: var(--cf-space-3);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  font-family: var(--cf-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--cf-transition), background-color var(--cf-transition);
+}
+
+.cf-inc-type:hover {
+  border-color: var(--cf-primary);
+}
+
+.cf-inc-type[aria-pressed="true"] {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-inc-type__name {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-text);
+  font-size: 0.9063rem;
+  font-weight: 600;
+}
+
+.cf-inc-type[aria-pressed="true"] .cf-inc-type__name {
+  color: var(--cf-primary);
+}
+
+.cf-inc-type__eg {
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+}
+
+.cf-inc-type[aria-pressed="true"] .cf-inc-type__eg {
+  color: var(--cf-primary);
+  opacity: 0.8;
+}
+
+.cf-inc-type__check {
+  margin-left: auto;
+  opacity: 0;
+}
+
+.cf-inc-type[aria-pressed="true"] .cf-inc-type__check {
+  opacity: 1;
+}
+
+/* ---------- LA FOTO ---------- */
+
+.cf-inc-shot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  width: 120px;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 1.5px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cf-inc-shot:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-inc-shot--full {
+  border-style: solid;
+  cursor: default;
+}
+
+.cf-inc-shot__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cf-inc-shot__del {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(38, 38, 31, 0.7);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-inc-shot__del:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+/* ---------- AVISO DE LO QUE NO SE DESHACE ---------- */
+
+.cf-inc-warn {
+  display: flex;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: var(--cf-space-3);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.8438rem;
+}
+
+/* El motivo por el que todavía no se puede enviar. */
+.cf-inc-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.7813rem;
+}
+
+
+/* ======================================================================
+   12. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
