@@ -51,55 +51,59 @@ export const WorkerShot = ({ kind, photo, uploading, canEdit, onPick, onDelete }
 
     const image = photo?.media_url || preview;
 
+    // ---------- HUECO VACÍO: ES EL BOTÓN ----------
+
+    if (!image) {
+        return (
+            <>
+                <button
+                    type="button"
+                    className="cf-wshot"
+                    disabled={!canEdit}
+                    onClick={() => input.current?.click()}
+                >
+                    <i className="fa-solid fa-camera fa-lg" aria-hidden="true"></i>
+                    {LABELS[kind]}
+                </button>
+
+                {/* capture: en el móvil abre la cámara; en el ordenador se
+                    ignora y se abre el explorador de archivos. */}
+                <input
+                    ref={input}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    hidden
+                    onChange={handleChange}
+                />
+            </>
+        );
+    }
+
+    // ---------- CON FOTO ----------
+
     return (
-        <div className={`cf-wshot${image ? " cf-wshot--full" : ""}`}>
-            {image ? (
-                <>
-                    <img className="cf-wshot__img" src={image} alt={LABELS[kind]} />
-                    <span className="cf-wshot__tag">
-                        {uploading ? "Subiendo…" : LABELS[kind]}
-                    </span>
+        <div className="cf-wshot cf-wshot--full">
+            <img className="cf-wshot__img" src={image} alt={LABELS[kind]} />
 
-                    {/* La ✕ solo mientras la tarea sigue abierta: una vez
-                        cerrada, las fotos son su prueba. */}
-                    {canEdit && !uploading && photo && (
-                        <button
-                            type="button"
-                            className="cf-wshot__del"
-                            aria-label={`Quitar la foto del ${LABELS[kind].toLowerCase()}`}
-                            onClick={() => onDelete(photo)}
-                        >
-                            <i className="fa-solid fa-xmark" aria-hidden="true"></i>
-                        </button>
-                    )}
+            <span className="cf-wshot__tag">
+                {uploading ? "Subiendo…" : LABELS[kind]}
+            </span>
 
-                    {uploading && <span className="cf-wshot__load"></span>}
-                </>
-            ) : (
-                <>
-                    <button
-                        type="button"
-                        className="cf-wshot"
-                        style={{ position: "absolute", inset: 0, border: 0 }}
-                        disabled={!canEdit}
-                        onClick={() => input.current?.click()}
-                    >
-                        <i className="fa-solid fa-camera fa-lg" aria-hidden="true"></i>
-                        {LABELS[kind]}
-                    </button>
-
-                    {/* capture: en el móvil abre la cámara; en el ordenador
-                        se ignora y se abre el explorador de archivos. */}
-                    <input
-                        ref={input}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        hidden
-                        onChange={handleChange}
-                    />
-                </>
+            {/* La ✕ solo mientras la tarea sigue abierta: una vez cerrada,
+                las fotos son su prueba y no se tocan. */}
+            {canEdit && !uploading && photo && (
+                <button
+                    type="button"
+                    className="cf-wshot__del"
+                    aria-label={`Quitar la foto del ${LABELS[kind].toLowerCase()}`}
+                    onClick={() => onDelete(photo)}
+                >
+                    <i className="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
             )}
+
+            {uploading && <span className="cf-wshot__load"></span>}
         </div>
     );
 };

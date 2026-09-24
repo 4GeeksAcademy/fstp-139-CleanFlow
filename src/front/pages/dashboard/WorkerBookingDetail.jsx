@@ -185,10 +185,25 @@ export const WorkerBookingDetail = () => {
         return (
             <div className="cf-wdetail" aria-busy="true">
                 <div className="cf-dash-skel" style={{ width: "110px", height: "13px" }}></div>
+
                 <div className="cf-wdetail__header">
                     <div style={{ flex: 1 }}>
                         <div className="cf-dash-skel" style={{ width: "44%", height: "24px" }}></div>
                         <div className="cf-dash-skel" style={{ width: "60%", height: "13px", marginTop: "10px" }}></div>
+                    </div>
+                </div>
+
+                {/* Con la forma de lo que va a llegar: el bloque del día,
+                    dos tareas y la columna de consulta. Así la pantalla no
+                    pega un salto cuando entra el servicio. */}
+                <div className="cf-wdetail__grid">
+                    <div className="cf-wdetail__col">
+                        <div className="cf-dash-skel" style={{ height: "74px", borderRadius: "12px" }}></div>
+                        <div className="cf-dash-skel" style={{ height: "128px", borderRadius: "12px" }}></div>
+                    </div>
+                    <div className="cf-wdetail__col">
+                        <div className="cf-dash-skel" style={{ height: "88px", borderRadius: "12px" }}></div>
+                        <div className="cf-dash-skel" style={{ height: "150px", borderRadius: "12px" }}></div>
                     </div>
                 </div>
             </div>
@@ -230,7 +245,23 @@ export const WorkerBookingDetail = () => {
 
     // ---------- EL SERVICIO ----------
 
+    // Igual que en la tarjeta: sin tramos no hay nada que enseñar, y es
+    // preferible el aviso de "no existe" a una pantalla rota.
     const [first] = booking.days;
+
+    if (!first) {
+        return (
+            <div className="cf-wdetail">
+                <Link to={LIST_PATH} className="cf-wdetail__back">
+                    <i className="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                    Mis tareas
+                </Link>
+                <p className="cf-dash-alert" role="alert">
+                    Este servicio no tiene horario asignado. Avisa al encargado.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="cf-wdetail">

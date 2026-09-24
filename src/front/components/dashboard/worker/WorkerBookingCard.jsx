@@ -20,6 +20,12 @@ const shortAddress = (address) =>
 
 export const WorkerBookingCard = ({ booking, today, onOpen }) => {
     const [first] = booking.days;
+
+    // Toda reserva nace con al menos un tramo, pero si alguna llegara sin
+    // ellos la tarjeta reventaría y se llevaría la lista entera por
+    // delante. Mejor no pintarla y que el resto se vea.
+    if (!first) return null;
+
     const moreDays = booking.days.length - 1;
 
     // El de hoy se distingue con el borde y con "HOY" en lugar del mes:
