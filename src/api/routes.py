@@ -2764,7 +2764,6 @@ def delete_task_photo(media_id):
     return jsonify({"message": "Foto borrada."}), 200
 
 
-
 # ----------------------------------------------------------------------
 # INCIDENCIAS DEL TRABAJADOR (#18)
 # ----------------------------------------------------------------------
@@ -2774,7 +2773,6 @@ def delete_task_photo(media_id):
 # abiertas y las cierra el encargado (#19). Una incidencia abierta NO
 # impide terminar el día ni finalizar: si bloqueara, un trabajador con
 # una figura rota se quedaría sin poder cerrar su jornada.
-
 
 # Lo que cabe en una descripción. Más que eso no es una incidencia, es
 # un parte, y se cuenta por teléfono.
@@ -2819,7 +2817,8 @@ def read_incident_form(booking):
     Llega como multipart porque puede traer foto, así que los campos se
     leen de request.form y no de un JSON.
     """
-    kind = request.form.get("incident_type")
+    # "No realizado" no pregunta el tipo: lo fuerza a cliente después.
+    kind = request.form.get("incident_type") or "client"
 
     if kind not in ("client", "company"):
         return None, (jsonify({
@@ -2932,6 +2931,62 @@ def create_incident(booking_id):
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 201
+
+
+@api.route("/bookings/<int:booking_id>/not-done", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def mark_booking_not_done(booking_id):
+    """El servicio no se ha podido hacer.
+
+    Crea la incidencia y cierra la reserva, las dos cosas o ninguna: si
+    la foto falla, el estado no debe cambiar y quedarse sin explicación.
+
+    El tipo es siempre de cliente y no se pregunta: por definición, un
+    servicio que no se pudo hacer fue por algo ajeno a CleanFlow. Si el
+    motivo fuera nuestro, esto no se marca: se reprograma.
+    """
+    booking, error = worker_booking(booking_id)
+
+    if error:
+        return error
+
+    if booking.status not in (BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS):
+        return jsonify({
+            "message": "Este servicio ya está cerrado."
+        }), 409
+
+    now = madrid_now()
+
+    # Solo el día del servicio: no se puede dar por perdido de antemano
+    # ni rescatar uno de la semana pasada.
+    if not any(day.starts_at.date() == now.date() for day in booking.days):
+        return jsonify({
+            "message": "Solo puedes marcarlo el día del servicio."
+        }), 409
+
+    data, error = read_incident_form(booking)
+
+    if error:
+        return error
+
+    incident, error = add_incident(booking, data, incident_type=IncidentType.CLIENT)
+
+    if error:
+        return error
+
+    # El trabajador estuvo allí, aunque no pudiera trabajar: queda la
+    # hora de cuando se plantó en la puerta.
+    if booking.started_at is None:
+        booking.started_at = now
+
+    booking.status = BookingStatus.NOT_DONE
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
 
 # ----------------------------------------------------------------------
 # FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
