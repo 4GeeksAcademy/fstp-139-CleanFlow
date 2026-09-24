@@ -14,11 +14,17 @@ import "../../dashboard.css";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
-import { getWorkerBookings } from "../../services/bookingService";
+import {
+    getWorkerBookings,
+    uploadTaskPhoto,
+    deleteTaskPhoto,
+    completeBookingTask,
+} from "../../services/bookingService";
 import { WorkerStatus } from "../../components/dashboard/worker/WorkerStatus";
 import { WorkerTimeline } from "../../components/dashboard/worker/WorkerTimeline";
 import { WorkerToday } from "../../components/dashboard/worker/WorkerToday";
 import { WorkerWhere } from "../../components/dashboard/worker/WorkerWhere";
+import { WorkerTasks } from "../../components/dashboard/worker/WorkerTasks";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
 
 const LIST_PATH = "/dashboard/tasks";
@@ -72,6 +78,64 @@ export const WorkerBookingDetail = () => {
     }, [bookingId, store.token, dispatch]);
 
     useEffect(() => { load(); }, [load]);
+
+
+    // ---------- SUBIR, BORRAR Y MARCAR ----------
+
+    // Qué tarea está esperando respuesta, para apagar sus botones, y qué
+    // foto se está subiendo, como "12-before". Dos datos y no uno: se
+    // puede estar subiendo una foto de una tarea y marcando otra.
+    const [busyTaskId, setBusyTaskId] = useState(null);
+    const [uploading, setUploading] = useState(null);
+
+    /** Cierra sesión si el token caducó. true si no hay que seguir. */
+    const expired = (result) => {
+        if (result.status !== 401) return false;
+
+        dispatch({ type: "LOGOUT" });
+        return true;
+    };
+
+    const handlePick = async (task, kind, file) => {
+        setUploading(`${task.booking_task_id}-${kind}`);
+        setError("");
+
+        const result = await uploadTaskPhoto(task.booking_task_id, kind, file, store.token);
+
+        setUploading(null);
+
+        if (expired(result)) return;
+
+        // Se recarga el servicio entero y no solo la foto: así la tarea
+        // llega con sus dos fotos y el botón de cerrar se enciende solo.
+        if (result.ok) await load();
+        else setError(result.data.message);
+    };
+
+    const handleDeletePhoto = async (photo) => {
+        setError("");
+
+        const result = await deleteTaskPhoto(photo.media_id, store.token);
+
+        if (expired(result)) return;
+
+        if (result.ok) await load();
+        else setError(result.data.message);
+    };
+
+    const handleToggle = async (task, completed) => {
+        setBusyTaskId(task.booking_task_id);
+        setError("");
+
+        const result = await completeBookingTask(task.booking_task_id, store.token, completed);
+
+        setBusyTaskId(null);
+
+        if (expired(result)) return;
+
+        if (result.ok) await load();
+        else setError(result.data.message);
+    };
 
     // ---------- MIENTRAS LLEGA EL SERVICIO ----------
 
@@ -148,11 +212,24 @@ export const WorkerBookingDetail = () => {
                 <WorkerStatus status={booking.status} />
             </div>
 
+            {/* Un fallo al subir una foto o al marcar una tarea no debe
+                tirar la pantalla: se avisa aquí y el trabajo sigue donde
+                estaba. El error de carga tiene su propio bloque arriba. */}
+            {error && <p className="cf-dash-alert" role="alert">{error}</p>}
+
             {/* La columna ancha es donde se toca; la estrecha se consulta. */}
             <div className="cf-wdetail__grid">
 
                 <div className="cf-wdetail__col">
                     <WorkerToday booking={booking} today={madridToday()} />
+                    <WorkerTasks
+                        booking={booking}
+                        busyTaskId={busyTaskId}
+                        uploading={uploading}
+                        onPick={handlePick}
+                        onDeletePhoto={handleDeletePhoto}
+                        onToggle={handleToggle}
+                    />
                 </div>
 
                 <div className="cf-wdetail__col">

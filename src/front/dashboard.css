@@ -6689,6 +6689,208 @@ textarea.cf-dash-input {
   white-space: pre-wrap;
 }
 
+/* ---------- TAREAS Y SUS FOTOS ----------
+   Lo que el trabajador toca de verdad. Cada tarea lleva dos huecos: el
+   antes y el después. Sin las dos fotos no se puede cerrar, así que el
+   hueco vacío ES el botón de la cámara; no hay un "subir foto" aparte. */
+
+.cf-wtask {
+  padding: var(--cf-space-3);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+}
+
+.cf-wtask + .cf-wtask {
+  margin-top: var(--cf-space-2);
+}
+
+.cf-wtask--done {
+  border-color: var(--cf-primary-soft);
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-wtask__top {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-wtask__check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 1.5px dashed var(--cf-border);
+  border-radius: 50%;
+  color: var(--cf-primary);
+  font-size: 0.625rem;
+}
+
+.cf-wtask--done .cf-wtask__check {
+  border: 0;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+.cf-wtask__name {
+  font-size: 0.9063rem;
+  font-weight: 600;
+}
+
+.cf-wtask--done .cf-wtask__name {
+  color: var(--cf-primary);
+}
+
+.cf-wtask__undo {
+  margin-left: auto;
+  padding: var(--cf-space-1) 6px;
+  border: 0;
+  background: none;
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.7813rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cf-wtask__undo:hover {
+  color: var(--cf-primary);
+}
+
+.cf-wtask__shots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-3);
+  max-width: 340px;
+}
+
+/* ---------- UN HUECO DE FOTO ---------- */
+
+.cf-wshot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 1.5px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cf-wshot:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-wshot:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+.cf-wshot[disabled] {
+  cursor: wait;
+}
+
+/* Con foto: borde entero y la imagen llenando el hueco. */
+.cf-wshot--full {
+  border-style: solid;
+  cursor: default;
+}
+
+.cf-wshot__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cf-wshot__tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-family: var(--cf-font-brand);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.cf-wshot__del {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(38, 38, 31, 0.7);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-wshot__del:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+/* Subiendo: la miniatura ya se ve y la barra avisa de que va en camino.
+   Con datos móviles no es instantáneo y el hueco en blanco desespera. */
+.cf-wshot__load {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4px;
+  background-color: var(--cf-border);
+  overflow: hidden;
+}
+
+.cf-wshot__load::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  background-color: var(--cf-primary);
+  animation: cf-wshot-load 1.1s ease-in-out infinite;
+}
+
+@keyframes cf-wshot-load {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* El motivo por el que la tarea todavía no se puede cerrar. */
+.cf-wtask__hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.7813rem;
+}
+
+.cf-wtask__actions {
+  margin-top: var(--cf-space-3);
+}
+
 /* ---------- CARGANDO ---------- */
 
 .cf-wcard--skel {
@@ -6741,7 +6943,8 @@ textarea.cf-dash-input {
   .cf-dash-skel,
   .cf-tasks__row--flash,
   .cf-services__row--flash,
-  .cf-bookstate--live .cf-bookstate__dot {
+  .cf-bookstate--live .cf-bookstate__dot,
+  .cf-wshot__load::after {
     animation: none;
   }
 
