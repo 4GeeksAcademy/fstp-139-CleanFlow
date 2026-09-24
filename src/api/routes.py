@@ -3012,10 +3012,14 @@ def mark_booking_not_done(booking_id):
 # LA RESPUESTA DEL CLIENTE (#83)
 # ----------------------------------------------------------------------
 #   POST  /api/bookings/<id>/confirm   cliente de la reserva
+#   POST  /api/bookings/<id>/claim     cliente, multipart con hasta 5 fotos
 #
 # Cuando el trabajador finaliza, el cliente tiene 3 días para decir si
 # quedó bien. Si no dice nada, se da por bueno solo: el estado lo calcula
 # Booking.confirmation al leer, así que aquí no hay nada que programar.
+#
+# Las reglas de cuándo se puede hacer cada cosa las pone esa propiedad,
+# no estos endpoints: aquí solo se lee lo que devuelve.
 
 
 def client_booking(booking_id):

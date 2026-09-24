@@ -50,15 +50,15 @@ export const ClaimForm = ({ open, saving, onSubmit, onClose }) => {
     }, [open]);
 
     const handlePick = (event) => {
-        const elegidas = [...event.target.files];
+        const chosen = [...event.target.files];
 
-        if (elegidas.length === 0) return;
+        if (chosen.length === 0) return;
 
         // Las que pasen del tope se ignoran: es lo mismo que hace el
         // backend, y así el aviso no llega después de subirlas.
         setPhotos((current) => [
             ...current,
-            ...elegidas
+            ...chosen
                 .slice(0, MAX_PHOTOS - current.length)
                 .map((file) => ({ file, url: URL.createObjectURL(file) })),
         ]);

@@ -804,12 +804,12 @@ class Booking(db.Model):
         if self.status != BookingStatus.COMPLETED:
             return None
 
-        reclamó = any(
+        claimed = any(
             incident.source == IncidentSource.CLIENT and not incident.resolved
             for incident in self.incidents
         )
 
-        if reclamó:
+        if claimed:
             return "in_review"
 
         if self.client_confirmed_at:
@@ -821,9 +821,9 @@ class Booking(db.Model):
         if not self.completed_at:
             return None
 
-        limite = self.completed_at.date() + timedelta(days=CONFIRM_DAYS)
+        deadline = self.completed_at.date() + timedelta(days=CONFIRM_DAYS)
 
-        return "pending" if datetime.now(MADRID).date() <= limite else "auto_confirmed"
+        return "pending" if datetime.now(MADRID).date() <= deadline else "auto_confirmed"
 
     # ---- SERIALIZADORES ----
 

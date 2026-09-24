@@ -5,8 +5,9 @@
  * está, qué se contrató, cuánto costó, quién lo hizo, cómo quedó y si
  * hubo alguna incidencia.
  *
- * Es la pantalla donde aterrizarán cancelar (#17), confirmar o reclamar
- * (#83) y valorar (#20). Aquí solo se lee.
+ * Desde aquí también responde: da el servicio por bueno o cuenta que
+ * algo no fue bien (#83). Lo que falta por aterrizar es cancelar (#17) y
+ * valorar (#20).
  *
  * Estilos: dashboard.css, sección 9 (cf-bookdetail).
  */
