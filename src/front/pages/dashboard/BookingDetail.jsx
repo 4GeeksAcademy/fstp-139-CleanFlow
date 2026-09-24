@@ -22,6 +22,9 @@ import { BookingWhat } from "../../components/dashboard/bookings/BookingWhat";
 import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
 import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker";
 import { BookingWhen } from "../../components/dashboard/bookings/BookingWhen";
+import { BookingPhotos } from "../../components/dashboard/bookings/BookingPhotos";
+import { BookingIncidents } from "../../components/dashboard/bookings/BookingIncidents";
+import { BookingZoom } from "../../components/dashboard/bookings/BookingZoom";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
 
 const LIST_PATH = "/dashboard/contracted-services";
@@ -31,6 +34,7 @@ export const BookingDetail = () => {
     const { store, dispatch } = useGlobalReducer();
 
     const [booking, setBooking] = useState(null);
+    const [zoomed, setZoomed] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -148,15 +152,19 @@ export const BookingDetail = () => {
                 <div className="cf-bookdetail__col">
                     <BookingTimeline booking={booking} />
                     <BookingWhat booking={booking} />
+                    <BookingPhotos tasks={booking.tasks} onZoom={setZoomed} />
                 </div>
 
                 <div className="cf-bookdetail__col">
                     <BookingPrice booking={booking} />
                     <BookingWorker booking={booking} />
                     <BookingWhen booking={booking} />
+                    <BookingIncidents incidents={booking.incidents} onZoom={setZoomed} />
                 </div>
 
             </div>
+
+            <BookingZoom photo={zoomed} onClose={() => setZoomed(null)} />
 
         </div>
     );

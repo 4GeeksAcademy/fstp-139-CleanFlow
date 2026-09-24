@@ -5842,6 +5842,177 @@ textarea.cf-dash-input {
   font-size: 0.8125rem;
 }
 
+/* ---------- CÓMO QUEDÓ: FOTOS ----------
+   El antes y el después de cada tarea, en parejas. Al pulsar una se
+   abre en grande, que en miniatura no se aprecia nada. */
+
+.cf-bookshots {
+  display: grid;
+  gap: var(--cf-space-4);
+}
+
+.cf-bookshots__task {
+  margin: 0 0 var(--cf-space-2);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+.cf-bookshots__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cf-space-2);
+}
+
+.cf-bookshot {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  overflow: hidden;
+  background: none;
+  cursor: zoom-in;
+}
+
+.cf-bookshot:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+.cf-bookshot__img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+/* Verde de marca y no un negro translúcido: la etiqueta tiene que
+   leerse igual sobre una foto clara que sobre una oscura. */
+.cf-bookshot__tag {
+  position: absolute;
+  top: var(--cf-space-2);
+  left: var(--cf-space-2);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-family: var(--cf-font-brand);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* ---------- FOTO AMPLIADA ----------
+   <dialog> con showModal(): el navegador la centra, oscurece el fondo y
+   bloquea la página, y Escape la cierra sin escribir una línea. */
+
+.cf-bookzoom {
+  width: min(720px, 92vw);
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+}
+
+.cf-bookzoom::backdrop {
+  background-color: rgba(38, 38, 31, 0.66);
+}
+
+.cf-bookzoom__img {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  background-color: var(--cf-bg);
+}
+
+.cf-bookzoom__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-3) var(--cf-space-4);
+}
+
+.cf-bookzoom__text {
+  margin: 0;
+  font-size: var(--cf-text-sm);
+  font-weight: 500;
+}
+
+/* ---------- INCIDENCIAS ----------
+   Solo lectura: abrirlas es la #18 y resolverlas la #19. */
+
+.cf-bookincidents {
+  display: grid;
+  gap: var(--cf-space-3);
+}
+
+.cf-bookincident {
+  display: grid;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-3) var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-bg);
+}
+
+.cf-bookincident__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-bookincident__when {
+  margin-left: auto;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-bookincident__text {
+  margin: 0;
+  font-size: 0.9063rem;
+  white-space: pre-wrap;
+}
+
+/* Lo que escribió el encargado al cerrarla: el cliente lo lee tal cual. */
+.cf-bookincident__fix {
+  margin: 0;
+  padding: var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-bookincident__fix strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.75rem;
+}
+
+/* Las fotos de la incidencia son más pequeñas: acompañan al texto. */
+.cf-bookincident__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-bookincident__shots .cf-bookshot {
+  width: 96px;
+}
+
+.cf-bookincident__shots .cf-bookshot__img {
+  aspect-ratio: 1 / 1;
+}
+
 /* ---------- ESTRECHO ----------
    Sin sitio para tres columnas: el estado y el precio bajan a su fila. */
 
