@@ -3145,6 +3145,71 @@ def claim_booking(booking_id):
 
 
 # ----------------------------------------------------------------------
+# INCIDENCIAS DEL ENCARGADO (#19)
+# ----------------------------------------------------------------------
+#   GET  /api/incidents?resolved=&type=&source=&count_only=   encargado
+#
+# Todo lo que ha salido mal, venga del trabajador (#18) o del cliente
+# (#83). Es la pantalla que cierra el círculo: hasta ahora se registraban
+# problemas que nadie podía resolver.
+
+
+@api.route("/incidents", methods=["GET"])
+@role_required("manager")
+def list_incidents():
+    """Las incidencias, filtradas por estado, tipo y origen.
+
+    count_only=1 devuelve solo el número: lo usa la pastilla del menú, y
+    así no se traen todas las filas treinta veces por minuto.
+    """
+    query = db.select(Incident)
+
+    # Cada filtro solo entra si viene: sin ellos salen todas.
+    resolved = request.args.get("resolved")
+
+    if resolved in ("true", "false"):
+        query = query.where(Incident.resolved.is_(resolved == "true"))
+
+    kind = request.args.get("type")
+
+    if kind in ("client", "company"):
+        query = query.where(Incident.incident_type == IncidentType(kind))
+
+    source = request.args.get("source")
+
+    if source in ("worker", "client"):
+        query = query.where(Incident.source == IncidentSource(source))
+
+    if request.args.get("count_only"):
+        total = db.session.execute(
+            db.select(func.count()).select_from(query.subquery())
+        ).scalar_one()
+
+        return jsonify({"count": total}), 200
+
+    # La reserva con su servicio, su cliente y su trabajador: sin esto
+    # sería una consulta por incidencia solo para saber de qué habla.
+    incidents = db.session.execute(
+        query.options(
+            selectinload(Incident.media),
+            selectinload(Incident.booking).selectinload(Booking.service),
+            selectinload(Incident.booking).selectinload(Booking.client),
+            selectinload(Incident.booking).selectinload(Booking.worker).selectinload(Worker.user),
+            selectinload(Incident.booking).selectinload(Booking.days),
+        ).order_by(
+            # Las abiertas primero y, dentro, las más recientes: es el
+            # orden en que se van a atender.
+            Incident.resolved,
+            Incident.created_at.desc(),
+        )
+    ).scalars().all()
+
+    return jsonify({
+        "incidents": [incident.serialize_managed() for incident in incidents]
+    }), 200
+
+
+# ----------------------------------------------------------------------
 # FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
 # ----------------------------------------------------------------------
 #   POST   /api/job-applications                público

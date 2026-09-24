@@ -1175,6 +1175,10 @@ class Incident(db.Model):
         nullable=True
     )
 
+    # La reserva de la que habla. Sin ella, el encargado ve un problema
+    # pero no de qué servicio (#19).
+    booking = db.relationship("Booking", overlaps="incidents")
+
     # Las fotos de la incidencia, en el orden en que se subieron. Con la
     # relación se pueden precargar al listar; con una consulta suelta
     # dentro de serialize() caía una por incidencia.
@@ -1214,6 +1218,34 @@ class Incident(db.Model):
                 else None
             ),
             "media": [media_item.serialize() for media_item in self.media],
+        }
+
+    
+    def serialize_managed(self):
+        """La incidencia con el contexto de su reserva, para el encargado.
+
+        Una incidencia suelta no le dice nada: necesita saber de qué
+        servicio habla, de qué día y con quién, para poder llamar.
+        """
+        booking = self.booking
+
+        return {
+            **self.serialize(),
+            "booking": {
+                "service": booking.service.name if booking.service else None,
+                "status": booking.status.value if booking.status else None,
+                "starts_at": (
+                    booking.days[0].starts_at.isoformat()
+                    if booking.days
+                    else None
+                ),
+                "client_name": (
+                    f"{booking.client.name} {booking.client.last_name}"
+                    if booking.client
+                    else None
+                ),
+                "worker_name": booking.worker_name,
+            },
         }
 
 
