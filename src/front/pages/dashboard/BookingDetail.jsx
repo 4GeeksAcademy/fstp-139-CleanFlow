@@ -18,6 +18,7 @@ import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getMyBookings } from "../../services/bookingService";
 import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
+import { BookingCancelled } from "../../components/dashboard/bookings/BookingCancelled";
 import { BookingWhat } from "../../components/dashboard/bookings/BookingWhat";
 import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
 import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker";
@@ -166,6 +167,7 @@ export const BookingDetail = () => {
 
                 <div className="cf-bookdetail__col">
                     <BookingTimeline booking={booking} />
+                    <BookingCancelled booking={booking} />
                     <BookingWhat booking={booking} />
                     <BookingPhotos tasks={booking.tasks} onZoom={setZoomed} />
                 </div>
