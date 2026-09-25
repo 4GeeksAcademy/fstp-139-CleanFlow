@@ -1088,6 +1088,20 @@ class BookingTask(db.Model):
 # ==================================================================
 # Valoración del cliente: como mucho una por reserva (booking_id único).
 
+def public_name(user):
+    """El nombre como se enseña fuera: "Ana G.".
+
+    Solo la inicial del apellido: para reconocer a alguien no hace falta
+    su nombre completo, y en la web pública menos todavía.
+    """
+    if user is None:
+        return None
+
+    initial = f" {user.last_name.strip()[0]}." if user.last_name.strip() else ""
+
+    return f"{user.name}{initial}"
+
+
 class Review(db.Model):
     __tablename__ = "reviews"
 
@@ -1115,6 +1129,10 @@ class Review(db.Model):
         DateTime,
         nullable=True
     )
+
+    # Quién la escribió. La web pública solo enseña su nombre de pila con
+    # la inicial, pero para eso hay que poder llegar al usuario.
+    client = db.relationship("User")
 
     # Las fotos que subió el cliente al valorar, en el orden en que las
     # eligió. Con la relación se precargan al listar; con una consulta

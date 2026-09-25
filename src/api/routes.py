@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus, public_name
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -3498,6 +3498,90 @@ def create_review(booking_id):
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 201
+
+
+# ----------------------------------------------------------------------
+# LEER LAS VALORACIONES (#20)
+# ----------------------------------------------------------------------
+#   GET  /api/reviews/public       público, sin sesión
+#   GET  /api/workers/me/rating    el trabajador, su propia nota
+#
+# La misma nota que deja el cliente se cuenta de dos maneras: la media de
+# la empresa para la web (#41) y la de cada trabajador (#75).
+
+# Cuántas opiniones viajan a la landing. Las justas para llenar la
+# sección: traerlas todas sería mandar cientos para enseñar seis.
+PUBLIC_REVIEWS_LIMIT = 6
+
+
+@api.route("/reviews/public", methods=["GET"])
+def public_reviews():
+    """La media de CleanFlow y las últimas opiniones, para la web.
+
+    Sin sesión: lo llama cualquiera que entre en la landing. Por eso se
+    arma el diccionario a mano en vez de usar Review.serialize(), que
+    lleva client_id y las fotos: ni el id de un cliente ni el interior de
+    su casa tienen por qué salir de la aplicación.
+    """
+    average, total = db.session.execute(
+        db.select(func.avg(Review.rating), func.count(Review.review_id))
+    ).one()
+
+    # Sin valoraciones se devuelve null y no un cero: la web no puede
+    # enseñar "0 sobre 5" cuando lo que pasa es que aún no hay ninguna.
+    media = round(float(average), 1) if total else None
+
+    # Solo las que traen comentario: una cita vacía no se puede enseñar.
+    reviews = db.session.execute(
+        db.select(Review)
+        .where(Review.comment.is_not(None))
+        .order_by(Review.created_at.desc())
+        .limit(PUBLIC_REVIEWS_LIMIT)
+        .options(selectinload(Review.client))
+    ).scalars().all()
+
+    return jsonify({
+        "average": media,
+        "total": total,
+        "reviews": [
+            {
+                "review_id": review.review_id,
+                "client_name": public_name(review.client),
+                "rating": review.rating,
+                "comment": review.comment,
+            }
+            for review in reviews
+        ],
+    }), 200
+
+
+@api.route("/workers/me/rating", methods=["GET"])
+@role_required("worker")
+def my_rating():
+    """La nota del propio trabajador: la media de los servicios que hizo.
+
+    Solo el número y cuántas son. Quién puso cada nota no se devuelve: el
+    cliente valora el servicio, no habla con quien fue a su casa.
+    """
+    user_id = int(get_jwt_identity())
+
+    worker = db.session.execute(
+        db.select(Worker).where(Worker.user_id == user_id)
+    ).scalar_one_or_none()
+
+    if worker is None:
+        return jsonify({"message": "No tienes un perfil de trabajador."}), 403
+
+    average, total = db.session.execute(
+        db.select(func.avg(Review.rating), func.count(Review.review_id))
+        .join(Booking, Review.booking_id == Booking.booking_id)
+        .where(Booking.worker_id == worker.worker_id)
+    ).one()
+
+    return jsonify({
+        "average": round(float(average), 1) if total else None,
+        "total": total,
+    }), 200
 
 
 # ----------------------------------------------------------------------
