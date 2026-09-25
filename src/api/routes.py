@@ -861,10 +861,12 @@ IMAGE_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
 PHOTO_MAX_BYTES = 5 * 1024 * 1024
 AVATAR_FOLDER = "cleanflow/avatars"
-# Estas dos aún no las usa nadie: las estrenan las fotos de tarea (#82)
-# y las de incidencia (#18), que ya solo tienen que llamar a upload_image().
+# Una carpeta por tipo de foto: el antes y el después de las tareas (#82),
+# las pruebas de las incidencias (#18, #83) y lo que el cliente enseña al
+# valorar (#20).
 BOOKING_FOLDER = "cleanflow/bookings"
 INCIDENT_FOLDER = "cleanflow/incidents"
+REVIEW_FOLDER = "cleanflow/reviews"
 
 # Números, espacios y un + inicial. Entre 9 y 15 dígitos: 9 son los de un
 # teléfono español y 15 el máximo internacional.
@@ -3373,6 +3375,129 @@ def resolve_incident(incident_id):
     db.session.commit()
 
     return jsonify({"incident": incident.serialize_managed()}), 200
+
+
+# ----------------------------------------------------------------------
+# VALORAR EL SERVICIO (#20)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/reviews   cliente, multipart con hasta 3 fotos
+#
+# El último paso del recorrido del cliente. Hasta aquí daba el servicio
+# por bueno y ahí se acababa: no podía decir cuánto le gustó ni enseñar
+# cómo quedó su casa.
+#
+# Una valoración por reserva y no se edita: una media que se puede
+# reescribir no mide nada.
+
+# Tres fotos y no cinco como en una reclamación: allí se documenta un
+# problema y hace falta sitio; aquí se enseña un resultado.
+REVIEW_COMMENT_MAX_LENGTH = 500
+REVIEW_MAX_PHOTOS = 3
+
+
+@api.route("/bookings/<int:booking_id>/reviews", methods=["POST"])
+@role_required("client")
+@booking_transaction
+def create_review(booking_id):
+    """El cliente valora el servicio. Multipart: nota, comentario y fotos.
+
+    Solo cuando el servicio ya se dio por bueno, a mano o solo. En
+    revisión no se puede: pedir nota con algo sin resolver es pedirla
+    enfadado.
+    """
+    booking, error = client_booking(booking_id)
+
+    if error:
+        return error
+
+    # Quién puede valorar lo decide confirmation, igual que en la #83: no
+    # se vuelven a contar los días aquí.
+    state = booking.confirmation
+
+    if state == "in_review":
+        return jsonify({
+            "message": "Primero tenemos que resolver lo que nos contaste."
+        }), 409
+
+    if state not in ("confirmed", "auto_confirmed"):
+        return jsonify({
+            "message": "Podrás valorar cuando des el servicio por bueno."
+        }), 409
+
+    # Review.booking_id es único, así que como mucho hay una.
+    if db.session.execute(
+        db.select(Review).where(Review.booking_id == booking.booking_id)
+    ).scalar_one_or_none():
+        return jsonify({"message": "Ya valoraste este servicio."}), 409
+
+    rating = (request.form.get("rating") or "").strip()
+
+    # isdigit descarta el vacío, los decimales y los negativos de una vez.
+    if not rating.isdigit() or not 1 <= int(rating) <= 5:
+        return jsonify({
+            "message": "La nota tiene que ser de 1 a 5 estrellas."
+        }), 400
+
+    rating = int(rating)
+
+    comment = (request.form.get("comment") or "").strip()
+
+    if len(comment) > REVIEW_COMMENT_MAX_LENGTH:
+        return jsonify({
+            "message": f"El comentario no puede pasar de {REVIEW_COMMENT_MAX_LENGTH} caracteres."
+        }), 400
+
+    # getlist y no get: el formulario puede repetir el campo "photo". Las
+    # que pasen del máximo se ignoran en vez de tirar el envío: quien
+    # escribió un comentario no debería perderlo por una foto de más.
+    photos = [
+        photo for photo in request.files.getlist("photo")[:REVIEW_MAX_PHOTOS]
+        if photo and photo.filename
+    ]
+
+    urls = []
+
+    for photo in photos:
+        url, error = upload_image(photo, REVIEW_FOLDER)
+
+        if error:
+            message, status = error
+            return jsonify({"message": message}), status
+
+        urls.append(url)
+
+    now = madrid_now()
+
+    review = Review(
+        booking_id=booking.booking_id,
+        client_id=int(get_jwt_identity()),
+        rating=rating,
+        # Sin comentario se guarda vacío y no una cadena en blanco: así
+        # "no dijo nada" y "dijo algo" se distinguen al leer.
+        comment=comment or None,
+        created_at=now,
+    )
+
+    db.session.add(review)
+
+    # flush: hace falta el id de la reseña para colgarle las fotos.
+    db.session.flush()
+
+    for url in urls:
+        db.session.add(Media(
+            review_id=review.review_id,
+            kind=MediaKind.REVIEW,
+            media_url=url,
+            media_type=MediaType.IMAGE,
+            uploaded_by=review.client_id,
+            uploaded_at=now,
+        ))
+
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 201
 
 
 # ----------------------------------------------------------------------

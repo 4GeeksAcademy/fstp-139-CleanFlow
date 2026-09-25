@@ -773,6 +773,13 @@ class Booking(db.Model):
         order_by="Incident.created_at.desc()"
     )
 
+    # La valoración, si la dejó. uselist=False porque solo puede haber una:
+    # Review.booking_id es único.
+    review = db.relationship(
+        "Review",
+        uselist=False
+    )
+
     # ---- DATOS CALCULADOS ----
 
     @property
@@ -888,7 +895,7 @@ class Booking(db.Model):
 
     def serialize_detail(self):
         """La reserva completa: servicio, dirección, tramos, tareas con sus
-        fotos, e incidencias.
+        fotos, incidencias y la valoración.
 
         La usan la confirmación del panel, "Mis reservas" del cliente (#16)
         y el seguimiento del trabajador (#82). Lo pesado (fotos e
@@ -906,6 +913,7 @@ class Booking(db.Model):
             "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
             "incidents": [incident.serialize() for incident in self.incidents],
+            "review": self.review.serialize() if self.review else None,
             # Los datos del cliente, para quien va a su casa. El nombre
             # siempre, con la inicial del apellido como el del trabajador.
             "client_name": (
