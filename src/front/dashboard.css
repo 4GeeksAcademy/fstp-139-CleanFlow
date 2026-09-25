@@ -8287,6 +8287,8 @@ textarea.cf-dash-input {
   display: block;
 }
 
+/* ⚠️ El fondo a mano, como en .cf-inc-shot__del: es --cf-text con
+   transparencia, y no hay token para eso. */
 .cf-rate__drop {
   position: absolute;
   top: 4px;
@@ -8298,14 +8300,14 @@ textarea.cf-dash-input {
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background-color: rgba(38, 38, 31, 0.6);
-  color: #ffffff;
-  font-size: 0.75rem;
+  background-color: rgba(38, 38, 31, 0.7);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
   cursor: pointer;
 }
 
 .cf-rate__drop:hover {
-  background-color: rgba(38, 38, 31, 0.8);
+  background-color: var(--cf-accent-dark);
 }
 
 /* El hueco de añadir es una etiqueta: el input va oculto dentro, porque

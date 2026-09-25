@@ -154,14 +154,17 @@ PEOPLE = [
 #                 fin de semana.
 #   YA HECHAS     reservas completadas en las semanas anteriores, cada una
 #                 con su reseña: dan la valoración del listado de
-#                 trabajadores (Ana 4,8, Luis 4,5 y Carlos 3,7).
+#                 trabajadores (Ana 4,8, Luis 4,5 y Carlos 3,7). Repartidas
+#                 entre los cuatro clientes, porque sus nombres salen en la
+#                 web pública (#20).
 #   EN MARCHA     los estados nuevos (#81): una en curso hoy con fotos del
 #                 antes y el después, una finalizada ayer pendiente de que
 #                 el cliente la confirme, y una no realizada con su
 #                 incidencia.
-#   RESPUESTAS    las dos situaciones de la #83: una finalizada hace ocho
-#                 días que se dio por buena sola, y otra reclamada por el
-#                 cliente que sigue en revisión.
+#   RESPUESTAS    las tres situaciones de la #83: una finalizada hace ocho
+#                 días que se dio por buena sola, otra reclamada que sigue
+#                 en revisión, y otra confirmada a mano y sin valorar, que
+#                 es la que enseña el formulario de la #20.
 #
 # La #15 reutiliza los tres primeros para probar las reservas afectadas.
 
@@ -518,8 +521,11 @@ def create_reviews():
 
 
 def create_states():
-    """Reservas en los estados nuevos: en curso, finalizada sin confirmar
-    y no realizada. Devuelve cuántas creó.
+    """Una reserva por cada situación posible del flujo. Devuelve cuántas
+    creó.
+
+    En curso, finalizada sin confirmar, no realizada, cancelada,
+    confirmada sola, reclamada y confirmada a mano sin valorar.
 
     Aparte de los otros bloques para poder añadirlas a una base de datos
     que ya tenía las demás reservas, sin rehacerla.
@@ -749,7 +755,8 @@ def setup_commands(app):
         print(f"Personas:  {created_people} creadas, {len(PEOPLE) - created_people} ya existían")
         print(f"Reservas:  {created_bookings} creadas")
         print(f"Reseñas:   {created_reviews} creadas (con sus reservas ya hechas)")
-        print(f"Estados:   {created_states} creadas (en curso, finalizada, no realizada, cancelada, vencida y reclamada)")
+        print(f"Estados:   {created_states} creadas (en curso, finalizada, no realizada,")
+        print("           cancelada, vencida, reclamada y confirmada sin valorar)")
         print()
         print(f"Cuentas (contraseña: {TEST_PASSWORD}):")
         for person in PEOPLE:

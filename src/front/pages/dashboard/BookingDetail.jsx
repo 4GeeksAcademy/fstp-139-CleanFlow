@@ -6,8 +6,8 @@
  * hubo alguna incidencia.
  *
  * Desde aquí también responde: da el servicio por bueno o cuenta que
- * algo no fue bien (#83), y puede cancelar mientras esté en plazo (#17).
- * Lo que falta por aterrizar es valorar (#20).
+ * algo no fue bien (#83), puede cancelar mientras esté en plazo (#17) y
+ * valorar cuando lo dio por bueno (#20).
  *
  * Estilos: dashboard.css, sección 9 (cf-bookdetail).
  */
