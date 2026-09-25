@@ -784,6 +784,21 @@ class Booking(db.Model):
         return int(seconds // 3600)
 
     @property
+    def worker_name(self):
+        """El trabajador como lo ve el cliente: "Ana G.".
+
+        Solo la inicial del apellido: para reconocer a quien viene a casa
+        no hace falta su nombre completo.
+        """
+        if not self.worker or not self.worker.user:
+            return None
+
+        user = self.worker.user
+        initial = f" {user.last_name.strip()[0]}." if user.last_name.strip() else ""
+
+        return f"{user.name}{initial}"
+
+    @property
     def confirmation(self):
         """En qué punto está la respuesta del cliente (#83).
 
@@ -855,12 +870,7 @@ class Booking(db.Model):
             "client_notes": self.client_notes,
             "cancelled_by_company": self.cancelled_by_company,
             "cancellation_reason": self.cancellation_reason,
-            "worker_name": (
-                self.worker.user.name + (
-                    " " + self.worker.user.last_name.strip()[0] + "."
-                    if self.worker.user.last_name.strip() else ""
-                ) if self.worker and self.worker.user else None
-            ),
+            "worker_name": self.worker_name,
             "days": [day.serialize() for day in self.days],
             "created_at": (
                 self.created_at.isoformat()
@@ -1220,7 +1230,6 @@ class Incident(db.Model):
             "media": [media_item.serialize() for media_item in self.media],
         }
 
-    
     def serialize_managed(self):
         """La incidencia con el contexto de su reserva, para el encargado.
 
