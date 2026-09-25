@@ -808,17 +808,6 @@ def get_tasks():
 
     Sin minutos: dependen del servicio (Service.minutes_per_task).
     """
-    now = madrid_now()
-
-    last_service_day = max(
-        (day.starts_at.date() for day in booking.days),
-        default=booking.scheduled_start.date(),
-    )
-
-    if last_service_day > now.date():
-        return jsonify({
-            "message": "No puedes completar la reserva antes de su último día de servicio."
-        }), 409
     tasks = db.session.execute(
         db.select(Task).filter_by(is_active=True).order_by(Task.task_id)
     ).scalars().all()
