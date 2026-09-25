@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -2316,23 +2316,30 @@ def complete_booking_task(task_id):
             "message": "Solo puedes modificar tareas de tus reservas asignadas."
         }), 403
 
-    if booking.status != BookingStatus.CONFIRMED:
+    # En curso: las tareas se marcan mientras se trabaja. Esto sustituye
+    # a la comprobación de la fecha, que ya hace "Empezar".
+    if booking.status != BookingStatus.IN_PROGRESS:
         return jsonify({
-            "message": "Solo puedes modificar tareas de reservas confirmadas."
+            "message": "Tienes que empezar el servicio antes de marcar tareas."
         }), 409
 
     now = madrid_now()
-
-    if booking.scheduled_start.date() > now.date():
-        return jsonify({
-            "message": "No puedes modificar tareas antes del día de inicio de la reserva."
-        }), 409
 
     task = db.session.get(BookingTask, task_id)
     if task is None:
         return jsonify({"message": "Tarea no encontrada."}), 404
 
     new_status = BookingTaskStatus(data["status"])
+
+    # El antes y el después son obligatorios para cerrar una tarea: son
+    # la prueba de cómo quedó. Desmarcarla no pide nada y las conserva.
+    if new_status == BookingTaskStatus.COMPLETED:
+        kinds = {photo.kind for photo in task.photos}
+
+        if not {MediaKind.BEFORE, MediaKind.AFTER} <= kinds:
+            return jsonify({
+                "message": "Sube la foto del antes y la del después para cerrar la tarea."
+            }), 409
 
     # Repetir la misma petición conserva la fecha original.
     if task.status != new_status:
@@ -2345,8 +2352,6 @@ def complete_booking_task(task_id):
     db.session.commit()
 
     return jsonify({"task": task.serialize()}), 200
-
-
 
 
 @api.route("/bookings", methods=["GET"])
@@ -2402,6 +2407,7 @@ def my_bookings():
     bookings = db.session.execute(
         db.select(Booking).options(
             selectinload(Booking.worker).selectinload(Worker.user),
+            selectinload(Booking.client),
             selectinload(Booking.days),
             selectinload(Booking.service),
             selectinload(Booking.address),
@@ -2447,9 +2453,10 @@ def complete_booking(booking_id):
     if booking.status == BookingStatus.COMPLETED:
         return jsonify({"booking": booking.serialize_detail()}), 200
 
-    if booking.status != BookingStatus.CONFIRMED:
+    # En curso y no confirmada: para finalizar hay que haber empezado.
+    if booking.status != BookingStatus.IN_PROGRESS:
         return jsonify({
-            "message": "Solo puedes completar reservas confirmadas."
+            "message": "Tienes que empezar el servicio antes de finalizarlo."
         }), 409
 
     now = madrid_now()
@@ -2477,9 +2484,790 @@ def complete_booking(booking_id):
 
     booking.status = BookingStatus.COMPLETED
     booking.updated_at = now
+
+    # De completed_at salen los 3 días que tiene el cliente para
+    # confirmar (#83). Sin esta fecha no se le puede pedir nada.
+    booking.completed_at = now
+
+    # El último día se cierra solo al finalizar: el trabajador no tiene
+    # que pulsar "Terminar el día" y además "Finalizar servicio".
+    for day in booking.days:
+        if day.started_at and not day.finished_at:
+            day.finished_at = now
     db.session.commit()
 
     return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+# ----------------------------------------------------------------------
+# EL DÍA DE TRABAJO (#82)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/days/<day_id>/start    trabajador asignado
+#   POST  /api/bookings/<id>/days/<day_id>/finish   trabajador asignado
+#
+# Lo previsto vive en starts_at y ends_at; aquí se guarda lo que pasó de
+# verdad. Un servicio de varios días se empieza y se cierra cada día, así
+# que las horas reales van en el tramo y no en la reserva.
+
+
+def worker_day(booking_id, day_id):
+    """La reserva y el tramo, comprobando que son de quien pregunta.
+
+    Devuelve (booking, day, None) si todo está en orden, o
+    (None, None, (respuesta, código)) con el motivo del rechazo.
+
+    La reserva se bloquea con with_for_update: dos móviles pulsando
+    "Empezar" a la vez no pueden escribir dos horas distintas.
+    """
+    user_id = int(get_jwt_identity())
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return None, None, (jsonify({"message": "Reserva no encontrada."}), 404)
+
+    worker = db.session.get(Worker, booking.worker_id)
+
+    if worker is None or worker.user_id != user_id:
+        return None, None, (jsonify({
+            "message": "Solo puedes trabajar en tus reservas asignadas."
+        }), 403)
+
+    day = db.session.get(BookingDay, day_id)
+
+    # El tramo tiene que ser de esta reserva: con el id de otra se podría
+    # escribir en una reserva ajena.
+    if day is None or day.booking_id != booking_id:
+        return None, None, (jsonify({"message": "Día no encontrado."}), 404)
+
+    return booking, day, None
+
+
+@api.route("/bookings/<int:booking_id>/days/<int:day_id>/start", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def start_booking_day(booking_id, day_id):
+    """Marca la llegada. El primer día pone la reserva en curso."""
+    booking, day, error = worker_day(booking_id, day_id)
+
+    if error:
+        return error
+
+    # Repetir la petición no reescribe la hora: la primera es la buena.
+    if day.started_at:
+        return jsonify({"booking": booking.serialize_detail()}), 200
+
+    if booking.status not in (BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS):
+        return jsonify({
+            "message": "Esta reserva ya no se puede empezar."
+        }), 409
+
+    now = madrid_now()
+
+    # Solo el día del tramo: empezar la víspera falsearía la hora real.
+    if day.starts_at.date() != now.date():
+        return jsonify({
+            "message": "Solo puedes empezar el día del servicio."
+        }), 409
+
+    day.started_at = now
+
+    # started_at de la reserva es el del primer día que se empieza.
+    if booking.started_at is None:
+        booking.started_at = now
+
+    booking.status = BookingStatus.IN_PROGRESS
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+@api.route("/bookings/<int:booking_id>/days/<int:day_id>/finish", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def finish_booking_day(booking_id, day_id):
+    """Cierra el día. El servicio se finaliza aparte, el último día."""
+    booking, day, error = worker_day(booking_id, day_id)
+
+    if error:
+        return error
+
+    if day.finished_at:
+        return jsonify({"booking": booking.serialize_detail()}), 200
+
+    if day.started_at is None:
+        return jsonify({
+            "message": "Este día todavía no se ha empezado."
+        }), 409
+
+    now = madrid_now()
+
+    day.finished_at = now
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+# ----------------------------------------------------------------------
+# FOTOS DE UNA TAREA (#82)
+# ----------------------------------------------------------------------
+#   POST    /api/booking-tasks/<id>/photos    trabajador asignado
+#   DELETE  /api/media/<id>                   trabajador asignado
+#
+# El antes y el después que el trabajador sube para cerrar cada tarea.
+# Son la prueba de cómo quedó la casa: de ellas vive la confirmación del
+# cliente (#83) y, si reclama, la respuesta del encargado (#19).
+
+
+def task_in_progress(task_id):
+    """La tarea y su reserva, si es de quien pregunta y está en curso.
+
+    Devuelve (task, booking, None), o (None, None, (respuesta, código)).
+    Las fotos solo se tocan con el servicio en marcha: ni antes de llegar
+    ni después de finalizarlo.
+    """
+    user_id = int(get_jwt_identity())
+
+    task = db.session.get(BookingTask, task_id)
+
+    if task is None:
+        return None, None, (jsonify({"message": "Tarea no encontrada."}), 404)
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == task.booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return None, None, (jsonify({"message": "Reserva no encontrada."}), 404)
+
+    worker = db.session.get(Worker, booking.worker_id)
+
+    if worker is None or worker.user_id != user_id:
+        return None, None, (jsonify({
+            "message": "Solo puedes subir fotos de tus reservas asignadas."
+        }), 403)
+
+    if booking.status != BookingStatus.IN_PROGRESS:
+        return None, None, (jsonify({
+            "message": "Solo puedes tocar las fotos con el servicio en curso."
+        }), 409)
+
+    return task, booking, None
+
+
+@api.route("/booking-tasks/<int:task_id>/photos", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def upload_task_photo(task_id):
+    """Sube el antes o el después de una tarea.
+
+    Llega como archivo (multipart/form-data): el campo `photo` con la
+    imagen y `kind` con "before" o "after".
+    """
+    task, booking, error = task_in_progress(task_id)
+
+    if error:
+        return error
+
+    kind_value = request.form.get("kind")
+
+    if kind_value not in ("before", "after"):
+        return jsonify({
+            "message": 'La foto debe ser "before" o "after".'
+        }), 400
+
+    # Antes de leer nada: un archivo enorme no se carga en memoria solo
+    # para caducar. El margen cubre las cabeceras del multipart.
+    if request.content_length and request.content_length > PHOTO_MAX_BYTES + 8192:
+        return jsonify({"message": "La foto no puede pesar más de 5 MB"}), 400
+
+    url, error = upload_image(request.files.get("photo"), BOOKING_FOLDER)
+
+    if error:
+        message, status = error
+        return jsonify({"message": message}), status
+
+    kind = MediaKind(kind_value)
+
+    # Repetir el antes sustituye al anterior: dos "antes" de la misma
+    # tarea no significan nada, y el segundo sería el bueno.
+    previous = db.session.execute(
+        db.select(Media).where(
+            Media.booking_task_id == task_id,
+            Media.kind == kind,
+        )
+    ).scalars().all()
+
+    for photo in previous:
+        db.session.delete(photo)
+
+    media = Media(
+        booking_task_id=task_id,
+        kind=kind,
+        media_url=url,
+        media_type=MediaType.IMAGE,
+        uploaded_by=int(get_jwt_identity()),
+        uploaded_at=madrid_now(),
+    )
+
+    db.session.add(media)
+    booking.updated_at = madrid_now()
+
+    db.session.commit()
+
+    return jsonify({"media": media.serialize()}), 201
+
+
+@api.route("/media/<int:media_id>", methods=["DELETE"])
+@role_required("worker")
+@booking_transaction
+def delete_task_photo(media_id):
+    """Borra una foto mal hecha, mientras la tarea sigue abierta."""
+    media = db.session.get(Media, media_id)
+
+    if media is None:
+        return jsonify({"message": "Foto no encontrada."}), 404
+
+    # Las de una incidencia no se borran desde aquí: son de la #18.
+    if media.booking_task_id is None:
+        return jsonify({
+            "message": "Esta foto no es de una tarea."
+        }), 409
+
+    task, booking, error = task_in_progress(media.booking_task_id)
+
+    if error:
+        return error
+
+    # Con la tarea cerrada, las fotos son su prueba y no se tocan:
+    # primero hay que desmarcarla.
+    if task.status == BookingTaskStatus.COMPLETED:
+        return jsonify({
+            "message": "Desmarca la tarea para cambiar sus fotos."
+        }), 409
+
+    db.session.delete(media)
+    booking.updated_at = madrid_now()
+
+    db.session.commit()
+
+    return jsonify({"message": "Foto borrada."}), 200
+
+
+# ----------------------------------------------------------------------
+# INCIDENCIAS DEL TRABAJADOR (#18)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/incidents   trabajador asignado
+#
+# Lo que sale mal durante un servicio, con su tipo y su foto. Nacen
+# abiertas y las cierra el encargado (#19). Una incidencia abierta NO
+# impide terminar el día ni finalizar: si bloqueara, un trabajador con
+# una figura rota se quedaría sin poder cerrar su jornada.
+
+# Lo que cabe en una descripción. Más que eso no es una incidencia, es
+# un parte, y se cuenta por teléfono.
+INCIDENT_TEXT_MAX_LENGTH = 500
+
+# Fotos que caben en una reclamación del cliente (#83). Cinco bastan para
+# enseñar lo que no quedó bien; más sería un álbum.
+CLAIM_MAX_PHOTOS = 5
+
+
+def worker_booking(booking_id):
+    """La reserva, si es de quien pregunta y todavía admite incidencias.
+
+    Devuelve (booking, None) o (None, (respuesta, código)).
+    """
+    user_id = int(get_jwt_identity())
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return None, (jsonify({"message": "Reserva no encontrada."}), 404)
+
+    worker = db.session.get(Worker, booking.worker_id)
+
+    if worker is None or worker.user_id != user_id:
+        return None, (jsonify({
+            "message": "Solo puedes abrir incidencias de tus reservas asignadas."
+        }), 403)
+
+    # Una reserva cancelada ya no tiene servicio del que informar.
+    if booking.status == BookingStatus.CANCELLED:
+        return None, (jsonify({
+            "message": "Esta reserva está cancelada."
+        }), 409)
+
+    return booking, None
+
+
+def read_incident_form(booking):
+    """Valida el formulario y devuelve (datos, None) o (None, error).
+
+    Llega como multipart porque puede traer foto, así que los campos se
+    leen de request.form y no de un JSON.
+    """
+    # "No realizado" no pregunta el tipo: lo fuerza a cliente después.
+    kind = request.form.get("incident_type") or "client"
+
+    if kind not in ("client", "company"):
+        return None, (jsonify({
+            "message": 'El tipo debe ser "client" o "company".'
+        }), 400)
+
+    description = (request.form.get("description") or "").strip()
+
+    if not description:
+        return None, (jsonify({
+            "message": "Cuenta qué ha pasado."
+        }), 400)
+
+    if len(description) > INCIDENT_TEXT_MAX_LENGTH:
+        return None, (jsonify({
+            "message": f"La descripción no puede pasar de {INCIDENT_TEXT_MAX_LENGTH} caracteres."
+        }), 400)
+
+    # La tarea es opcional, pero si viene tiene que ser de esta reserva:
+    # con el id de otra se colgaría la incidencia donde no toca.
+    task_id = request.form.get("booking_task_id")
+
+    if task_id:
+        task = db.session.get(BookingTask, int(task_id)) if task_id.isdigit() else None
+
+        if task is None or task.booking_id != booking.booking_id:
+            return None, (jsonify({
+                "message": "Esa tarea no es de esta reserva."
+            }), 400)
+
+    return {
+        "incident_type": IncidentType(kind),
+        "description": description,
+        "booking_task_id": int(task_id) if task_id else None,
+    }, None
+
+
+def add_incident(booking, data, incident_type=None,
+                 source=IncidentSource.WORKER, max_photos=1):
+    """Crea la incidencia y le cuelga sus fotos, si las hay.
+
+    incident_type fuerza el tipo: lo usa "no realizado", donde siempre es
+    de cliente y no se pregunta.
+
+    source dice quién la abre: el trabajador durante el servicio (#18) o
+    el cliente al reclamar (#83).
+
+    max_photos: una para el trabajador, hasta cinco para una reclamación,
+    donde una queja sobre la casa entera necesita más de una.
+
+    Devuelve (incidencia, None) o (None, error).
+    """
+    # getlist y no get: el formulario puede repetir el campo "photo".
+    # Las que pasen del máximo se ignoran en vez de rechazar el envío:
+    # el cliente ya escribió su texto y perderlo sería peor.
+    photos = [
+        photo for photo in request.files.getlist("photo")[:max_photos]
+        if photo and photo.filename
+    ]
+
+    urls = []
+
+    for photo in photos:
+        url, error = upload_image(photo, INCIDENT_FOLDER)
+
+        if error:
+            message, status = error
+            return None, (jsonify({"message": message}), status)
+
+        urls.append(url)
+
+    now = madrid_now()
+
+    incident = Incident(
+        booking_id=booking.booking_id,
+        worker_id=booking.worker_id,
+        booking_task_id=data["booking_task_id"],
+        incident_type=incident_type or data["incident_type"],
+        source=source,
+        reported_by=int(get_jwt_identity()),
+        description=data["description"],
+        resolved=False,
+        created_at=now,
+    )
+
+    db.session.add(incident)
+
+    # flush: hace falta el id de la incidencia para colgarle la foto.
+    db.session.flush()
+
+    for url in urls:
+        db.session.add(Media(
+            incident_id=incident.incident_id,
+            kind=MediaKind.INCIDENT,
+            media_url=url,
+            media_type=MediaType.IMAGE,
+            uploaded_by=int(get_jwt_identity()),
+            uploaded_at=now,
+        ))
+
+    booking.updated_at = now
+
+    return incident, None
+
+
+@api.route("/bookings/<int:booking_id>/incidents", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def create_incident(booking_id):
+    """Abre una incidencia en un servicio. Multipart, con foto opcional."""
+    booking, error = worker_booking(booking_id)
+
+    if error:
+        return error
+
+    data, error = read_incident_form(booking)
+
+    if error:
+        return error
+
+    incident, error = add_incident(booking, data)
+
+    if error:
+        return error
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 201
+
+
+@api.route("/bookings/<int:booking_id>/not-done", methods=["POST"])
+@role_required("worker")
+@booking_transaction
+def mark_booking_not_done(booking_id):
+    """El servicio no se ha podido hacer.
+
+    Crea la incidencia y cierra la reserva, las dos cosas o ninguna: si
+    la foto falla, el estado no debe cambiar y quedarse sin explicación.
+
+    El tipo es siempre de cliente y no se pregunta: por definición, un
+    servicio que no se pudo hacer fue por algo ajeno a CleanFlow. Si el
+    motivo fuera nuestro, esto no se marca: se reprograma.
+    """
+    booking, error = worker_booking(booking_id)
+
+    if error:
+        return error
+
+    if booking.status not in (BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS):
+        return jsonify({
+            "message": "Este servicio ya está cerrado."
+        }), 409
+
+    now = madrid_now()
+
+    # Solo el día del servicio: no se puede dar por perdido de antemano
+    # ni rescatar uno de la semana pasada.
+    if not any(day.starts_at.date() == now.date() for day in booking.days):
+        return jsonify({
+            "message": "Solo puedes marcarlo el día del servicio."
+        }), 409
+
+    data, error = read_incident_form(booking)
+
+    if error:
+        return error
+
+    incident, error = add_incident(booking, data, incident_type=IncidentType.CLIENT)
+
+    if error:
+        return error
+
+    # El trabajador estuvo allí, aunque no pudiera trabajar: queda la
+    # hora de cuando se plantó en la puerta.
+    if booking.started_at is None:
+        booking.started_at = now
+
+    booking.status = BookingStatus.NOT_DONE
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+# ----------------------------------------------------------------------
+# LA RESPUESTA DEL CLIENTE (#83)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/confirm   cliente de la reserva
+#   POST  /api/bookings/<id>/claim     cliente, multipart con hasta 5 fotos
+#
+# Cuando el trabajador finaliza, el cliente tiene 3 días para decir si
+# quedó bien. Si no dice nada, se da por bueno solo: el estado lo calcula
+# Booking.confirmation al leer, así que aquí no hay nada que programar.
+#
+# Las reglas de cuándo se puede hacer cada cosa las pone esa propiedad,
+# no estos endpoints: aquí solo se lee lo que devuelve.
+
+
+def client_booking(booking_id):
+    """La reserva, si es de quien pregunta y ya está finalizada.
+
+    Devuelve (booking, None) o (None, (respuesta, código)).
+    """
+    user_id = int(get_jwt_identity())
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    # Mismo mensaje para "no existe" y "no es tuya": decir cuál es
+    # confirmaría que la otra existe.
+    if booking is None or booking.client_id != user_id:
+        return None, (jsonify({"message": "Reserva no encontrada."}), 404)
+
+    if booking.status != BookingStatus.COMPLETED:
+        return None, (jsonify({
+            "message": "Este servicio todavía no ha terminado."
+        }), 409)
+
+    return booking, None
+
+
+@api.route("/bookings/<int:booking_id>/confirm", methods=["POST"])
+@role_required("client")
+@booking_transaction
+def confirm_booking(booking_id):
+    """El cliente da el servicio por bueno."""
+    booking, error = client_booking(booking_id)
+
+    if error:
+        return error
+
+    # confirmation ya sabe en qué punto está: aquí solo se mira si queda
+    # algo que decir. Repetir la regla sería tenerla en dos sitios.
+    state = booking.confirmation
+
+    if state == "confirmed":
+        return jsonify({
+            "message": "Ya habías dado este servicio por bueno."
+        }), 409
+
+    if state == "auto_confirmed":
+        return jsonify({
+            "message": "El plazo ya pasó y el servicio se dio por bueno."
+        }), 409
+
+    if state == "in_review":
+        return jsonify({
+            "message": "Estamos revisando lo que nos contaste."
+        }), 409
+
+    now = madrid_now()
+
+    booking.client_confirmed_at = now
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+@api.route("/bookings/<int:booking_id>/claim", methods=["POST"])
+@role_required("client")
+@booking_transaction
+def claim_booking(booking_id):
+    """El cliente dice que algo no fue bien.
+
+    Multipart: la descripción y hasta CLAIM_MAX_PHOTOS fotos. Crea una
+    incidencia con origen cliente y tipo empresa, que es la que resuelve
+    el encargado (#19). La reserva no cambia de estado: se queda
+    finalizada, y confirmation pasa a "in_review" mientras esté abierta.
+    """
+    booking, error = client_booking(booking_id)
+
+    if error:
+        return error
+
+    state = booking.confirmation
+
+    if state == "in_review":
+        return jsonify({
+            "message": "Ya nos lo contaste y lo estamos revisando."
+        }), 409
+
+    if state in ("confirmed", "auto_confirmed"):
+        return jsonify({
+            "message": "Este servicio ya se dio por bueno."
+        }), 409
+
+    description = (request.form.get("description") or "").strip()
+
+    if not description:
+        return jsonify({"message": "Cuéntanos qué pasó."}), 400
+
+    if len(description) > INCIDENT_TEXT_MAX_LENGTH:
+        return jsonify({
+            "message": f"El texto no puede pasar de {INCIDENT_TEXT_MAX_LENGTH} caracteres."
+        }), 400
+
+    incident, error = add_incident(
+        booking,
+        {"description": description, "booking_task_id": None},
+        # De empresa: el cliente se queja del servicio, no de sí mismo.
+        incident_type=IncidentType.COMPANY,
+        source=IncidentSource.CLIENT,
+        max_photos=CLAIM_MAX_PHOTOS,
+    )
+
+    if error:
+        return error
+
+    booking.updated_at = madrid_now()
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 201
+
+
+# ----------------------------------------------------------------------
+# INCIDENCIAS DEL ENCARGADO (#19)
+# ----------------------------------------------------------------------
+#   GET    /api/incidents?resolved=&type=&source=&count_only=   encargado
+#   PATCH  /api/incidents/<id>/resolve                          encargado
+#
+# Todo lo que ha salido mal, venga del trabajador (#18) o del cliente
+# (#83). Es la pantalla que cierra el círculo: hasta ahora se registraban
+# problemas que nadie podía resolver.
+
+
+@api.route("/incidents", methods=["GET"])
+@role_required("manager")
+def list_incidents():
+    """Las incidencias, filtradas por estado, tipo y origen.
+
+    count_only=1 devuelve solo el número: lo usa la pastilla del menú, y
+    así no se traen todas las filas treinta veces por minuto.
+    """
+    query = db.select(Incident)
+
+    # Cada filtro solo entra si viene: sin ellos salen todas.
+    resolved = request.args.get("resolved")
+
+    if resolved in ("true", "false"):
+        query = query.where(Incident.resolved.is_(resolved == "true"))
+
+    kind = request.args.get("type")
+
+    if kind in ("client", "company"):
+        query = query.where(Incident.incident_type == IncidentType(kind))
+
+    source = request.args.get("source")
+
+    if source in ("worker", "client"):
+        query = query.where(Incident.source == IncidentSource(source))
+
+    if request.args.get("count_only"):
+        total = db.session.execute(
+            db.select(func.count()).select_from(query.subquery())
+        ).scalar_one()
+
+        return jsonify({"count": total}), 200
+
+    # La reserva con su servicio, su cliente y su trabajador: sin esto
+    # sería una consulta por incidencia solo para saber de qué habla.
+    incidents = db.session.execute(
+        query.options(
+            selectinload(Incident.media),
+            selectinload(Incident.booking).selectinload(Booking.service),
+            selectinload(Incident.booking).selectinload(Booking.client),
+            selectinload(Incident.booking).selectinload(Booking.worker).selectinload(Worker.user),
+            selectinload(Incident.booking).selectinload(Booking.days),
+        ).order_by(
+            # Las abiertas primero y, dentro, las más recientes: es el
+            # orden en que se van a atender.
+            Incident.resolved,
+            Incident.created_at.desc(),
+        )
+    ).scalars().all()
+
+    return jsonify({
+        "incidents": [incident.serialize_managed() for incident in incidents]
+    }), 200
+
+
+# Lo que cabe en una nota de resolución. Más que esto no es una nota,
+# es un informe, y el cliente no lo va a leer.
+RESOLUTION_MAX_LENGTH = 500
+
+
+@api.route("/incidents/<int:incident_id>/resolve", methods=["PATCH"])
+@role_required("manager")
+@booking_transaction
+def resolve_incident(incident_id):
+    """Cierra una incidencia con la nota de lo que se ha hecho.
+
+    Si la abrió el cliente, esa nota la va a leer él en su detalle, así
+    que es obligatoria: cerrar sin explicar deja las cosas peor que
+    antes.
+
+    Cuando se resuelve la reclamación de un cliente, su reserva sale de
+    "en revisión" sola: Booking.confirmation mira las que siguen
+    abiertas, así que aquí no hay nada más que tocar.
+    """
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos válidos"}), 400
+
+    resolution = (data.get("resolution") or "").strip()
+
+    if not resolution:
+        return jsonify({"message": "Explica qué se ha hecho."}), 400
+
+    if len(resolution) > RESOLUTION_MAX_LENGTH:
+        return jsonify({
+            "message": f"La nota no puede pasar de {RESOLUTION_MAX_LENGTH} caracteres."
+        }), 400
+
+    incident = db.session.get(Incident, incident_id)
+
+    if incident is None:
+        return jsonify({"message": "Incidencia no encontrada."}), 404
+
+    # Una resuelta no se reabre ni se reescribe: si hay más que decir, se
+    # abre otra. Así queda el rastro de las dos decisiones.
+    if incident.resolved:
+        return jsonify({"message": "Esta incidencia ya está resuelta."}), 409
+
+    now = madrid_now()
+
+    incident.resolution = resolution
+    incident.resolved = True
+    incident.resolved_at = now
+
+    if incident.booking:
+        incident.booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"incident": incident.serialize_managed()}), 200
+
+
 # ----------------------------------------------------------------------
 # FORMULARIOS PÚBLICOS: CANDIDATURAS Y MENSAJES DE CONTACTO
 # ----------------------------------------------------------------------

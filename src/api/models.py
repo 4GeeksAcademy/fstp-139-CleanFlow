@@ -9,7 +9,8 @@ Modelos de la base de datos de CleanFlow.
 Lo que tiene `is_active` no se borra: se desactiva.
 """
 
-from datetime import time, datetime, date
+from datetime import time, datetime, date, timedelta
+from zoneinfo import ZoneInfo
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, Boolean, Text, Float, Integer, Time, Date, DateTime, ForeignKey, func
 from sqlalchemy import Enum as SQLEnum
@@ -18,6 +19,17 @@ from enum import Enum
 from flask_bcrypt import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
+
+# Las fechas se guardan en hora de Madrid y sin zona. Aquí solo se usa
+# para saber si un servicio es hoy; el resto del cálculo vive en
+# availability.py, que no se importa para no cruzar los dos módulos.
+MADRID = ZoneInfo("Europe/Madrid")
+
+
+# Días que tiene el cliente para responder antes de que el servicio se dé
+# por bueno solo (#83). El front lo repite en bookingFormat.js para pintar
+# el plazo; quien manda es este.
+CONFIRM_DAYS = 3
 
 
 # ==================================================================
@@ -735,6 +747,9 @@ class Booking(db.Model):
     service = db.relationship("Service")
     address = db.relationship("Address")
 
+    # Quién contrató: el trabajador necesita saber a quién va a ver.
+    client = db.relationship("User")
+
     # Los tramos, en orden. Con booking.days.append(...) se guardan
     # junto con la reserva.
     days = db.relationship(
@@ -768,6 +783,63 @@ class Booking(db.Model):
         seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
         return int(seconds // 3600)
 
+    @property
+    def worker_name(self):
+        """El trabajador como lo ve el cliente: "Ana G.".
+
+        Solo la inicial del apellido: para reconocer a quien viene a casa
+        no hace falta su nombre completo.
+        """
+        if not self.worker or not self.worker.user:
+            return None
+
+        user = self.worker.user
+        initial = f" {user.last_name.strip()[0]}." if user.last_name.strip() else ""
+
+        return f"{user.name}{initial}"
+
+    @property
+    def confirmation(self):
+        """En qué punto está la respuesta del cliente (#83).
+
+            in_review       reclamó y todavía se está mirando
+            confirmed       dijo que sí
+            auto_confirmed  no dijo nada y pasaron los 3 días
+            pending         está en plazo y aún no ha respondido
+            None            el servicio no ha llegado a finalizarse
+
+        Se calcula al leer y no se guarda: una tarea programada para esto
+        sería infraestructura que hay que vigilar, y con completed_at y la
+        fecha de hoy sale solo.
+
+        El orden de las comprobaciones importa. Una reclamación gana al
+        plazo: si el cliente reclamó el día 2, el día 4 no puede aparecer
+        como confirmada sola.
+        """
+        if self.status != BookingStatus.COMPLETED:
+            return None
+
+        claimed = any(
+            incident.source == IncidentSource.CLIENT and not incident.resolved
+            for incident in self.incidents
+        )
+
+        if claimed:
+            return "in_review"
+
+        if self.client_confirmed_at:
+            return "confirmed"
+
+        # Sin fecha de fin no hay plazo que contar, así que tampoco hay
+        # nada que pedirle al cliente: las reservas anteriores a la #81 se
+        # finalizaron sin ella.
+        if not self.completed_at:
+            return None
+
+        deadline = self.completed_at.date() + timedelta(days=CONFIRM_DAYS)
+
+        return "pending" if datetime.now(MADRID).date() <= deadline else "auto_confirmed"
+
     # ---- SERIALIZADORES ----
 
     def serialize(self):
@@ -798,12 +870,7 @@ class Booking(db.Model):
             "client_notes": self.client_notes,
             "cancelled_by_company": self.cancelled_by_company,
             "cancellation_reason": self.cancellation_reason,
-            "worker_name": (
-                self.worker.user.name + (
-                    " " + self.worker.user.last_name.strip()[0] + "."
-                    if self.worker.user.last_name.strip() else ""
-                ) if self.worker and self.worker.user else None
-            ),
+            "worker_name": self.worker_name,
             "days": [day.serialize() for day in self.days],
             "created_at": (
                 self.created_at.isoformat()
@@ -837,6 +904,26 @@ class Booking(db.Model):
             "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
             "incidents": [incident.serialize() for incident in self.incidents],
+            # Los datos del cliente, para quien va a su casa. El nombre
+            # siempre, con la inicial del apellido como el del trabajador.
+            "client_name": (
+                self.client.name + (
+                    " " + self.client.last_name.strip()[0] + "."
+                    if self.client.last_name.strip() else ""
+                ) if self.client else None
+            ),
+
+            # El teléfono, solo el día del servicio: hace falta para avisar
+            # de que se llega, no el resto del mes.
+            "client_phone": (
+                self.client.phone
+                if self.client and any(
+                    day.starts_at.date() == datetime.now(MADRID).date()
+                    for day in self.days
+                )
+                else None
+            ),
+
             # La foto del trabajador, solo aquí: el listado se apaña con
             # las iniciales y no tiene por qué cargar con ella.
             "worker_avatar_url": (
@@ -856,6 +943,10 @@ class Booking(db.Model):
                 if self.completed_at
                 else None
             ),
+            # En qué punto está la respuesta del cliente (#83). Se calcula
+            # al leer, así que no hace falta ninguna tarea programada.
+            "confirmation": self.confirmation,
+
             "client_confirmed_at": (
                 self.client_confirmed_at.isoformat()
                 if self.client_confirmed_at
@@ -1094,6 +1185,10 @@ class Incident(db.Model):
         nullable=True
     )
 
+    # La reserva de la que habla. Sin ella, el encargado ve un problema
+    # pero no de qué servicio (#19).
+    booking = db.relationship("Booking", overlaps="incidents")
+
     # Las fotos de la incidencia, en el orden en que se subieron. Con la
     # relación se pueden precargar al listar; con una consulta suelta
     # dentro de serialize() caía una por incidencia.
@@ -1133,6 +1228,33 @@ class Incident(db.Model):
                 else None
             ),
             "media": [media_item.serialize() for media_item in self.media],
+        }
+
+    def serialize_managed(self):
+        """La incidencia con el contexto de su reserva, para el encargado.
+
+        Una incidencia suelta no le dice nada: necesita saber de qué
+        servicio habla, de qué día y con quién, para poder llamar.
+        """
+        booking = self.booking
+
+        return {
+            **self.serialize(),
+            "booking": {
+                "service": booking.service.name if booking.service else None,
+                "status": booking.status.value if booking.status else None,
+                "starts_at": (
+                    booking.days[0].starts_at.isoformat()
+                    if booking.days
+                    else None
+                ),
+                "client_name": (
+                    f"{booking.client.name} {booking.client.last_name}"
+                    if booking.client
+                    else None
+                ),
+                "worker_name": booking.worker_name,
+            },
         }
 
 

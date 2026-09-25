@@ -5,8 +5,9 @@
  * está, qué se contrató, cuánto costó, quién lo hizo, cómo quedó y si
  * hubo alguna incidencia.
  *
- * Es la pantalla donde aterrizarán cancelar (#17), confirmar o reclamar
- * (#83) y valorar (#20). Aquí solo se lee.
+ * Desde aquí también responde: da el servicio por bueno o cuenta que
+ * algo no fue bien (#83). Lo que falta por aterrizar es cancelar (#17) y
+ * valorar (#20).
  *
  * Estilos: dashboard.css, sección 9 (cf-bookdetail).
  */
@@ -15,7 +16,7 @@ import "../../dashboard.css";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
-import { getMyBookings } from "../../services/bookingService";
+import { getMyBookings, confirmBooking, claimBooking } from "../../services/bookingService";
 import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
 import { BookingCancelled } from "../../components/dashboard/bookings/BookingCancelled";
@@ -24,6 +25,8 @@ import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
 import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker";
 import { BookingWhen } from "../../components/dashboard/bookings/BookingWhen";
 import { BookingPhotos } from "../../components/dashboard/bookings/BookingPhotos";
+import { BookingConfirm } from "../../components/dashboard/bookings/BookingConfirm";
+import { ClaimForm } from "../../components/dashboard/bookings/ClaimForm";
 import { BookingIncidents } from "../../components/dashboard/bookings/BookingIncidents";
 import { BookingZoom } from "../../components/dashboard/bookings/BookingZoom";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
@@ -78,6 +81,67 @@ export const BookingDetail = () => {
 
         return () => { active = false; };
     }, [bookingId, store.token, dispatch]);
+
+
+    // ---------- LA RESPUESTA AL SERVICIO (#83) ----------
+
+    // Si el formulario de reclamación está abierto, y si hay una llamada
+    // en marcha: las dos acciones comparten el "ocupado" porque no se
+    // pueden hacer a la vez.
+    const [claiming, setClaiming] = useState(false);
+    const [answering, setAnswering] = useState(false);
+
+    /** Cierra sesión si el token caducó. true si no hay que seguir. */
+    const expired = (result) => {
+        if (result.status !== 401) return false;
+
+        dispatch({ type: "LOGOUT" });
+        return true;
+    };
+
+    const handleConfirm = async () => {
+        setAnswering(true);
+        setError("");
+
+        const result = await confirmBooking(booking.booking_id, store.token);
+
+        setAnswering(false);
+
+        if (expired(result)) return;
+
+        // Devuelve la reserva con su confirmation ya recalculada: se pinta
+        // la que llega y el bloque cambia solo.
+        if (result.ok) setBooking(result.data.booking);
+        else setError(result.data.message);
+    };
+
+
+    /**
+     * El cliente dice que algo no fue bien.
+     *
+     * Crea la incidencia que resolverá el encargado (#19) y devuelve la
+     * reserva con confirmation en "in_review": el bloque cambia solo.
+     */
+    const handleClaim = async (data) => {
+        setAnswering(true);
+        setError("");
+
+        const result = await claimBooking(booking.booking_id, data, store.token);
+
+        setAnswering(false);
+
+        if (expired(result)) return;
+
+        if (!result.ok) {
+            setError(result.data.message);
+            return;
+        }
+
+        // Se cierra solo si salió bien: con un error, lo escrito y las
+        // fotos siguen ahí y se puede reintentar sin empezar de cero.
+        setBooking(result.data.booking);
+        setClaiming(false);
+    };
 
     // ---------- MIENTRAS LLEGA LA RESERVA ----------
 
@@ -170,6 +234,12 @@ export const BookingDetail = () => {
                     <BookingCancelled booking={booking} />
                     <BookingWhat booking={booking} />
                     <BookingPhotos tasks={booking.tasks} onZoom={setZoomed} />
+                    <BookingConfirm
+                        booking={booking}
+                        saving={answering}
+                        onConfirm={handleConfirm}
+                        onClaim={() => setClaiming(true)}
+                    />
                 </div>
 
                 <div className="cf-bookdetail__col">
@@ -182,6 +252,13 @@ export const BookingDetail = () => {
             </div>
 
             <BookingZoom photo={zoomed} onClose={() => setZoomed(null)} />
+
+            <ClaimForm
+                open={claiming}
+                saving={answering}
+                onSubmit={handleClaim}
+                onClose={() => setClaiming(false)}
+            />
 
         </div>
     );

@@ -154,6 +154,9 @@ PEOPLE = [
 #                 antes y el después, una finalizada ayer pendiente de que
 #                 el cliente la confirme, y una no realizada con su
 #                 incidencia.
+#   RESPUESTAS    las dos situaciones de la #83: una finalizada hace ocho
+#                 días que se dio por buena sola, y otra reclamada por el
+#                 cliente que sigue en revisión.
 #
 # La #15 reutiliza los tres primeros para probar las reservas afectadas.
 
@@ -587,7 +590,6 @@ def create_states():
         created_at=at(ayer, 14),
     ))
 
-
     # ---- CANCELADA: el cliente anuló una de la semana que viene ----
     # No la cancela nadie desde la aplicación (eso es la #17): se crea ya
     # cancelada, para que el listado del cliente tenga qué enseñar.
@@ -600,7 +602,56 @@ def create_states():
     )
     cancelada.cancellation_reason = "Me surgió un viaje y no voy a estar en casa."
 
-    return 4
+    # ---- CONFIRMADA SOLA: pasaron los 3 días sin respuesta (#83) ----
+    # No lleva client_confirmed_at a propósito: el cliente no confirmó
+    # nada. Booking.confirmation lo deduce de completed_at y la fecha.
+    vencida = add_booking(
+        client, address, profunda, luis,
+        [(at(hoy - timedelta(days=8), 9), at(hoy - timedelta(days=8), 11))],
+        "Finalizada hace más de una semana, sin respuesta.",
+        tasks=[habitacion],
+        status=BookingStatus.COMPLETED,
+    )
+    vencida.started_at = at(hoy - timedelta(days=8), 9)
+    vencida.completed_at = at(hoy - timedelta(days=8), 11)
+    vencida.days[0].started_at = vencida.started_at
+    vencida.days[0].finished_at = vencida.completed_at
+    db.session.flush()
+
+    add_photo(vencida.tasks[0], MediaKind.BEFORE, "antes-3", luis)
+    add_photo(vencida.tasks[0], MediaKind.AFTER, "despues-3", luis)
+
+    # ---- EN REVISIÓN: el cliente reclamó y sigue abierta (#83) ----
+    reclamada = add_booking(
+        client, address, profunda, ana,
+        [(at(hoy - timedelta(days=2), 16), at(hoy - timedelta(days=2), 18))],
+        "Finalizada y reclamada por el cliente.",
+        tasks=[habitacion],
+        status=BookingStatus.COMPLETED,
+    )
+    reclamada.started_at = at(hoy - timedelta(days=2), 16)
+    reclamada.completed_at = at(hoy - timedelta(days=2), 18)
+    reclamada.days[0].started_at = reclamada.started_at
+    reclamada.days[0].finished_at = reclamada.completed_at
+    db.session.flush()
+
+    add_photo(reclamada.tasks[0], MediaKind.BEFORE, "antes-4", ana)
+    add_photo(reclamada.tasks[0], MediaKind.AFTER, "despues-4", ana)
+
+    # De empresa y con origen cliente: es él quien se queja del servicio.
+    # Sin resolver, así confirmation devuelve "in_review".
+    db.session.add(Incident(
+        booking_id=reclamada.booking_id,
+        worker_id=ana.worker_id,
+        incident_type=IncidentType.COMPANY,
+        source=IncidentSource.CLIENT,
+        reported_by=client.user_id,
+        description="El baño quedó sin limpiar y el suelo del salón seguía con polvo.",
+        resolved=False,
+        created_at=at(hoy - timedelta(days=2), 20),
+    ))
+
+    return 6
 
 
 def print_seed_bookings():
@@ -646,7 +697,7 @@ def setup_commands(app):
         print(f"Personas:  {created_people} creadas, {len(PEOPLE) - created_people} ya existían")
         print(f"Reservas:  {created_bookings} creadas")
         print(f"Reseñas:   {created_reviews} creadas (con sus reservas ya hechas)")
-        print(f"Estados:   {created_states} creadas (en curso, finalizada, no realizada y cancelada)")
+        print(f"Estados:   {created_states} creadas (en curso, finalizada, no realizada, cancelada, vencida y reclamada)")
         print()
         print(f"Cuentas (contraseña: {TEST_PASSWORD}):")
         for person in PEOPLE:

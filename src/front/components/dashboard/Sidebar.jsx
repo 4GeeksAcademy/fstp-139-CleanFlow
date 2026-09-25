@@ -18,6 +18,7 @@ import useGlobalReducer from "../../hooks/useGlobalReducer"
 import { Avatar } from "./Avatar"
 import { Logo } from "../Logo"
 import { AffectedCount } from "./absences/AffectedCount"
+import { IncidentCount } from "./incidents/IncidentCount"
 // Estilos del menú (cf-side__*).
 import "../../dashboard.css"
 import { loginPathForRole } from "../../authPaths";
@@ -57,6 +58,7 @@ const LINKS = [
 
     // --- Solo MANAGER ---
     { to: "/dashboard/affected-bookings", label: "Reservas afectadas", icon: "fa-triangle-exclamation", group: "Operativa", roles: ["manager"], affected: true },
+    { to: "/dashboard/incidents", label: "Incidencias", icon: "fa-circle-exclamation", group: "Operativa", roles: ["manager"], incidents: true },
     { to: "/dashboard/workers", label: "Trabajadores", icon: "fa-users", group: "Equipo", roles: ["manager"] },
     { to: "/dashboard/shifts", label: "Turnos", icon: "fa-clock", group: "Equipo", roles: ["manager"] },
     {
@@ -374,6 +376,7 @@ export const Sidebar = () => {
                                         <i className={`fa-solid ${link.icon}`} aria-hidden="true" />
                                         <span>{link.label}</span>
                                         {link.affected && <AffectedCount token={store.token} pathname={pathname} />}
+                                        {link.incidents && <IncidentCount token={store.token} pathname={pathname} />}
                                         {/* Plegado, el nombre sale al pasar por encima. */}
                                         <span className="cf-side__tip">{link.label}</span>
                                     </NavLink>
