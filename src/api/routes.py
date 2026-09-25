@@ -2379,14 +2379,24 @@ def cancel_booking(booking_id):
         }), 409
 
     now = madrid_now()
-    first_start = min(
-        (day.starts_at for day in booking.days),
-        default=booking.scheduled_start,
-    )
+    deadline = booking.change_deadline
 
-    if first_start is None:
+    if deadline is None:
         return jsonify({
             "message": "La reserva no tiene una fecha de inicio válida."
+        }), 409
+
+    # El plazo lo calcula el modelo: aquí solo se mira si ya pasó.
+    fuera_de_plazo = now.replace(tzinfo=MADRID) > deadline
+
+    if booking.started_at is not None:
+        return jsonify({
+            "message": "No se puede cancelar una reserva que ya ha comenzado."
+        }), 409
+
+    if user.role == "client" and fuera_de_plazo:
+        return jsonify({
+            "message": "Para cancelar, contacta con CleanFlow"
         }), 409
 
     # Fechas guardadas en hora de Madrid. Los timestamps permiten
@@ -2442,25 +2452,6 @@ def cancel_booking(booking_id):
 
     return jsonify({"booking": booking.serialize_detail()}), 200
 
-
-def serialize_booking_with_cancellation(booking):
-    """Incluye el límite de cancelación con zona horaria explícita."""
-    data = booking.serialize_detail()
-    first_start = min(
-        (day.starts_at for day in booking.days),
-        default=booking.scheduled_start,
-    )
-    data["cancellation_deadline"] = None
-
-    if first_start is not None:
-        madrid_start = first_start.replace(tzinfo=MADRID)
-        deadline = datetime.fromtimestamp(
-            madrid_start.timestamp() - 24 * 60 * 60,
-            tz=MADRID,
-        )
-        data["cancellation_deadline"] = deadline.isoformat()
-
-    return data
 
 
 @api.route("/bookings", methods=["GET"])
@@ -2534,7 +2525,7 @@ def my_bookings():
     ).scalars().all()
 
     return jsonify({
-        "bookings": [serialize_booking_with_cancellation(booking) for booking in bookings]
+                "bookings": [booking.serialize_detail() for booking in bookings]
     })
 
 

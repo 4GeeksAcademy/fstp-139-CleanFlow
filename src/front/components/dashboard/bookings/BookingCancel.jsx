@@ -11,8 +11,7 @@ export const BookingCancel = ({ booking, onCancelled }) => {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [now, setNow] = useState(Date.now);
-
-    const deadline = Date.parse(booking.cancellation_deadline);
+    const deadline = Date.parse(booking.change_deadline);
     const eligible = ["pending", "confirmed"].includes(booking.status)
         && !booking.started_at;
     const canCancel = eligible && Number.isFinite(deadline) && now <= deadline;

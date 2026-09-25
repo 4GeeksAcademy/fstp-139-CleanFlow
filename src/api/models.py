@@ -31,6 +31,11 @@ MADRID = ZoneInfo("Europe/Madrid")
 # el plazo; quien manda es este.
 CONFIRM_DAYS = 3
 
+# Horas de antelación con las que el cliente puede cancelar su reserva o
+# cambiarle la fecha (#17). Pasado el plazo solo puede el encargado, y a
+# él se le dice a quién acudir.
+CHANGE_HOURS = 24
+
 
 # ==================================================================
 # ENUMS
@@ -793,6 +798,32 @@ class Booking(db.Model):
         return int(seconds // 3600)
 
     @property
+    def change_deadline(self):
+        """Hasta cuándo puede el cliente cancelarla o cambiarle la fecha.
+
+        Veinticuatro horas antes de que empiece. Pasado el plazo solo
+        puede el encargado, así que el cliente ve a quién acudir en lugar
+        de los botones (#17).
+
+        Se cuenta con timestamps y no restando fechas: las dos son de
+        Madrid sin zona, y en el cambio de horario de octubre una resta
+        directa se comería una hora del plazo.
+        """
+        first_start = min(
+            (day.starts_at for day in self.days),
+            default=self.scheduled_start,
+        )
+
+        if first_start is None:
+            return None
+
+        madrid_start = first_start.replace(tzinfo=MADRID)
+
+        return datetime.fromtimestamp(
+            madrid_start.timestamp() - CHANGE_HOURS * 3600, tz=MADRID
+        )
+
+    @property
     def worker_name(self):
         """El trabajador como lo ve el cliente: "Ana G.".
 
@@ -914,6 +945,11 @@ class Booking(db.Model):
             "tasks": [task.serialize() for task in self.tasks],
             "incidents": [incident.serialize() for incident in self.incidents],
             "review": self.review.serialize() if self.review else None,
+            "change_deadline": (
+                self.change_deadline.isoformat()
+                if self.change_deadline
+                else None
+            ),
             # Los datos del cliente, para quien va a su casa. El nombre
             # siempre, con la inicial del apellido como el del trabajador.
             "client_name": (
