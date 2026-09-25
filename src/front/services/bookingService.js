@@ -139,3 +139,9 @@ export const formatInterval = (day) => {
     const date = day.starts_at.slice(0, 10).split("-").reverse().join("/");
     return `${date} · ${day.starts_at.slice(11, 16)}–${day.ends_at.slice(11, 16)}`;
 };
+export const cancelBooking = (bookingId, token, reason = "") =>
+  apiRequest(`/api/bookings/${bookingId}/cancel`, {
+    method: "PATCH",
+    token,
+    body: { reason },
+  });

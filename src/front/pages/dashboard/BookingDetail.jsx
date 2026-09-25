@@ -6,8 +6,8 @@
  * hubo alguna incidencia.
  *
  * Desde aquí también responde: da el servicio por bueno o cuenta que
- * algo no fue bien (#83). Lo que falta por aterrizar es cancelar (#17) y
- * valorar (#20).
+ * algo no fue bien (#83), y puede cancelar mientras esté en plazo (#17).
+ * Lo que falta por aterrizar es valorar (#20).
  *
  * Estilos: dashboard.css, sección 9 (cf-bookdetail).
  */
@@ -20,6 +20,7 @@ import { getMyBookings, confirmBooking, claimBooking } from "../../services/book
 import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
 import { BookingCancelled } from "../../components/dashboard/bookings/BookingCancelled";
+import { BookingCancel } from "../../components/dashboard/bookings/BookingCancel";
 import { BookingWhat } from "../../components/dashboard/bookings/BookingWhat";
 import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
 import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker";
@@ -232,6 +233,7 @@ export const BookingDetail = () => {
                 <div className="cf-bookdetail__col">
                     <BookingTimeline booking={booking} />
                     <BookingCancelled booking={booking} />
+                    <BookingCancel key={booking.booking_id} booking={booking} onCancelled={setBooking} />
                     <BookingWhat booking={booking} />
                     <BookingPhotos tasks={booking.tasks} onZoom={setZoomed} />
                     <BookingConfirm

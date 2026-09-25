@@ -2275,7 +2275,6 @@ def create_booking():
     }), 201
 
 
-
 @api.route("/booking-tasks/<int:task_id>", methods=["PATCH"])
 @role_required("worker")
 @booking_transaction
@@ -2354,6 +2353,125 @@ def complete_booking_task(task_id):
     return jsonify({"task": task.serialize()}), 200
 
 
+@api.route("/bookings/<int:booking_id>/cancel", methods=["PATCH"])
+@role_required("client", "manager")
+@booking_transaction
+def cancel_booking(booking_id):
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    if user.role == "client" and booking.client_id != user_id:
+        return jsonify({
+            "message": "Solo puedes cancelar tus propias reservas."
+        }), 403
+
+    # Repetir la petición conserva la cancelación original.
+    if booking.status == BookingStatus.CANCELLED:
+        return jsonify({"booking": booking.serialize_detail()}), 200
+
+    # También bloquea completed, in_progress y not_done.
+    if booking.status not in (
+        BookingStatus.PENDING,
+        BookingStatus.CONFIRMED,
+    ):
+        return jsonify({
+            "message": "El estado actual no permite cancelar la reserva."
+        }), 409
+
+    now = madrid_now()
+    first_start = min(
+        (day.starts_at for day in booking.days),
+        default=booking.scheduled_start,
+    )
+
+    if first_start is None:
+        return jsonify({
+            "message": "La reserva no tiene una fecha de inicio válida."
+        }), 409
+
+    # Fechas guardadas en hora de Madrid. Los timestamps permiten
+    # contar 24 horas reales incluso con el cambio de horario.
+    seconds_left = (
+        first_start.replace(tzinfo=MADRID).timestamp()
+        - now.replace(tzinfo=MADRID).timestamp()
+    )
+
+    if booking.started_at is not None or seconds_left <= 0:
+        return jsonify({
+            "message": "No se puede cancelar una reserva que ya ha comenzado."
+        }), 409
+
+    if user.role == "client" and seconds_left < 24 * 60 * 60:
+        return jsonify({
+            "message": "Para cancelar, contacta con CleanFlow"
+        }), 409
+
+    data = request.get_json(silent=True)
+    if data is None and not request.get_data():
+        data = {}
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "message": "Debes enviar un objeto JSON válido."
+        }), 400
+
+    reason = data.get("reason", "")
+    if not isinstance(reason, str):
+        return jsonify({
+            "message": "El motivo debe ser un texto."
+        }), 400
+
+    reason = reason.strip()
+
+    if len(reason) > 1000:
+        return jsonify({
+            "message": "El motivo no puede superar los 1000 caracteres."
+        }), 400
+
+    if user.role == "manager" and not reason:
+        return jsonify({
+            "message": "Debes indicar el motivo de cancelación."
+        }), 400
+
+    booking.status = BookingStatus.CANCELLED
+    booking.cancelled_by_company = user.role == "manager"
+    booking.cancellation_reason = reason or None
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
+
+
+def serialize_booking_with_cancellation(booking):
+    """Incluye el límite de cancelación con zona horaria explícita."""
+    data = booking.serialize_detail()
+    first_start = min(
+        (day.starts_at for day in booking.days),
+        default=booking.scheduled_start,
+    )
+    data["cancellation_deadline"] = None
+
+    if first_start is not None:
+        madrid_start = first_start.replace(tzinfo=MADRID)
+        deadline = datetime.fromtimestamp(
+            madrid_start.timestamp() - 24 * 60 * 60,
+            tz=MADRID,
+        )
+        data["cancellation_deadline"] = deadline.isoformat()
+
+    return data
+
+
 @api.route("/bookings", methods=["GET"])
 @api.route("/my/bookings", methods=["GET"])
 @role_required("client", "worker")
@@ -2425,7 +2543,7 @@ def my_bookings():
     ).scalars().all()
 
     return jsonify({
-        "bookings": [booking.serialize_detail() for booking in bookings]
+        "bookings": [serialize_booking_with_cancellation(booking) for booking in bookings]
     })
 
 
