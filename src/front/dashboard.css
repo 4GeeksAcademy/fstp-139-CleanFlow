@@ -7924,9 +7924,243 @@ textarea.cf-dash-input {
   height: 13px;
 }
 
-
 /* ======================================================================
-   12. MOVIMIENTO REDUCIDO
+   12. PÁGINA: CANDIDATURAS (Applications.jsx)
+   ====================================================================== */
+
+.cf-applications {
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-applications__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-applications__title {
+  margin: 0;
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.cf-applications__lede {
+  max-width: 60ch;
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- ERROR ---------- */
+
+.cf-applications__alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-applications__alert p {
+  margin: 0;
+}
+
+/* ---------- LISTA Y TARJETAS ---------- */
+
+.cf-applications__list {
+  display: grid;
+  gap: var(--cf-space-4);
+}
+
+.cf-applications__card {
+  padding: var(--cf-space-5);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-applications__card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+}
+
+.cf-applications__name {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cf-applications__contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2) var(--cf-space-4);
+  margin-top: var(--cf-space-2);
+}
+
+.cf-applications__contact a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+  text-decoration: none;
+}
+
+.cf-applications__contact a:hover {
+  text-decoration: underline;
+}
+
+.cf-applications__date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--cf-space-4) 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- ESTADOS ---------- */
+
+.cf-applications__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-applications__dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.cf-applications__state--new {
+  color: var(--cf-accent-dark);
+}
+
+.cf-applications__state--new .cf-applications__dot {
+  background-color: var(--cf-accent);
+}
+
+.cf-applications__state--contacted {
+  color: var(--cf-primary);
+}
+
+.cf-applications__state--contacted .cf-applications__dot {
+  background-color: var(--cf-primary);
+}
+
+.cf-applications__state--discarded {
+  color: var(--cf-muted);
+}
+
+.cf-applications__state--discarded .cf-applications__dot {
+  background-color: var(--cf-muted);
+}
+
+/* ---------- DETALLE ---------- */
+
+.cf-applications__details {
+  padding-block: var(--cf-space-3);
+  border-top: 1px solid var(--cf-border);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-applications__details summary {
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cf-applications__details-content {
+  display: grid;
+  gap: var(--cf-space-4);
+  margin-top: var(--cf-space-4);
+}
+
+.cf-applications__details-content strong {
+  color: var(--cf-text);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-applications__details-content p {
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/* ---------- ACCIONES ---------- */
+
+.cf-applications__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-4);
+}
+
+/* ---------- CARGA ---------- */
+
+.cf-applications__skel-name {
+  display: block;
+  width: 35%;
+  height: 16px;
+}
+
+.cf-applications__skel-text {
+  display: block;
+  width: 55%;
+  height: 10px;
+  margin-top: var(--cf-space-3);
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 640px) {
+  .cf-applications__header {
+    align-items: stretch;
+  }
+
+  .cf-applications__header .cf-dash-btn {
+    width: 100%;
+  }
+
+  .cf-applications__card {
+    padding: var(--cf-space-4);
+  }
+
+  .cf-applications__card-header {
+    flex-direction: column;
+  }
+
+  .cf-applications__contact {
+    flex-direction: column;
+  }
+}
+/* ======================================================================
+   13. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */

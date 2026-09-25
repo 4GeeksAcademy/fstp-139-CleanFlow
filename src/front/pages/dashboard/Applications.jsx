@@ -1,9 +1,20 @@
+/**
+ * CANDIDATURAS (ENCARGADO).
+ *
+ * Muestra y gestiona las solicitudes recibidas desde "Trabaja con nosotros".
+ * Permite filtrarlas por estado y actualizar su estado sin recargar la página.
+ * No crea ni elimina candidaturas.
+ *
+ * API: services/applicationService.js · Estilos: dashboard.css (cf-applications__*).
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import {
     getJobApplications,
     updateApplicationStatus,
 } from "../../services/applicationService";
+import "../../dashboard.css";
 
 const STATUS_LABELS = {
     new: "Nueva",
@@ -11,8 +22,21 @@ const STATUS_LABELS = {
     discarded: "Descartada",
 };
 
+const FILTERS = [
+    { value: "new", label: "Nuevas" },
+    { value: "contacted", label: "Contactadas" },
+    { value: "discarded", label: "Descartadas" },
+];
+
+const SKELETON_ROWS = 3;
+
+// La API devuelve la fecha en hora de Madrid sin zona horaria.
+// Se muestra directamente para evitar que el navegador la desplace.
+const shortMoment = (iso) =>
+    iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)} · ${iso.slice(11, 16)}` : "Sin fecha";
+
 export const Applications = () => {
-    const { store } = useGlobalReducer();
+    const { store, dispatch } = useGlobalReducer();
 
     const [applications, setApplications] = useState([]);
     const [filter, setFilter] = useState("new");
@@ -26,6 +50,13 @@ export const Applications = () => {
 
         const result = await getJobApplications(store.token);
 
+        // Si la sesión ha caducado, ProtectedRoutes se ocupa de redirigir.
+        if (result.status === 401) {
+            setLoading(false);
+            dispatch({ type: "LOGOUT" });
+            return;
+        }
+
         if (result.ok) {
             setApplications(result.data);
         } else {
@@ -37,7 +68,7 @@ export const Applications = () => {
         }
 
         setLoading(false);
-    }, [store.token]);
+    }, [store.token, dispatch]);
 
     useEffect(() => {
         loadApplications();
@@ -53,14 +84,21 @@ export const Applications = () => {
             store.token
         );
 
+        if (result.status === 401) {
+            setUpdatingId(null);
+            dispatch({ type: "LOGOUT" });
+            return;
+        }
+
         if (result.ok) {
-    setApplications((currentApplications) =>
-        currentApplications.map((application) =>
-            application.application_id === applicationId
-                ? result.data.application
-                : application
-        )
-    );
+            // Sustituimos solo la candidatura modificada con la que devuelve la API.
+            setApplications((currentApplications) =>
+                currentApplications.map((application) =>
+                    application.application_id === applicationId
+                        ? result.data.application
+                        : application
+                )
+            );
         } else {
             setError(
                 result.data?.message ||
@@ -76,49 +114,54 @@ export const Applications = () => {
         (application) => application.status === filter
     );
 
+    const countByStatus = (status) =>
+        applications.filter((application) => application.status === status).length;
+
     return (
-        <div className="container py-3">
-            <div className="d-flex justify-content-between flex-wrap gap-2 mb-4">
+        <section className="cf-applications">
+            <header className="cf-applications__header">
                 <div>
-                    <h1>Candidaturas recibidas</h1>
-                    <p className="text-muted mb-0">
+                    <p className="cf-dash-eyebrow">Equipo</p>
+                    <h1 className="cf-applications__title">Candidaturas recibidas</h1>
+                    <p className="cf-applications__lede">
                         Gestiona las solicitudes enviadas desde Trabaja con nosotros.
                     </p>
                 </div>
 
                 <button
                     type="button"
-                    className="btn btn-outline-secondary align-self-center"
+                    className="cf-dash-btn cf-dash-btn--ghost"
                     onClick={loadApplications}
                     disabled={loading}
                 >
+                    <i className="fa-solid fa-rotate-right" aria-hidden="true" />
                     Actualizar
                 </button>
-            </div>
+            </header>
 
-            <div className="mb-4">
-                <label htmlFor="application-status-filter" className="form-label">
-                    Filtrar por estado
-                </label>
-
-                <select
-                    id="application-status-filter"
-                    className="form-select"
-                    value={filter}
-                    onChange={(event) => setFilter(event.target.value)}
-                >
-                    <option value="new">Nuevas</option>
-                    <option value="contacted">Contactadas</option>
-                    <option value="discarded">Descartadas</option>
-                </select>
+            <div className="cf-services__tabs" aria-label="Filtrar candidaturas">
+                {FILTERS.map((item) => (
+                    <button
+                        key={item.value}
+                        type="button"
+                        className="cf-services__tab"
+                        aria-pressed={filter === item.value}
+                        onClick={() => setFilter(item.value)}
+                    >
+                        {item.label}
+                        <span className="cf-services__count">
+                            {countByStatus(item.value)}
+                        </span>
+                    </button>
+                ))}
             </div>
 
             {error && (
-                <div className="alert alert-danger" role="alert">
-                    <p className="mb-2">{error}</p>
+                <div className="cf-dash-alert cf-applications__alert" role="alert">
+                    <p>{error}</p>
                     <button
                         type="button"
-                        className="btn btn-sm btn-outline-danger"
+                        className="cf-dash-btn cf-dash-btn--ghost cf-dash-btn--sm"
                         onClick={loadApplications}
                     >
                         Reintentar
@@ -127,109 +170,164 @@ export const Applications = () => {
             )}
 
             {loading ? (
-                <p role="status">Cargando candidaturas…</p>
+                <div className="cf-applications__list" aria-busy="true">
+                    <p className="sr-only">Cargando candidaturas...</p>
+
+                    {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                        <div className="cf-applications__card" key={index} aria-hidden="true">
+                            <span className="cf-dash-skel cf-applications__skel-name" />
+                            <span className="cf-dash-skel cf-applications__skel-text" />
+                            <span className="cf-dash-skel cf-applications__skel-text" />
+                        </div>
+                    ))}
+                </div>
             ) : (
                 !error && (
                     <>
-                        {filteredApplications.length === 0 && (
-                            <div className="alert alert-info">
-                                No hay candidaturas en este estado. Las solicitudes
-                                aparecen aquí cuando alguien completa el formulario
-                                de “Trabaja con nosotros” de la web.
+                        {filteredApplications.length === 0 ? (
+                            <div className="cf-dash-state">
+                                <i
+                                    className="fa-regular fa-folder-open cf-dash-state__icon"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="cf-dash-state__title">
+                                    No hay candidaturas en este estado
+                                </h2>
+                                <p className="cf-dash-state__text">
+                                    Las solicitudes aparecen aquí cuando alguien completa
+                                    el formulario de Trabaja con nosotros.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="cf-applications__list">
+                                {filteredApplications.map((application) => (
+                                    <article
+                                        key={application.application_id}
+                                        className="cf-applications__card"
+                                    >
+                                        <div className="cf-applications__card-header">
+                                            <div>
+                                                <h2 className="cf-applications__name">
+                                                    {application.name} {application.last_name}
+                                                </h2>
+
+                                                <div className="cf-applications__contact">
+                                                    <a href={`mailto:${application.email}`}>
+                                                        <i
+                                                            className="fa-regular fa-envelope"
+                                                            aria-hidden="true"
+                                                        />
+                                                        {application.email}
+                                                    </a>
+
+                                                    <a href={`tel:${application.phone}`}>
+                                                        <i
+                                                            className="fa-solid fa-phone"
+                                                            aria-hidden="true"
+                                                        />
+                                                        {application.phone}
+                                                    </a>
+                                                </div>
+                                            </div>
+
+                                            <span
+                                                className={`cf-applications__state cf-applications__state--${application.status}`}
+                                            >
+                                                <span
+                                                    className="cf-applications__dot"
+                                                    aria-hidden="true"
+                                                />
+                                                <i
+                                                    className={
+                                                        application.status === "new"
+                                                            ? "fa-regular fa-envelope"
+                                                            : application.status === "contacted"
+                                                                ? "fa-solid fa-check"
+                                                                : "fa-solid fa-xmark"
+                                                    }
+                                                    aria-hidden="true"
+                                                />
+                                                {STATUS_LABELS[application.status] ||
+                                                    application.status}
+                                            </span>
+                                        </div>
+
+                                        <p className="cf-applications__date">
+                                            <i
+                                                className="fa-regular fa-calendar"
+                                                aria-hidden="true"
+                                            />
+                                            {shortMoment(application.created_at)}
+                                        </p>
+
+                                        <details className="cf-applications__details">
+                                            <summary>Ver experiencia y mensaje</summary>
+
+                                            <div className="cf-applications__details-content">
+                                                <div>
+                                                    <strong>Experiencia</strong>
+                                                    <p>{application.experience}</p>
+                                                </div>
+
+                                                <div>
+                                                    <strong>Mensaje</strong>
+                                                    <p>{application.message}</p>
+                                                </div>
+                                            </div>
+                                        </details>
+
+                                        <div className="cf-applications__actions">
+                                            {application.status !== "contacted" && (
+                                                <button
+                                                    type="button"
+                                                    className="cf-dash-btn cf-dash-btn--sm"
+                                                    disabled={
+                                                        updatingId === application.application_id
+                                                    }
+                                                    onClick={() =>
+                                                        handleStatusChange(
+                                                            application.application_id,
+                                                            "contacted"
+                                                        )
+                                                    }
+                                                >
+                                                    <i
+                                                        className="fa-solid fa-phone"
+                                                        aria-hidden="true"
+                                                    />
+                                                    Ya la he llamado
+                                                </button>
+                                            )}
+
+                                            {application.status !== "discarded" && (
+                                                <button
+                                                    type="button"
+                                                    className="cf-dash-btn cf-dash-btn--ghost cf-dash-btn--sm"
+                                                    disabled={
+                                                        updatingId === application.application_id
+                                                    }
+                                                    onClick={() =>
+                                                        handleStatusChange(
+                                                            application.application_id,
+                                                            "discarded"
+                                                        )
+                                                    }
+                                                >
+                                                    <i
+                                                        className="fa-solid fa-xmark"
+                                                        aria-hidden="true"
+                                                    />
+                                                    Descartar
+                                                </button>
+                                            )}
+                                        </div>
+                                    </article>
+                                ))}
                             </div>
                         )}
-
-                        {filteredApplications.map((application) => (
-                            <article
-                                key={application.application_id}
-                                className="card p-4 mb-3"
-                            >
-                                <div className="d-flex justify-content-between flex-wrap gap-2">
-                                    <div>
-                                        <h2 className="h5 mb-1">
-                                            {application.name} {application.last_name}
-                                        </h2>
-
-                                        <p className="mb-1">
-                                            <a href={`mailto:${application.email}`}>
-                                                {application.email}
-                                            </a>
-                                        </p>
-
-                                        <p className="mb-2">
-                                            <a href={`tel:${application.phone}`}>
-                                                {application.phone}
-                                            </a>
-                                        </p>
-                                    </div>
-
-                                    <span className="badge text-bg-secondary align-self-start">
-                                        {STATUS_LABELS[application.status] ||
-                                            application.status}
-                                    </span>
-                                </div>
-
-                                <p>
-                                    <strong>Fecha:</strong>{" "}
-                                    {application.created_at
-                                        ? new Date(application.created_at).toLocaleString("es-ES")
-                                        : "Sin fecha"}
-                                </p>
-
-                                <details className="mb-3">
-                                    <summary>Ver experiencia y mensaje</summary>
-
-                                    <div className="mt-3">
-                                        <p>
-                                            <strong>Experiencia:</strong>
-                                        </p>
-                                        <p style={{ whiteSpace: "pre-wrap" }}>
-                                            {application.experience}
-                                        </p>
-
-                                        <p>
-                                            <strong>Mensaje:</strong>
-                                        </p>
-                                        <p style={{ whiteSpace: "pre-wrap" }}>
-                                            {application.message}
-                                        </p>
-                                    </div>
-                                </details>
-
-                                <div className="d-flex gap-2 flex-wrap">
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline-success"
-                                        disabled={updatingId === application.application_id}
-                                        onClick={() =>
-                                            handleStatusChange(
-                                                application.application_id,
-                                                "contacted"
-                                            )
-                                        }
-                                    >
-                                        Marcar como contactada
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline-danger"
-                                        disabled={updatingId === application.application_id}
-                                        onClick={() =>
-                                            handleStatusChange(
-                                                application.application_id,
-                                                "discarded"
-                                            )
-                                        }
-                                    >
-                                        Descartar
-                                    </button>
-                                </div>
-                            </article>
-                        ))}
                     </>
                 )
             )}
-        </div>
+        </section>
     );
 };
