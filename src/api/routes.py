@@ -3147,7 +3147,8 @@ def claim_booking(booking_id):
 # ----------------------------------------------------------------------
 # INCIDENCIAS DEL ENCARGADO (#19)
 # ----------------------------------------------------------------------
-#   GET  /api/incidents?resolved=&type=&source=&count_only=   encargado
+#   GET    /api/incidents?resolved=&type=&source=&count_only=   encargado
+#   PATCH  /api/incidents/<id>/resolve                          encargado
 #
 # Todo lo que ha salido mal, venga del trabajador (#18) o del cliente
 # (#83). Es la pantalla que cierra el círculo: hasta ahora se registraban

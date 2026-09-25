@@ -5,8 +5,8 @@
  * bookingService: las incidencias las van a usar también el encargado
  * para resolverlas (#19) y el cliente para reclamar (#83).
  *
- * Las dos devuelven la reserva entera, para que la pantalla se repinte
- * con la respuesta sin volver a pedirla.
+ * Las del trabajador devuelven la reserva entera, para que la pantalla
+ * se repinte con la respuesta sin volver a pedirla.
  */
 
 import { apiRequest } from "./apiClient";
@@ -66,7 +66,7 @@ export const markNotDone = (bookingId, data, token) =>
  * Las incidencias, filtradas.
  *
  * filters: { resolved, type, source } · los vacíos no se envían, porque
- * el backend distingue "no me lo has dicho" de "me has dicho nada".
+ * el backend distingue "no me lo has dicho" de "me lo has dicho vacío".
  *
  * countOnly devuelve solo el número, para la pastilla del menú.
  */
