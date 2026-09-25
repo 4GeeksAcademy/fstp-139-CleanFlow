@@ -16,7 +16,10 @@
         cf-worker-form__*, cf-absences__*, cf-affected__*)
      9. Mis servicios del cliente y el detalle de una reserva
         (cf-myservices__*, cf-bookcard__*, cf-bookdetail__*)
-    10. Movimiento reducido
+    10. Mis tareas del trabajador (cf-mytasks__*, cf-wcard__*)
+    11. Incidencias: formulario y pantalla del encargado
+        (cf-inc-sheet__*, cf-incidents__*, cf-incard__*)
+    12. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -5861,6 +5864,21 @@ textarea.cf-dash-input {
   font-variant-numeric: tabular-nums;
 }
 
+/* El motivo de un servicio que no se pudo hacer, bajo su hito. Lo
+   escribió el trabajador al marcarlo (#18) y es lo que el cliente
+   quiere leer: a él nadie se lo ha contado. */
+.cf-timeline__why {
+  margin: var(--cf-space-2) 0 0;
+  padding: var(--cf-space-2) var(--cf-space-3);
+  border-left: 2px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+  font-size: 0.8125rem;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
 /* ---------- FILAS DE DATOS ----------
    Etiqueta a la izquierda, valor a la derecha. Lo usa el precio. */
 
@@ -6187,6 +6205,171 @@ textarea.cf-dash-input {
   font-weight: 500;
 }
 
+/* ---------- ¿QUEDÓ TODO BIEN? ----------
+   La respuesta del cliente (#83), debajo de las fotos: se decide después
+   de verlas, no antes. Cuatro situaciones, cada una con su aspecto. */
+
+.cf-ask {
+  display: grid;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-accent);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-accent-soft);
+}
+
+.cf-ask__title {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+}
+
+.cf-ask__text {
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.8438rem;
+}
+
+/* El plazo, con su reloj y su fecha concreta: es lo que empuja a
+   responder, y lo que evita que luego nadie diga que no lo sabía. */
+.cf-ask__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  padding: 6px var(--cf-space-3);
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.6);
+  color: var(--cf-accent-dark);
+  font-size: 0.7813rem;
+  font-weight: 500;
+}
+
+/* "Sí, se hizo bien" pesa más y va primero, que es lo que va a pulsar
+   casi todo el mundo. El otro, al lado y del mismo tamaño: ni escondido
+   ni compitiendo. */
+.cf-ask__buttons {
+  display: grid;
+  gap: var(--cf-space-2);
+}
+
+.cf-ask__buttons .cf-dash-btn {
+  justify-content: center;
+}
+
+/* ---------- YA RESPONDIDO ---------- */
+
+.cf-answered {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-primary-soft);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-answered__icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-size: 0.75rem;
+}
+
+.cf-answered__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cf-answered__text {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  opacity: 0.85;
+}
+
+/* Cerrado por el plazo: lo mismo, pero sin celebrar nada. */
+.cf-answered--auto {
+  border-color: var(--cf-border);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+}
+
+.cf-answered--auto .cf-answered__icon {
+  background-color: var(--cf-border);
+  color: var(--cf-muted);
+}
+
+.cf-answered--auto .cf-answered__title {
+  color: var(--cf-text);
+}
+
+/* ---------- EN REVISIÓN ---------- */
+
+.cf-review {
+  display: grid;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-md) var(--cf-radius-md) 0;
+  background-color: var(--cf-surface);
+}
+
+.cf-review__top {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-accent-dark);
+}
+
+.cf-review__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cf-review__text {
+  margin: 0;
+  font-size: 0.8438rem;
+}
+
+/* Lo que escribió el cliente, tal cual lo escribió. */
+.cf-review__mine {
+  margin: 0;
+  padding: var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  font-size: 0.8438rem;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.cf-review__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-review__shots .cf-bookshot {
+  width: 72px;
+}
+
+.cf-review__shots .cf-bookshot__img {
+  aspect-ratio: 1 / 1;
+}
+
 /* ---------- INCIDENCIAS ----------
    Solo lectura: abrirlas es la #18 y resolverlas la #19. */
 
@@ -6298,7 +6481,1686 @@ textarea.cf-dash-input {
 
 
 /* ======================================================================
-   10. MOVIMIENTO REDUCIDO
+   10. PÁGINA: MIS TAREAS DEL TRABAJADOR
+       (MisReservasTrabajador.jsx y los componentes de
+        components/dashboard/worker)
+   ======================================================================
+
+   Lo que el trabajador tiene asignado. Es la única pantalla del panel
+   que se usa sobre todo desde el móvil, de pie y en casa del cliente:
+   se diseña a 360px y lo demás viene después.
+
+   container-type: el diseño estrecho lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final). */
+
+.cf-mytasks {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-mytasks__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-mytasks__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+}
+
+.cf-mytasks__lede {
+  margin: var(--cf-space-2) 0 0;
+  max-width: 62ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-mytasks__list {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- TARJETA ----------
+   Fecha a la izquierda y, debajo de todo, el estado con el progreso. */
+
+.cf-wcard {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--cf-space-3);
+  width: 100%;
+  padding: var(--cf-space-3);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--cf-transition), box-shadow var(--cf-transition);
+}
+
+.cf-wcard:hover {
+  border-color: var(--cf-primary);
+  box-shadow: var(--cf-shadow-md);
+}
+
+.cf-wcard:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+/* El de hoy manda: va el primero y se distingue sin leer nada. */
+.cf-wcard--today {
+  border-color: var(--cf-primary);
+}
+
+.cf-wcard__date {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: var(--cf-space-2) 0;
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-wcard__day {
+  font-family: var(--cf-font-heading);
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-wcard__month {
+  font-family: var(--cf-font-brand);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-wcard__service {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cf-wcard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px var(--cf-space-3);
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-wcard__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* El pie ocupa las dos columnas: estado a un lado, progreso al otro. */
+.cf-wcard__foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-1);
+  padding-top: var(--cf-space-2);
+  border-top: 1px solid var(--cf-border);
+}
+
+/* ---------- PROGRESO DE TAREAS ----------
+   Una barra fina y "3 de 5". Nada de porcentajes: lo que importa es
+   cuántas quedan, no el número redondo. */
+
+.cf-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-progress__track {
+  width: 84px;
+  height: 5px;
+  border-radius: 999px;
+  background-color: var(--cf-border);
+  overflow: hidden;
+}
+
+.cf-progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  background-color: var(--cf-primary);
+  transition: width var(--cf-transition);
+}
+
+/* ---------- DETALLE DE UN SERVICIO ----------
+   Donde el trabajador trabaja. En el móvil se lee de arriba abajo; en
+   escritorio, dos columnas: a la izquierda las tareas, que es lo que se
+   toca, y a la derecha lo que solo se consulta. */
+
+.cf-wdetail {
+  container-type: inline-size;
+  max-width: 1000px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+.cf-wdetail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-decoration: none;
+}
+
+.cf-wdetail__back:hover {
+  color: var(--cf-primary);
+}
+
+.cf-wdetail__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding-bottom: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-wdetail__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.cf-wdetail__sub {
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-wdetail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--cf-space-3);
+  margin-top: var(--cf-space-3);
+}
+
+.cf-wdetail__col {
+  display: grid;
+  gap: var(--cf-space-3);
+  align-content: start;
+}
+
+.cf-wblock {
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+}
+
+.cf-wblock__title {
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-brand);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---------- LÍNEA DE TIEMPO ----------
+   Tumbada y con tres hitos. En vertical se comería media pantalla del
+   móvil, que es donde se usa esto. */
+
+.cf-wtrack {
+  display: flex;
+  align-items: flex-start;
+}
+
+.cf-wtrack__step {
+  position: relative;
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+/* La línea une los hitos por detrás de las bolas. */
+.cf-wtrack__step::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: -50%;
+  width: 100%;
+  height: 2px;
+  background-color: var(--cf-primary);
+}
+
+.cf-wtrack__step:first-child::before {
+  display: none;
+}
+
+.cf-wtrack__step--todo::before {
+  background-color: var(--cf-border);
+}
+
+/* position y z-index: la línea es un ::before del paso y, sin esto, se
+   pinta por encima de la bola y la cruza por la mitad. */
+.cf-wtrack__mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-size: 0.6875rem;
+}
+
+.cf-wtrack__step--todo .cf-wtrack__mark {
+  border: 2px dashed var(--cf-border);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+}
+
+.cf-wtrack__step--fail .cf-wtrack__mark {
+  background-color: var(--cf-accent);
+  color: var(--cf-surface);
+}
+
+.cf-wtrack__name {
+  font-size: 0.7188rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.cf-wtrack__step--todo .cf-wtrack__name {
+  color: var(--cf-muted);
+  font-weight: 500;
+}
+
+.cf-wtrack__when {
+  color: var(--cf-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- HOY ----------
+   El bloque verde: en qué punto está el día que se está trabajando. */
+
+.cf-wtoday {
+  display: grid;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-4);
+  border: 1px solid var(--cf-primary);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-wtoday__when {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-base);
+  font-weight: 600;
+}
+
+.cf-wtoday__note {
+  margin: 0;
+  color: var(--cf-primary);
+  font-size: 0.7813rem;
+  opacity: 0.85;
+}
+
+/* ---------- DÓNDE Y CON QUIÉN ---------- */
+
+.cf-wrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-2) 0;
+  border-bottom: 1px solid var(--cf-border);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-wrow:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-wrow dt {
+  color: var(--cf-muted);
+}
+
+.cf-wrow dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.cf-wrow a {
+  color: var(--cf-primary);
+}
+
+/* Lo que todavía no se puede ver, dicho sin alarmar. */
+.cf-wrow__locked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-1);
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+  font-weight: 400;
+}
+
+/* Las notas del cliente, tal y como las escribió. */
+.cf-wnotes {
+  margin: var(--cf-space-3) 0 0;
+  padding: var(--cf-space-3);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-bg);
+  font-size: var(--cf-text-sm);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+/* ---------- LOS DÍAS DEL SERVICIO ----------
+   Lo previsto y, debajo, lo que se hizo de verdad. Con un solo día
+   apenas se mira; con varios es la referencia para organizarse. */
+
+.cf-wday {
+  display: grid;
+  gap: 2px;
+  padding: var(--cf-space-2) 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-wday:first-of-type {
+  padding-top: 0;
+}
+
+.cf-wday:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-wday__when {
+  font-size: var(--cf-text-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El día que toca hoy, para encontrarlo entre varios sin leerlos todos. */
+.cf-wday--today .cf-wday__when {
+  color: var(--cf-primary);
+  font-weight: 600;
+}
+
+.cf-wday__real {
+  color: var(--cf-primary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- RESUMEN DEL FINAL ----------
+   Lo que se trabajó, en cuatro números. Se enseña solo cuando el
+   servicio ya está cerrado: antes, todos serían provisionales. */
+
+.cf-wrecap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-4) var(--cf-space-6);
+}
+
+.cf-wrecap__item {
+  display: grid;
+  gap: 1px;
+}
+
+.cf-wrecap__n {
+  font-family: var(--cf-font-heading);
+  font-size: 1.3125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-wrecap__label {
+  color: var(--cf-muted);
+  font-family: var(--cf-font-brand);
+  font-size: 0.5938rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---------- LA ACCIÓN DEL MOMENTO ----------
+   Empezar, cerrar el día o finalizar: solo una de las tres tiene sentido
+   en cada instante, así que solo se enseña una.
+
+   En el móvil va pegada abajo, al alcance del pulgar, y no al final de
+   una lista de ocho tareas. Encima, el motivo por el que no se puede
+   pulsar todavía: un botón apagado sin explicación desespera. */
+
+.cf-wact {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: var(--cf-space-4);
+  padding: var(--cf-space-3) 0 var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+  background-color: var(--cf-bg);
+}
+
+.cf-wact__note {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.cf-wact .cf-dash-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* En escritorio no hace falta perseguir el pulgar: la acción vive en su
+   bloque, dentro de la columna estrecha. */
+@container (min-width: 721px) {
+  .cf-wact {
+    position: static;
+    margin-top: 0;
+    padding: var(--cf-space-4);
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius-md);
+    background-color: var(--cf-surface);
+  }
+
+  .cf-wact__note {
+    text-align: left;
+  }
+}
+
+/* Separador entre la acción del servicio y las salidas de emergencia:
+   "¿ha pasado algo?" no es una acción más, es otra conversación. */
+.cf-wact__sep {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: 0.7188rem;
+}
+
+.cf-wact__sep::before,
+.cf-wact__sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--cf-border);
+}
+
+.cf-wact__more {
+  display: grid;
+  gap: 6px;
+}
+
+/* Lo que cierra el servicio para siempre no lleva botón llamativo: va
+   en gris y solo se enciende al pasar por encima. */
+.cf-wact__quiet {
+  border-color: transparent;
+  background: none;
+  color: var(--cf-muted);
+}
+
+.cf-wact__quiet:hover {
+  border-color: var(--cf-border);
+  background-color: var(--cf-surface);
+  color: var(--cf-accent-dark);
+}
+
+/* ---------- TAREAS Y SUS FOTOS ----------
+   Lo que el trabajador toca de verdad. Cada tarea lleva dos huecos: el
+   antes y el después. Sin las dos fotos no se puede cerrar, así que el
+   hueco vacío ES el botón de la cámara; no hay un "subir foto" aparte. */
+
+.cf-wtask {
+  padding: var(--cf-space-3);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+}
+
+.cf-wtask + .cf-wtask {
+  margin-top: var(--cf-space-2);
+}
+
+.cf-wtask--done {
+  border-color: var(--cf-primary-soft);
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-wtask__top {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-wtask__check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 1.5px dashed var(--cf-border);
+  border-radius: 50%;
+  color: var(--cf-primary);
+  font-size: 0.625rem;
+}
+
+.cf-wtask--done .cf-wtask__check {
+  border: 0;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+.cf-wtask__name {
+  font-size: 0.9063rem;
+  font-weight: 600;
+}
+
+.cf-wtask--done .cf-wtask__name {
+  color: var(--cf-primary);
+}
+
+.cf-wtask__undo {
+  margin-left: auto;
+  padding: var(--cf-space-1) 6px;
+  border: 0;
+  background: none;
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.7813rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cf-wtask__undo:hover {
+  color: var(--cf-primary);
+}
+
+.cf-wtask__shots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-3);
+  max-width: 340px;
+}
+
+/* ---------- UN HUECO DE FOTO ---------- */
+
+.cf-wshot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 1.5px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cf-wshot:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-wshot:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+/* Deshabilitado no es "espera": es que ahora no toca. */
+.cf-wshot[disabled] {
+  border-style: solid;
+  color: var(--cf-border);
+  cursor: not-allowed;
+}
+
+.cf-wshot[disabled]:hover {
+  border-color: var(--cf-border);
+  color: var(--cf-border);
+}
+
+/* Con foto: borde entero y la imagen llenando el hueco. */
+.cf-wshot--full {
+  border-style: solid;
+  cursor: default;
+}
+
+.cf-wshot__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cf-wshot__tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-family: var(--cf-font-brand);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.cf-wshot__del {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(38, 38, 31, 0.7);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-wshot__del:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+/* Subiendo: la miniatura ya se ve y la barra avisa de que va en camino.
+   Con datos móviles no es instantáneo y el hueco en blanco desespera. */
+.cf-wshot__load {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4px;
+  background-color: var(--cf-border);
+  overflow: hidden;
+}
+
+.cf-wshot__load::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  background-color: var(--cf-primary);
+  animation: cf-wshot-load 1.1s ease-in-out infinite;
+}
+
+@keyframes cf-wshot-load {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* El motivo por el que la tarea todavía no se puede cerrar. */
+.cf-wtask__hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.7813rem;
+}
+
+.cf-wtask__actions {
+  margin-top: var(--cf-space-3);
+}
+
+/* ---------- CARGANDO ---------- */
+
+.cf-wcard--skel {
+  cursor: default;
+}
+
+.cf-wcard--skel:hover {
+  border-color: var(--cf-border);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-wcard__skel-date {
+  height: 48px;
+}
+
+.cf-wcard__skel-title {
+  width: 46%;
+  height: 16px;
+}
+
+.cf-wcard__skel-meta {
+  width: 68%;
+  height: 12px;
+  margin-top: var(--cf-space-2);
+}
+
+.cf-wcard__skel-foot {
+  grid-column: 1 / -1;
+  height: 14px;
+  margin-top: var(--cf-space-2);
+}
+
+/* ---------- ESTRECHO ----------
+   Es el ancho normal de esta pantalla, no la excepción. */
+
+@container (max-width: 720px) {
+  .cf-wdetail__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* ======================================================================
+   11. INCIDENCIAS (components/dashboard/incidents)
+   ======================================================================
+
+   El formulario con el que el trabajador cuenta lo que ha pasado, y la
+   lista de lo que ya se ha contado. Lo estrenó la #18 y lo reutilizan
+   el encargado al resolver (#19) y el cliente al reclamar (#83).
+
+   Es un <dialog> de verdad y no un div: el navegador ya oscurece el
+   fondo, atrapa el foco dentro y cierra con Escape. */
+
+.cf-inc-sheet {
+  width: min(460px, 92vw);
+  max-height: 88vh;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  overflow: hidden;
+}
+
+.cf-inc-sheet::backdrop {
+  background-color: rgba(38, 38, 31, 0.6);
+}
+
+.cf-inc-sheet__form {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: 88vh;
+}
+
+.cf-inc-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4) var(--cf-space-4) var(--cf-space-3);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-inc-sheet__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cf-inc-sheet__sub {
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+.cf-inc-sheet__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+
+.cf-inc-sheet__close:hover {
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+}
+
+/* El cuerpo scrollea y la cabecera y el pie se quedan: en un móvil con
+   el teclado abierto, los botones tienen que seguir a la vista. */
+.cf-inc-sheet__body {
+  display: grid;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-4);
+  overflow-y: auto;
+}
+
+.cf-inc-sheet__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-3) var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+  background-color: var(--cf-bg);
+}
+
+.cf-inc-sheet__foot .cf-dash-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* ---------- CAMPOS ---------- */
+
+.cf-inc-field {
+  display: grid;
+  gap: 7px;
+}
+
+.cf-inc-field__label {
+  font-size: 0.8438rem;
+  font-weight: 600;
+}
+
+.cf-inc-field__hint {
+  color: var(--cf-muted);
+  font-weight: 400;
+}
+
+/* cf-dash-input está pensada para <input>: a un <textarea> hay que
+   decirle que solo crece hacia abajo y que el padding va por dentro. */
+.cf-inc-field textarea.cf-dash-input {
+  min-height: 96px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.cf-inc-field__count {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- EL TIPO ----------
+   Dos tarjetas con ejemplos, no un desplegable: "cliente" y "empresa"
+   son las palabras del modelo, no las de quien acaba de pasar veinte
+   minutos en un rellano. Se elige por lo que pasó. */
+
+.cf-inc-types {
+  display: grid;
+  gap: var(--cf-space-2);
+}
+
+.cf-inc-type {
+  display: grid;
+  gap: 2px;
+  padding: var(--cf-space-3);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  font-family: var(--cf-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--cf-transition), background-color var(--cf-transition);
+}
+
+.cf-inc-type:hover {
+  border-color: var(--cf-primary);
+}
+
+.cf-inc-type[aria-pressed="true"] {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-inc-type__name {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-text);
+  font-size: 0.9063rem;
+  font-weight: 600;
+}
+
+.cf-inc-type[aria-pressed="true"] .cf-inc-type__name {
+  color: var(--cf-primary);
+}
+
+.cf-inc-type__eg {
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+}
+
+.cf-inc-type[aria-pressed="true"] .cf-inc-type__eg {
+  color: var(--cf-primary);
+  opacity: 0.8;
+}
+
+.cf-inc-type__check {
+  margin-left: auto;
+  opacity: 0;
+}
+
+.cf-inc-type[aria-pressed="true"] .cf-inc-type__check {
+  opacity: 1;
+}
+
+/* ---------- LA FOTO ---------- */
+
+.cf-inc-shot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  width: 120px;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 1.5px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cf-inc-shot:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-inc-shot--full {
+  border-style: solid;
+  cursor: default;
+}
+
+.cf-inc-shot__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cf-inc-shot__del {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(38, 38, 31, 0.7);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-inc-shot__del:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+/* ---------- RECLAMAR: LAS FOTOS ----------
+   El formulario reutiliza el diálogo de las incidencias (cf-inc-sheet);
+   lo propio de aquí es la rejilla, que admite hasta cinco. */
+
+.cf-claim__shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--cf-space-2);
+}
+
+.cf-claim__shot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1.5px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.7188rem;
+  font-weight: 500;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cf-claim__shot:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-claim__shot--full {
+  border-style: solid;
+  cursor: default;
+}
+
+.cf-claim__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cf-claim__del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(38, 38, 31, 0.7);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-claim__del:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+/* Cuántas van. Solo aparece con alguna puesta: con la rejilla vacía
+   sobra, y al llegar al tope dice que no caben más en vez de dejar un
+   botón que solo sirve para dar error. */
+.cf-claim__count {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- AVISO DE LO QUE NO SE DESHACE ---------- */
+
+.cf-inc-warn {
+  display: flex;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: var(--cf-space-3);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.8438rem;
+}
+
+/* El motivo por el que todavía no se puede enviar. */
+.cf-inc-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.7813rem;
+}
+
+
+/* ---------- PANTALLA DEL ENCARGADO ----------
+   Todo lo que ha salido mal, venga del trabajador (#18) o del cliente
+   (#83). Es la pantalla que cierra el círculo: hasta la #19, se
+   registraban problemas que nadie podía resolver. */
+
+.cf-incidents {
+  container-type: inline-size;
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+.cf-incidents__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-incidents__title {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+}
+
+.cf-incidents__lede {
+  margin: var(--cf-space-2) 0 0;
+  max-width: 62ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* La barra: las pestañas del catálogo y, a la derecha, los dos
+   desplegables. Misma estructura que Mis servicios. */
+.cf-incidents__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-2) var(--cf-space-6);
+  margin-bottom: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-incidents__toolbar .cf-services__tabs {
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.cf-incidents__picks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-2);
+}
+
+/* Desplegable en píldora, a juego con el buscador del panel. La flecha
+   se dibuja con dos degradados porque la nativa no se puede teñir. */
+.cf-incidents__pick {
+  height: 38px;
+  padding: 0 34px 0 var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  cursor: pointer;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--cf-muted) 50%),
+    linear-gradient(135deg, var(--cf-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 17px, calc(100% - 13px) 17px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.cf-incidents__pick:focus-visible {
+  outline: none;
+  border-color: var(--cf-primary);
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+/* Con un filtro puesto se enciende, para saber que la lista está
+   recortada sin tener que leer los desplegables. */
+.cf-incidents__pick--on {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 500;
+}
+
+.cf-incidents__list {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- LA FICHA ---------- */
+
+.cf-incard {
+  display: grid;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4) var(--cf-space-5, 18px);
+  border: 1px solid var(--cf-border);
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-md) var(--cf-radius-md) 0;
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+/* Resuelta: el borde se apaga, ya no pide nada. */
+.cf-incard--done {
+  border-left-color: var(--cf-primary-soft);
+}
+
+/* No realizada: borde más grueso. No es una figura rota, es un cliente
+   sin servicio y un hueco que decidir qué hacer con él. */
+.cf-incard--notdone {
+  border-left-width: 5px;
+}
+
+.cf-incard__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-incard__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-incard__tag--client {
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+}
+
+.cf-incard__tag--company {
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+/* La etiqueta que lo cambia todo: el servicio no llegó a hacerse. */
+.cf-incard__tag--notdone {
+  background-color: var(--cf-accent-dark);
+  color: var(--cf-on-primary);
+}
+
+.cf-incard__who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+}
+
+.cf-incard__when {
+  margin-left: auto;
+  color: var(--cf-muted);
+  font-size: 0.7813rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* De qué servicio habla: sin esto la incidencia no dice nada. */
+.cf-incard__ref {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--cf-space-1) var(--cf-space-4);
+  padding-bottom: var(--cf-space-2);
+  border-bottom: 1px solid var(--cf-border);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-incard__service {
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-base);
+  font-weight: 600;
+}
+
+.cf-incard__meta {
+  color: var(--cf-muted);
+}
+
+.cf-incard__text {
+  margin: 0;
+  font-size: 0.9063rem;
+  white-space: pre-wrap;
+}
+
+.cf-incard__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-incard__shots .cf-bookshot {
+  width: 72px;
+}
+
+.cf-incard__shots .cf-bookshot__img {
+  aspect-ratio: 1 / 1;
+}
+
+.cf-incard__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-2);
+}
+
+.cf-incard__fix {
+  margin: 0;
+  padding: var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+  white-space: pre-wrap;
+}
+
+.cf-incard__fix strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.7188rem;
+}
+
+/* ---------- CARGANDO ---------- */
+
+.cf-incard__skel-top {
+  width: 40%;
+  height: 16px;
+}
+
+.cf-incard__skel-ref {
+  width: 66%;
+  height: 14px;
+}
+
+.cf-incard__skel-text {
+  width: 84%;
+  height: 13px;
+}
+
+/* ======================================================================
+   12. PÁGINA: CANDIDATURAS (Applications.jsx)
+   ====================================================================== */
+
+.cf-applications {
+  max-width: 1180px;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+}
+
+/* ---------- CABECERA ---------- */
+
+.cf-applications__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-6);
+}
+
+.cf-applications__title {
+  margin: 0;
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-2xl);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.cf-applications__lede {
+  max-width: 60ch;
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- ERROR ---------- */
+
+.cf-applications__alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-applications__alert p {
+  margin: 0;
+}
+
+/* ---------- LISTA Y TARJETAS ---------- */
+
+.cf-applications__list {
+  display: grid;
+  gap: var(--cf-space-4);
+}
+
+.cf-applications__card {
+  padding: var(--cf-space-5);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-applications__card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+}
+
+.cf-applications__name {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cf-applications__contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2) var(--cf-space-4);
+  margin-top: var(--cf-space-2);
+}
+
+.cf-applications__contact a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+  text-decoration: none;
+}
+
+.cf-applications__contact a:hover {
+  text-decoration: underline;
+}
+
+.cf-applications__date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--cf-space-4) 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- ESTADOS ---------- */
+
+.cf-applications__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cf-applications__dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.cf-applications__state--new {
+  color: var(--cf-accent-dark);
+}
+
+.cf-applications__state--new .cf-applications__dot {
+  background-color: var(--cf-accent);
+}
+
+.cf-applications__state--contacted {
+  color: var(--cf-primary);
+}
+
+.cf-applications__state--contacted .cf-applications__dot {
+  background-color: var(--cf-primary);
+}
+
+.cf-applications__state--discarded {
+  color: var(--cf-muted);
+}
+
+.cf-applications__state--discarded .cf-applications__dot {
+  background-color: var(--cf-muted);
+}
+
+/* ---------- DETALLE ---------- */
+
+.cf-applications__details {
+  padding-block: var(--cf-space-3);
+  border-top: 1px solid var(--cf-border);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-applications__details summary {
+  color: var(--cf-primary);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cf-applications__details-content {
+  display: grid;
+  gap: var(--cf-space-4);
+  margin-top: var(--cf-space-4);
+}
+
+.cf-applications__details-content strong {
+  color: var(--cf-text);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-applications__details-content p {
+  margin: var(--cf-space-1) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/* ---------- ACCIONES ---------- */
+
+.cf-applications__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-4);
+}
+
+/* ---------- CARGA ---------- */
+
+.cf-applications__skel-name {
+  display: block;
+  width: 35%;
+  height: 16px;
+}
+
+.cf-applications__skel-text {
+  display: block;
+  width: 55%;
+  height: 10px;
+  margin-top: var(--cf-space-3);
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 640px) {
+  .cf-applications__header {
+    align-items: stretch;
+  }
+
+  .cf-applications__header .cf-dash-btn {
+    width: 100%;
+  }
+
+  .cf-applications__card {
+    padding: var(--cf-space-4);
+  }
+
+  .cf-applications__card-header {
+    flex-direction: column;
+  }
+
+  .cf-applications__contact {
+    flex-direction: column;
+  }
+}
+/* ======================================================================
+   13. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
@@ -6307,7 +8169,8 @@ textarea.cf-dash-input {
   .cf-dash-skel,
   .cf-tasks__row--flash,
   .cf-services__row--flash,
-  .cf-bookstate--live .cf-bookstate__dot {
+  .cf-bookstate--live .cf-bookstate__dot,
+  .cf-wshot__load::after {
     animation: none;
   }
 
@@ -6320,7 +8183,8 @@ textarea.cf-dash-input {
   .cf-side__collapse i,
   .cf-side__collapse svg,
   .cf-side__theme-knob,
-  .cf-bookcard {
+  .cf-bookcard,
+  .cf-progress__fill {
     transition: none;
   }
 }

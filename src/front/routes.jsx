@@ -15,6 +15,7 @@ import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
 import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
+import { WorkerBookingDetail } from "./pages/dashboard/WorkerBookingDetail";
 import { LoginClients } from "./pages/web/LoginClients";
 import { LoginWorkers } from "./pages/web/LoginWorkers";
 import { WorkWithUs } from "./pages/web/WorkWithUs";
@@ -33,7 +34,9 @@ import { AccountDetails } from "./pages/dashboard/account/AccountDetails";
 import { AccountSecurity } from "./pages/dashboard/account/AccountSecurity";
 import { AccountAddresses } from "./pages/dashboard/account/AccountAddresses";
 import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
+import { ListadoIncidencias } from "./pages/dashboard/ListadoIncidencias";
 import { MyBookings } from "./pages/dashboard/MyBookings";
+import { Applications } from "./pages/dashboard/Applications";
 import { BookingDetail } from "./pages/dashboard/BookingDetail";
 import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
 
@@ -94,12 +97,17 @@ export const router = createBrowserRouter(
           {/* ---- SECCIONES DE WORKER ---- */}
           <Route element={<RoleRoute allowed={["worker"]} />}>
             <Route path="tasks" element={<MisReservasTrabajador />} />
+            {/* El detalle, dentro del mismo RoleRoute: si se declara
+                fuera, se cuela cualquier rol. */}
+            <Route path="tasks/:bookingId" element={<WorkerBookingDetail />} />
           </Route>
 
           {/* ---- SECCIONES DE MANAGER ----
               Un mismo RoleRoute envuelve varias rutas.
               tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
+            <Route path="applications" element={<Applications />} />
+            <Route path="incidents" element={<ListadoIncidencias />} />
             <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="affected-bookings" element={<AffectedBookings />} />
             <Route

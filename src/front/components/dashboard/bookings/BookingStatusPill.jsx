@@ -34,13 +34,11 @@ const AWAITING = {
 /**
  * ¿Este servicio está esperando a que el cliente diga algo?
  *
- * Hace falta completed_at: de él sale el plazo. Las reservas anteriores
- * a la #81 se finalizaron sin esa fecha, así que no se les pide nada.
+ * Lo decide el backend en Booking.confirmation (#83), que distingue
+ * cuatro casos. Repetir aquí la cuenta de los días haría que una reserva
+ * ya reclamada siguiera pidiendo una respuesta que el cliente ya dio.
  */
-export const awaitsConfirmation = (booking) =>
-    booking.status === "completed"
-    && Boolean(booking.completed_at)
-    && !booking.client_confirmed_at;
+export const awaitsConfirmation = (booking) => booking.confirmation === "pending";
 
 export const BookingStatusPill = ({ status, awaitingConfirmation = false }) => {
     // Un estado desconocido no debe romper la pantalla: se enseña tal cual.
