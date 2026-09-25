@@ -8280,7 +8280,7 @@ textarea.cf-dash-input {
   overflow: hidden;
 }
 
-.cf-rate__shot img {
+.cf-rate__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -8310,32 +8310,63 @@ textarea.cf-dash-input {
   background-color: var(--cf-accent-dark);
 }
 
-/* El hueco de añadir es una etiqueta: el input va oculto dentro, porque
-   el de archivo del navegador no se puede maquetar. */
-.cf-rate__add {
-  display: grid;
-  place-items: center;
-  gap: 2px;
-  width: 76px;
-  height: 76px;
-  border: 1px dashed var(--cf-border);
+/* Añadir fotos es una franja de lado a lado y no un cuadradito: es
+   opcional, y lo opcional que no se ve no lo usa nadie. El icono de
+   cámara dice de qué va antes de leer el texto. */
+.cf-rate__pick {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  width: 100%;
+  margin-top: var(--cf-space-3);
+  padding: var(--cf-space-3) var(--cf-space-4);
+  border: 1.5px dashed var(--cf-border);
   border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
   color: var(--cf-muted);
-  font-size: 0.6875rem;
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  text-align: left;
   cursor: pointer;
   transition:
     border-color var(--cf-transition),
-    color var(--cf-transition);
+    color var(--cf-transition),
+    background-color var(--cf-transition);
 }
 
-.cf-rate__add:hover {
+.cf-rate__pick:hover {
   border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
   color: var(--cf-primary);
 }
 
-.cf-rate__add:focus-within {
+.cf-rate__pick:focus-visible {
   outline: 3px solid var(--cf-ring);
   outline-offset: 2px;
+}
+
+/* Lo que se hace, en el color del texto para que pese más que el resto. */
+.cf-rate__pick-main {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+.cf-rate__pick:hover .cf-rate__pick-main {
+  color: var(--cf-primary);
+}
+
+/* Cuántas caben, al otro extremo: es un dato, no una llamada a la acción. */
+.cf-rate__pick-sub {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-rate__count {
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .cf-rate__foot {

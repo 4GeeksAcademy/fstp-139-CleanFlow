@@ -15,7 +15,7 @@
  * Estilos: dashboard.css, sección 13 (cf-rate).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Stars } from "./Stars";
 import { longDate } from "./bookingFormat";
 
@@ -27,6 +27,9 @@ export const BookingReview = ({ booking, saving, error, onSubmit }) => {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState("");
     const [photos, setPhotos] = useState([]);
+
+    // El input de archivo, que se dispara desde la franja de añadir.
+    const input = useRef(null);
 
     // Al salir de la pantalla se sueltan las vistas previas: cada
     // createObjectURL reserva memoria hasta que se revoca.
@@ -152,37 +155,59 @@ export const BookingReview = ({ booking, saving, error, onSubmit }) => {
                     ></textarea>
                 </div>
 
-                <div className="cf-rate__shots">
-                    {photos.map((photo) => (
-                        <span key={photo.url} className="cf-rate__shot">
-                            <img src={photo.url} alt="Foto que has elegido" />
-                            <button
-                                type="button"
-                                className="cf-rate__drop"
-                                aria-label="Quitar la foto"
-                                onClick={() => dropPhoto(photo.url)}
-                            >
-                                <i className="fa-solid fa-xmark" aria-hidden="true"></i>
-                            </button>
-                        </span>
-                    ))}
+                {photos.length > 0 && (
+                    <div className="cf-rate__shots">
+                        {photos.map((photo) => (
+                            <span key={photo.url} className="cf-rate__shot">
+                                <img className="cf-rate__img" src={photo.url} alt="Foto que has elegido" />
+                                <button
+                                    type="button"
+                                    className="cf-rate__drop"
+                                    aria-label="Quitar la foto"
+                                    onClick={() => dropPhoto(photo.url)}
+                                >
+                                    <i className="fa-solid fa-xmark" aria-hidden="true"></i>
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
 
-                    {/* Al llegar al tope desaparece el hueco, en vez de dejar
-                        un botón que solo sirve para dar error. */}
-                    {!full && (
-                        <label className="cf-rate__add">
-                            <i className="fa-solid fa-plus" aria-hidden="true"></i>
-                            Añadir
-                            <input
-                                type="file"
-                                className="sr-only"
-                                accept="image/*"
-                                multiple
-                                onChange={handlePick}
-                            />
-                        </label>
-                    )}
-                </div>
+                {/* Una franja ancha y no un cuadradito: es opcional, así que
+                    tiene que verse sin buscarlo. Al llegar al tope desaparece,
+                    en vez de dejar un botón que solo sirve para dar error. */}
+                {!full ? (
+                    <button
+                        type="button"
+                        className="cf-rate__pick"
+                        onClick={() => input.current?.click()}
+                    >
+                        <i className="fa-solid fa-camera fa-lg" aria-hidden="true"></i>
+                        <span className="cf-rate__pick-main">
+                            {photos.length ? "Añadir otra foto" : "Añadir fotos"}
+                        </span>
+                        <span className="cf-rate__pick-sub">
+                            {photos.length
+                                ? `${photos.length} de ${MAX_PHOTOS}`
+                                : `Opcional · hasta ${MAX_PHOTOS}`}
+                        </span>
+                    </button>
+                ) : (
+                    <p className="cf-rate__count">
+                        {MAX_PHOTOS} de {MAX_PHOTOS} · no caben más
+                    </p>
+                )}
+
+                {/* multiple: se pueden elegir varias de una vez. El input va
+                    escondido porque el del navegador no se puede maquetar. */}
+                <input
+                    ref={input}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    onChange={handlePick}
+                />
 
                 {error && <p className="cf-dash-alert" role="alert">{error}</p>}
 
