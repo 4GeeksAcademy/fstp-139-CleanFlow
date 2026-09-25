@@ -1965,7 +1965,6 @@ main > section:nth-of-type(even) {
     padding: var(--cf-space-6);
   }
 }
-
 /* ======================================================================
    NUESTROS SERVICIOS — WEB-05
    ====================================================================== */
@@ -1979,26 +1978,65 @@ main > section:nth-of-type(even) {
   color: var(--cf-accent-dark);
 }
 
-.cf-services-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--cf-space-6);
+/* Carrusel */
+.cf-services-carousel {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
   margin-top: var(--cf-space-8);
 }
 
+.cf-services-carousel__track {
+  flex: 1;
+  display: flex;
+  gap: var(--cf-space-4);
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding: 4px;
+}
+
+.cf-services-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.cf-services-carousel__button {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--cf-border);
+  border-radius: 50%;
+  background: var(--cf-surface);
+  color: var(--cf-primary);
+  cursor: pointer;
+}
+
+.cf-services-carousel__button:hover {
+  background: var(--cf-primary);
+  color: white;
+}
+
+/* Tarjeta */
 .cf-service-card {
-  height: 100%;
+  flex: 0 0 260px;
+  min-width: 260px;
+  scroll-snap-align: start;
+
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius);
-  background-color: var(--cf-surface);
+  background: var(--cf-surface);
 }
 
 .cf-service-card__image {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  height: 125px;
   object-fit: cover;
   display: block;
 }
@@ -2007,33 +2045,35 @@ main > section:nth-of-type(even) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--cf-space-6);
+  padding: var(--cf-space-4);
 }
 
 .cf-service-card__title {
-  margin: 0 0 var(--cf-space-3);
+  margin: 0 0 var(--cf-space-2);
   font-family: var(--cf-font-heading);
   color: var(--cf-primary);
-  font-size: var(--cf-text-xl);
+  font-size: var(--cf-text-lg);
 }
 
 .cf-service-card__description {
-  margin: 0 0 var(--cf-space-6);
+  margin: 0 0 var(--cf-space-4);
   color: var(--cf-muted);
-  line-height: 1.6;
+  line-height: 1.5;
+  font-size: var(--cf-text-sm);
 }
 
 .cf-service-card__footer {
   margin-top: auto;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cf-space-4);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cf-space-3);
 }
 
 .cf-service-card__price {
   margin: 0;
   color: var(--cf-text);
+  font-size: var(--cf-text-sm);
 }
 
 .cf-service-card__link {
@@ -2043,20 +2083,39 @@ main > section:nth-of-type(even) {
   color: var(--cf-primary);
   font-weight: 700;
   text-decoration: none;
+  font-size: var(--cf-text-sm);
 }
 
 .cf-service-card__link:hover {
   color: var(--cf-primary-dark);
 }
 
+/* Tablet */
 @media (max-width: 900px) {
-  .cf-services-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .cf-service-card {
+    flex-basis: 230px;
+    min-width: 230px;
   }
 }
 
+/* Móvil */
 @media (max-width: 600px) {
-  .cf-services-grid {
-    grid-template-columns: 1fr;
+  .cf-services-carousel {
+    gap: var(--cf-space-2);
+  }
+
+  .cf-services-carousel__button {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .cf-service-card {
+    flex-basis: 210px;
+    min-width: 210px;
+  }
+
+  .cf-service-card__image {
+    height: 110px;
   }
 }

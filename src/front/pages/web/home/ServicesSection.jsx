@@ -5,11 +5,13 @@
  * previamente desde ServicesLoader, por lo que aquí no hacemos fetch.
  */
 
+import { useRef } from "react";
 import useGlobalReducer from "../../../hooks/useGlobalReducer.jsx";
 import { ServiceCard } from "../../../components/ServiceCard.jsx";
 
 export const ServicesSection = () => {
     const { store } = useGlobalReducer();
+    const carouselRef = useRef(null);
 
     const {
         services = [],
@@ -17,10 +19,23 @@ export const ServicesSection = () => {
         servicesError,
     } = store;
 
+    const moveCarousel = (direction) => {
+        if (!carouselRef.current) return;
+
+        const distance = carouselRef.current.clientWidth * 0.75;
+
+        carouselRef.current.scrollBy({
+            left: direction * distance,
+            behavior: "smooth",
+        });
+    };
+
     return (
         <section id="services" className="cf-section cf-services-section">
             <div className="cf-container">
-                <h2 className="cf-section__title">Nuestros servicios</h2>
+                <h2 className="cf-section__title">
+                    Nuestros servicios
+                </h2>
 
                 {servicesLoading && services.length === 0 && (
                     <p className="cf-services-section__message">
@@ -50,13 +65,42 @@ export const ServicesSection = () => {
                             </p>
                         )}
 
-                        <div className="cf-services-grid">
-                            {services.map((service) => (
-                                <ServiceCard
-                                    key={service.slug}
-                                    service={service}
+                        <div className="cf-services-carousel">
+                            <button
+                                className="cf-services-carousel__button"
+                                type="button"
+                                onClick={() => moveCarousel(-1)}
+                                aria-label="Ver servicios anteriores"
+                            >
+                                <i
+                                    className="fa-solid fa-chevron-left"
+                                    aria-hidden="true"
                                 />
-                            ))}
+                            </button>
+
+                            <div
+                                className="cf-services-carousel__track"
+                                ref={carouselRef}
+                            >
+                                {services.map((service) => (
+                                    <ServiceCard
+                                        key={service.slug}
+                                        service={service}
+                                    />
+                                ))}
+                            </div>
+
+                            <button
+                                className="cf-services-carousel__button"
+                                type="button"
+                                onClick={() => moveCarousel(1)}
+                                aria-label="Ver siguientes servicios"
+                            >
+                                <i
+                                    className="fa-solid fa-chevron-right"
+                                    aria-hidden="true"
+                                />
+                            </button>
                         </div>
                     </>
                 )}

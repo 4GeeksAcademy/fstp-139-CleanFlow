@@ -1,12 +1,24 @@
 /**
  * Tarjeta reutilizable para mostrar un servicio de CleanFlow.
  *
- * Recibe los datos desde el componente padre. No hace peticiones a la API:
- * la landing obtiene los servicios desde el store global.
+ * Prioriza la imagen configurada en el backend.
+ * Si no existe, utiliza una imagen local de demostración según el servicio.
  */
 
 import { Link } from "react-router-dom";
+
 import servicePlaceholder from "../assets/img/service-placeholder.svg";
+import limpiezaEsencial from "../assets/img/services/limpieza-esencial.png";
+import limpiezaIntegral from "../assets/img/services/limpieza-integral.png";
+import limpiezaProfunda from "../assets/img/services/limpieza-profunda.png";
+import limpiezaFinDeObra from "../assets/img/services/limpieza-fin-de-obra.png";
+
+const serviceImages = {
+    "limpieza-esencial": limpiezaEsencial,
+    "limpieza-integral": limpiezaIntegral,
+    "limpieza-profunda": limpiezaProfunda,
+    "limpieza-fin-de-obra": limpiezaFinDeObra,
+};
 
 const formatPrice = (price) => {
     const value = Number(price);
@@ -22,7 +34,10 @@ const formatPrice = (price) => {
 };
 
 export const ServiceCard = ({ service }) => {
-    const imageSrc = service.image_url || servicePlaceholder;
+    const imageSrc =
+        service.image_url ||
+        serviceImages[service.slug] ||
+        servicePlaceholder;
 
     return (
         <article className="cf-service-card">
@@ -47,7 +62,11 @@ export const ServiceCard = ({ service }) => {
 
                 <div className="cf-service-card__footer">
                     <p className="cf-service-card__price">
-                        Desde <strong>{formatPrice(service.base_hourly_rate)}</strong>/h
+                        Desde{" "}
+                        <strong>
+                            {formatPrice(service.base_hourly_rate)}
+                        </strong>
+                        /h
                     </p>
 
                     <Link
@@ -59,7 +78,7 @@ export const ServiceCard = ({ service }) => {
                         <i
                             className="fa-solid fa-arrow-right"
                             aria-hidden="true"
-                        ></i>
+                        />
                     </Link>
                 </div>
             </div>
