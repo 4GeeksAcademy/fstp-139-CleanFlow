@@ -10,7 +10,6 @@ from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_cors import CORS
-from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
@@ -310,18 +309,3 @@ def cancel_company(booking_id):
     booking.updated_at = madrid_now()
     db.session.commit()
     return jsonify({"message": "Reserva cancelada por CleanFlow.", "booking": booking.serialize()})
-
-
-# Vista mínima de "Mis reservas" para ver el resultado de esta issue.
-# La sustituirá la vista completa de la #16.
-@absence_api.route("/my/bookings", methods=["GET"])
-@role_required("client")
-def my_bookings():
-    bookings = db.session.execute(booking_query().where(
-        Booking.client_id == int(get_jwt_identity())
-    ).order_by(Booking.scheduled_start.desc())).scalars().all()
-    # No expone motivos médicos ni notas de las ausencias.
-    return jsonify({"bookings": [booking.serialize() for booking in bookings]})
-
-
-

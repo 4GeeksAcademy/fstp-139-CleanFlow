@@ -17,10 +17,12 @@ import { useActiveSection } from "../../hooks/useActiveSection";
 
 // Las dos puertas de acceso. Ambas llevan al mismo formulario: solo
 // cambia lo que se le ofrece a quien todavía no tiene cuenta.
-// Estas rutas aún no existen (WEB-10).
+//
+// Los nombres van sin "de" a propósito: así los dos miden casi lo mismo y
+// quedan del ancho de "Reservar ahora" (ver .cf-access en web.css).
 const ACCESS_LINKS = [
-    { label: "Área de clientes", to: "/login-clients" },
-    { label: "Área de empleados", to: "/login-workers" },
+    { label: "Área clientes", to: "/login-clients", icon: "fa-user" },
+    { label: "Área empleados", to: "/login-workers", icon: "fa-briefcase" },
 ]
 
 
@@ -58,11 +60,11 @@ const NAV_LINKS = [
 
 // El botón de acción va aparte y NO se añade al array de arriba: no es un
 // item de navegación, así que no se resalta con el scroll ni entra en
-// isActive. Es el mismo que el del hero.
+// isActive. Es el mismo que el del hero: si cambia uno, cambian los dos.
 //
-// Provisional: apunta al login porque reservar exige cuenta. WEB-15 lo
-// llevará al catálogo del cliente, y hay que cambiar los dos a la vez.
-const CTA = { label: "Reservar ahora", to: "/login" }
+// Apunta a la ruta protegida del catálogo, no al login: si no hay sesión,
+// ProtectedRoutes manda al login y después vuelve aquí (WEB-15).
+const CTA = { label: "Reservar ahora", to: "/dashboard/service-catalog" }
 
 
 // Los ids a vigilar salen de los propios enlaces: al añadir un item con
@@ -125,7 +127,10 @@ export const Navbar = () => {
                     <ul className="cf-utility-list">
                         {ACCESS_LINKS.map((link) => (
                             <li key={link.to}>
-                                <Link to={link.to}>{link.label}</Link>
+                                <Link to={link.to} className="cf-access">
+                                    <i className={`fa-solid ${link.icon}`} aria-hidden="true" />
+                                    {link.label}
+                                </Link>
                             </li>
                         ))}
                     </ul>

@@ -9,7 +9,8 @@ Modelos de la base de datos de CleanFlow.
 Lo que tiene `is_active` no se borra: se desactiva.
 """
 
-from datetime import time, datetime, date
+from datetime import time, datetime, date, timedelta
+from zoneinfo import ZoneInfo
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, Boolean, Text, Float, Integer, Time, Date, DateTime, ForeignKey, func
 from sqlalchemy import Enum as SQLEnum
@@ -19,16 +20,36 @@ from flask_bcrypt import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
+# Las fechas se guardan en hora de Madrid y sin zona. Aquí solo se usa
+# para saber si un servicio es hoy; el resto del cálculo vive en
+# availability.py, que no se importa para no cruzar los dos módulos.
+MADRID = ZoneInfo("Europe/Madrid")
+
+
+# Días que tiene el cliente para responder antes de que el servicio se dé
+# por bueno solo (#83). El front lo repite en bookingFormat.js para pintar
+# el plazo; quien manda es este.
+CONFIRM_DAYS = 3
+
 
 # ==================================================================
 # ENUMS
 # ==================================================================
 
 class BookingStatus(Enum):
+    """El camino de una reserva, en orden:
+
+    pending -> confirmed -> in_progress -> completed
+
+    Y dos salidas: cancelled (antes de empezar) y not_done (el trabajador
+    llegó pero no se pudo hacer, por ejemplo si el cliente no estaba).
+    """
     PENDING = "pending"
     CONFIRMED = "confirmed"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    NOT_DONE = "not_done"
 
 
 class BookingTaskStatus(Enum):
@@ -40,6 +61,35 @@ class BookingTaskStatus(Enum):
 class MediaType(Enum):
     IMAGE = "image"
     VIDEO = "video"
+
+
+class MediaKind(Enum):
+    """Para qué es la foto.
+
+    before / after: el antes y el después de una tarea, que el trabajador
+    sube para cerrarla. incident: la prueba de una incidencia.
+    """
+    BEFORE = "before"
+    AFTER = "after"
+    INCIDENT = "incident"
+
+
+class IncidentType(Enum):
+    """De quién viene el problema.
+
+    client: el cliente no está, no deja entrar, pide tareas de más...
+    company: falta material, un daño, un retraso nuestro. También es lo
+    que se usa cuando el cliente reclama el resultado del servicio.
+    """
+    CLIENT = "client"
+    COMPANY = "company"
+
+
+class IncidentSource(Enum):
+    """Quién la abrió: el trabajador durante el servicio (#18) o el
+    cliente al reclamar (#83)."""
+    WORKER = "worker"
+    CLIENT = "client"
 
 
 class ApplicationStatus(Enum):
@@ -672,12 +722,33 @@ class Booking(db.Model):
     cancellation_reason: Mapped[str | None] = mapped_column(
         Text, nullable=True)
 
+    # ---- LO QUE PASÓ DE VERDAD ----
+    # scheduled_start y los tramos dicen lo previsto; esto, lo ocurrido.
+    # Hora de Madrid sin zona, como el resto de fechas del proyecto.
+
+    # Cuando el trabajador pulsó "Empezar" el primer día.
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+
+    # Cuando dio el servicio por terminado. De aquí salen los 3 días que
+    # tiene el cliente para confirmar (#83).
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+
+    # Cuando el cliente confirmó que se hizo bien. Vacío no significa
+    # "mal": puede estar aún en plazo o confirmarse solo (#83).
+    client_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+
     # ---- RELACIONES ----
     # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
     # Así se lee booking.service en vez de buscarlo.
     worker = db.relationship("Worker")
     service = db.relationship("Service")
     address = db.relationship("Address")
+
+    # Quién contrató: el trabajador necesita saber a quién va a ver.
+    client = db.relationship("User")
 
     # Los tramos, en orden. Con booking.days.append(...) se guardan
     # junto con la reserva.
@@ -693,6 +764,13 @@ class Booking(db.Model):
         order_by="BookingTask.booking_task_id"
     )
 
+    # Las incidencias de la reserva, de la más reciente a la más antigua.
+    # Las lee el detalle del cliente (#16) y el del encargado.
+    incidents = db.relationship(
+        "Incident",
+        order_by="Incident.created_at.desc()"
+    )
+
     # ---- DATOS CALCULADOS ----
 
     @property
@@ -704,6 +782,63 @@ class Booking(db.Model):
         """
         seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
         return int(seconds // 3600)
+
+    @property
+    def worker_name(self):
+        """El trabajador como lo ve el cliente: "Ana G.".
+
+        Solo la inicial del apellido: para reconocer a quien viene a casa
+        no hace falta su nombre completo.
+        """
+        if not self.worker or not self.worker.user:
+            return None
+
+        user = self.worker.user
+        initial = f" {user.last_name.strip()[0]}." if user.last_name.strip() else ""
+
+        return f"{user.name}{initial}"
+
+    @property
+    def confirmation(self):
+        """En qué punto está la respuesta del cliente (#83).
+
+            in_review       reclamó y todavía se está mirando
+            confirmed       dijo que sí
+            auto_confirmed  no dijo nada y pasaron los 3 días
+            pending         está en plazo y aún no ha respondido
+            None            el servicio no ha llegado a finalizarse
+
+        Se calcula al leer y no se guarda: una tarea programada para esto
+        sería infraestructura que hay que vigilar, y con completed_at y la
+        fecha de hoy sale solo.
+
+        El orden de las comprobaciones importa. Una reclamación gana al
+        plazo: si el cliente reclamó el día 2, el día 4 no puede aparecer
+        como confirmada sola.
+        """
+        if self.status != BookingStatus.COMPLETED:
+            return None
+
+        claimed = any(
+            incident.source == IncidentSource.CLIENT and not incident.resolved
+            for incident in self.incidents
+        )
+
+        if claimed:
+            return "in_review"
+
+        if self.client_confirmed_at:
+            return "confirmed"
+
+        # Sin fecha de fin no hay plazo que contar, así que tampoco hay
+        # nada que pedirle al cliente: las reservas anteriores a la #81 se
+        # finalizaron sin ella.
+        if not self.completed_at:
+            return None
+
+        deadline = self.completed_at.date() + timedelta(days=CONFIRM_DAYS)
+
+        return "pending" if datetime.now(MADRID).date() <= deadline else "auto_confirmed"
 
     # ---- SERIALIZADORES ----
 
@@ -735,12 +870,7 @@ class Booking(db.Model):
             "client_notes": self.client_notes,
             "cancelled_by_company": self.cancelled_by_company,
             "cancellation_reason": self.cancellation_reason,
-            "worker_name": (
-                self.worker.user.name + (
-                    " " + self.worker.user.last_name.strip()[0] + "."
-                    if self.worker.user.last_name.strip() else ""
-                ) if self.worker and self.worker.user else None
-            ),
+            "worker_name": self.worker_name,
             "days": [day.serialize() for day in self.days],
             "created_at": (
                 self.created_at.isoformat()
@@ -755,8 +885,14 @@ class Booking(db.Model):
         }
 
     def serialize_detail(self):
-        """La reserva completa: servicio, dirección, tramos y tareas. La
-        usa la confirmación del panel, y la usará "Mis reservas" (#16)."""
+        """La reserva completa: servicio, dirección, tramos, tareas con sus
+        fotos, e incidencias.
+
+        La usan la confirmación del panel, "Mis reservas" del cliente (#16)
+        y el seguimiento del trabajador (#82). Lo pesado (fotos e
+        incidencias) va solo aquí: `serialize()` se queda ligera porque la
+        usan las listas, como la de Reservas afectadas.
+        """
         return {
             **self.serialize(),
             "hours": self.hours,
@@ -767,6 +903,55 @@ class Booking(db.Model):
             "address": self.address.serialize(),
             "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
+            "incidents": [incident.serialize() for incident in self.incidents],
+            # Los datos del cliente, para quien va a su casa. El nombre
+            # siempre, con la inicial del apellido como el del trabajador.
+            "client_name": (
+                self.client.name + (
+                    " " + self.client.last_name.strip()[0] + "."
+                    if self.client.last_name.strip() else ""
+                ) if self.client else None
+            ),
+
+            # El teléfono, solo el día del servicio: hace falta para avisar
+            # de que se llega, no el resto del mes.
+            "client_phone": (
+                self.client.phone
+                if self.client and any(
+                    day.starts_at.date() == datetime.now(MADRID).date()
+                    for day in self.days
+                )
+                else None
+            ),
+
+            # La foto del trabajador, solo aquí: el listado se apaña con
+            # las iniciales y no tiene por qué cargar con ella.
+            "worker_avatar_url": (
+                self.worker.user.avatar_url
+                if self.worker and self.worker.user
+                else None
+            ),
+
+            # Lo que pasó de verdad, frente a lo previsto en scheduled_*.
+            "started_at": (
+                self.started_at.isoformat()
+                if self.started_at
+                else None
+            ),
+            "completed_at": (
+                self.completed_at.isoformat()
+                if self.completed_at
+                else None
+            ),
+            # En qué punto está la respuesta del cliente (#83). Se calcula
+            # al leer, así que no hace falta ninguna tarea programada.
+            "confirmation": self.confirmation,
+
+            "client_confirmed_at": (
+                self.client_confirmed_at.isoformat()
+                if self.client_confirmed_at
+                else None
+            ),
         }
 
 
@@ -799,11 +984,21 @@ class BookingDay(db.Model):
         nullable=False
     )
 
+    # Lo que pasó ese día. Un servicio de varios días se empieza y se
+    # cierra cada día, así que las horas reales van aquí y no solo en la
+    # reserva.
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
+
     def serialize(self):
         return {
             "booking_day_id": self.booking_day_id,
             "starts_at": self.starts_at.isoformat(),
             "ends_at": self.ends_at.isoformat(),
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
         }
 
 
@@ -849,6 +1044,13 @@ class BookingTask(db.Model):
         nullable=True
     )
 
+    # Las fotos de esta tarea, en el orden en que se subieron. Así se
+    # leen con task.photos, sin buscarlas a mano.
+    photos = db.relationship(
+        "Media",
+        order_by="Media.media_id"
+    )
+
     def serialize(self):
         return {
             "booking_task_id": self.booking_task_id,
@@ -866,6 +1068,8 @@ class BookingTask(db.Model):
                 else None
             ),
             "notes": self.notes,
+            # El antes y el después, que el trabajador sube para cerrarla.
+            "photos": [photo.serialize() for photo in self.photos],
         }
 
 
@@ -940,8 +1144,8 @@ class Incident(db.Model):
         ForeignKey("booking_tasks.booking_task_id"),
         nullable=True
     )
-    incident_type: Mapped[str | None] = mapped_column(
-        String(50),
+    incident_type: Mapped[IncidentType | None] = mapped_column(
+        SQLEnum(IncidentType),
         nullable=True
     )
     description: Mapped[str | None] = mapped_column(
@@ -961,19 +1165,58 @@ class Incident(db.Model):
         nullable=True
     )
 
+    # Quién la abrió y quién es esa persona. Con source basta para
+    # filtrar en el listado del encargado (#19); reported_by dice el
+    # usuario concreto, para poder avisarle cuando se resuelva.
+    source: Mapped[IncidentSource | None] = mapped_column(
+        SQLEnum(IncidentSource),
+        nullable=True
+    )
+    reported_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.user_id"),
+        nullable=True
+    )
+
+    # Lo que el encargado escribe al cerrarla. Lo ve el cliente cuando la
+    # incidencia es suya, así que se guarda tal cual y no como una nota
+    # interna (#19).
+    resolution: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    # La reserva de la que habla. Sin ella, el encargado ve un problema
+    # pero no de qué servicio (#19).
+    booking = db.relationship("Booking", overlaps="incidents")
+
+    # Las fotos de la incidencia, en el orden en que se subieron. Con la
+    # relación se pueden precargar al listar; con una consulta suelta
+    # dentro de serialize() caía una por incidencia.
+    media = db.relationship(
+        "Media",
+        order_by="Media.media_id"
+    )
+
     def serialize(self):
-        media = Media.query.filter_by(
-            incident_id=self.incident_id
-        ).all()
 
         return {
             "incident_id": self.incident_id,
             "booking_id": self.booking_id,
             "worker_id": self.worker_id,
             "booking_task_id": self.booking_task_id,
-            "incident_type": self.incident_type,
+
+            # Los enums viajan como texto: el front no sabe de Python.
+            "incident_type": (
+                self.incident_type.value
+                if self.incident_type
+                else None
+            ),
+            "source": self.source.value if self.source else None,
+
+            "reported_by": self.reported_by,
             "description": self.description,
             "resolved": self.resolved,
+            "resolution": self.resolution,
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at
@@ -984,14 +1227,43 @@ class Incident(db.Model):
                 if self.resolved_at
                 else None
             ),
-            "media": [media_item.serialize() for media_item in media],
+            "media": [media_item.serialize() for media_item in self.media],
+        }
+
+    def serialize_managed(self):
+        """La incidencia con el contexto de su reserva, para el encargado.
+
+        Una incidencia suelta no le dice nada: necesita saber de qué
+        servicio habla, de qué día y con quién, para poder llamar.
+        """
+        booking = self.booking
+
+        return {
+            **self.serialize(),
+            "booking": {
+                "service": booking.service.name if booking.service else None,
+                "status": booking.status.value if booking.status else None,
+                "starts_at": (
+                    booking.days[0].starts_at.isoformat()
+                    if booking.days
+                    else None
+                ),
+                "client_name": (
+                    f"{booking.client.name} {booking.client.last_name}"
+                    if booking.client
+                    else None
+                ),
+                "worker_name": booking.worker_name,
+            },
         }
 
 
 # ==================================================================
 # MEDIA
 # ==================================================================
-# Foto o vídeo adjunto a una incidencia.
+# Foto o vídeo de una incidencia, o del antes y el después de una tarea.
+# Cada archivo cuelga de UNA de las dos cosas, nunca de las dos ni de
+# ninguna: lo garantiza la restricción del final de la clase.
 
 class Media(db.Model):
     __tablename__ = "media"
@@ -999,9 +1271,26 @@ class Media(db.Model):
     media_id: Mapped[int] = mapped_column(
         primary_key=True
     )
-    incident_id: Mapped[int] = mapped_column(
+    # Uno de los dos lleva valor y el otro va vacío.
+    incident_id: Mapped[int | None] = mapped_column(
         ForeignKey("incidents.incident_id"),
+        nullable=True,
+        index=True
+    )
+    booking_task_id: Mapped[int | None] = mapped_column(
+        ForeignKey("booking_tasks.booking_task_id"),
+        nullable=True,
+        index=True
+    )
+    kind: Mapped[MediaKind] = mapped_column(
+        SQLEnum(MediaKind),
         nullable=False
+    )
+    # Quién la subió: el trabajador que cierra la tarea o el cliente que
+    # reclama. Hace falta para saber de quién es la prueba.
+    uploaded_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.user_id"),
+        nullable=True
     )
     media_url: Mapped[str] = mapped_column(
         String(255),
@@ -1016,10 +1305,22 @@ class Media(db.Model):
         nullable=True
     )
 
+    # La regla la pone la base de datos y no el código: así no hay forma
+    # de colar una foto huérfana, venga de donde venga.
+    __table_args__ = (
+        db.CheckConstraint(
+            "(incident_id IS NULL) <> (booking_task_id IS NULL)",
+            name="media_one_owner",
+        ),
+    )
+
     def serialize(self):
         return {
             "media_id": self.media_id,
             "incident_id": self.incident_id,
+            "booking_task_id": self.booking_task_id,
+            "kind": self.kind.value if self.kind else None,
+            "uploaded_by": self.uploaded_by,
             "media_url": self.media_url,
             "media_type": (
                 self.media_type.value

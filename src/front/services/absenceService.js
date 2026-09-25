@@ -20,9 +20,6 @@ export const reassignBooking = (id, workerId, token) => apiRequest(
 export const cancelCompany = (id, reason, token) => apiRequest(
     `/api/manage/bookings/${id}/cancel-company`, { token, method: "POST", body: { reason } }
 );
-export const getMyBookings = (token) => apiRequest("/api/my/bookings", { token });
 
 // Fechas de Madrid sin zona: mostrar el valor recibido, no convertirlo al huso del navegador.
 export const formatDay = (value) => value ? value.slice(0, 10).split("-").reverse().join("/") : "Sin fecha de fin";
-export const formatInterval = (day) => `${formatDay(day.starts_at)} · ${day.starts_at.slice(11, 16)}–${day.ends_at.slice(11, 16)}`;
-
