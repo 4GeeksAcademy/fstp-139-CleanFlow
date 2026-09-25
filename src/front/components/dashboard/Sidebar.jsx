@@ -61,6 +61,7 @@ const LINKS = [
     { to: "/dashboard/incidents", label: "Incidencias", icon: "fa-circle-exclamation", group: "Operativa", roles: ["manager"], incidents: true },
     { to: "/dashboard/workers", label: "Trabajadores", icon: "fa-users", group: "Equipo", roles: ["manager"] },
     { to: "/dashboard/shifts", label: "Turnos", icon: "fa-clock", group: "Equipo", roles: ["manager"] },
+    { to: "/dashboard/applications", label: "Candidaturas", icon: "fa-envelope-open-text", group: "Equipo", roles: ["manager"] },
     {
         label: "Administrar catálogo",
         icon: "fa-broom",
@@ -72,7 +73,6 @@ const LINKS = [
         ],
     },
 ]
-
 // Mismo corte que el bloque "SIDEBAR EN MÓVIL" de dashboard.css.
 const MOBILE_QUERY = "(max-width: 767.98px)"
 
