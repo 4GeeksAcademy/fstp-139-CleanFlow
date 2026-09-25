@@ -1965,3 +1965,98 @@ main > section:nth-of-type(even) {
     padding: var(--cf-space-6);
   }
 }
+
+/* ======================================================================
+   NUESTROS SERVICIOS — WEB-05
+   ====================================================================== */
+
+.cf-services-section__message {
+  margin: var(--cf-space-6) 0 0;
+  color: var(--cf-muted);
+}
+
+.cf-services-section__message--error {
+  color: var(--cf-accent-dark);
+}
+
+.cf-services-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cf-space-6);
+  margin-top: var(--cf-space-8);
+}
+
+.cf-service-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background-color: var(--cf-surface);
+}
+
+.cf-service-card__image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+}
+
+.cf-service-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--cf-space-6);
+}
+
+.cf-service-card__title {
+  margin: 0 0 var(--cf-space-3);
+  font-family: var(--cf-font-heading);
+  color: var(--cf-primary);
+  font-size: var(--cf-text-xl);
+}
+
+.cf-service-card__description {
+  margin: 0 0 var(--cf-space-6);
+  color: var(--cf-muted);
+  line-height: 1.6;
+}
+
+.cf-service-card__footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+}
+
+.cf-service-card__price {
+  margin: 0;
+  color: var(--cf-text);
+}
+
+.cf-service-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  color: var(--cf-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cf-service-card__link:hover {
+  color: var(--cf-primary-dark);
+}
+
+@media (max-width: 900px) {
+  .cf-services-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .cf-services-grid {
+    grid-template-columns: 1fr;
+  }
+}
