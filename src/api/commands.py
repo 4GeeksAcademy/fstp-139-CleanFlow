@@ -121,10 +121,15 @@ SHIFTS = [
     {"name": "Tarde",  "start_time": time(14, 0), "end_time": time(22, 0), "days": [1, 2, 3, 4, 5]},
 ]
 
-# Tres de mañana y uno de tarde: así la mañana se puede llenar entera.
+# Tres trabajadores de mañana y uno de tarde, para poder llenar la mañana
+# entera. Cuatro clientes: uno es el de las pruebas y los otros tres dan
+# nombres distintos a las opiniones de la web.
 PEOPLE = [
     {"email": "encargado@cleanflow.test", "name": "Elena",  "last_name": "Soto",   "phone": "600000001", "role": "manager"},
     {"email": "cliente@cleanflow.test",   "name": "Pablo",  "last_name": "Vega",   "phone": "600000002", "role": "client"},
+    {"email": "lucia@cleanflow.test",     "name": "Lucía",  "last_name": "Márquez", "phone": "600000007", "role": "client"},
+    {"email": "javier@cleanflow.test",    "name": "Javier", "last_name": "Ortega",  "phone": "600000008", "role": "client"},
+    {"email": "rocio@cleanflow.test",     "name": "Rocío",  "last_name": "Pardo",   "phone": "600000009", "role": "client"},
     {"email": "ana@cleanflow.test",       "name": "Ana",    "last_name": "García", "phone": "600000003", "role": "worker", "shift": "Mañana"},
     {"email": "luis@cleanflow.test",      "name": "Luis",   "last_name": "Martín", "phone": "600000004", "role": "worker", "shift": "Mañana"},
     {"email": "marta@cleanflow.test",     "name": "Marta",  "last_name": "Ruiz",   "phone": "600000005", "role": "worker", "shift": "Mañana"},
@@ -168,19 +173,22 @@ SEED_MARK = "[datos de prueba]"
 
 # Las reseñas de las reservas ya hechas: (trabajador, nota, comentario).
 # Marta no tiene ninguna a propósito: así se ve "Sin valoraciones".
+# Trabajador, cliente, nota y comentario. Repartidas entre varias
+# personas: la media de cada trabajador tiene que salir distinta, y en la
+# web pública no pueden aparecer seis opiniones firmadas igual.
 PAST_REVIEWS = [
-    ("ana@cleanflow.test",    5, "Impecable y muy puntual."),
-    ("ana@cleanflow.test",    5, "Dejó la cocina como nueva."),
-    ("ana@cleanflow.test",    4, "Muy bien, aunque llegó un poco tarde."),
-    ("ana@cleanflow.test",    5, "Repetiremos seguro."),
-    ("ana@cleanflow.test",    5, None),
-    ("luis@cleanflow.test",   5, "Rápido y muy cuidadoso."),
-    ("luis@cleanflow.test",   4, "Todo correcto."),
-    ("luis@cleanflow.test",   4, None),
-    ("luis@cleanflow.test",   5, "Muy amable."),
-    ("carlos@cleanflow.test", 4, "Buen trabajo."),
-    ("carlos@cleanflow.test", 3, "Se dejó el baño a medias."),
-    ("carlos@cleanflow.test", 4, None),
+    ("ana@cleanflow.test",    "cliente@cleanflow.test", 5, "Impecable y muy puntual."),
+    ("ana@cleanflow.test",    "lucia@cleanflow.test",   5, "Dejó la cocina como nueva."),
+    ("ana@cleanflow.test",    "javier@cleanflow.test",  4, "Muy bien, aunque llegó un poco tarde."),
+    ("ana@cleanflow.test",    "rocio@cleanflow.test",   5, "Repetiremos seguro."),
+    ("ana@cleanflow.test",    "cliente@cleanflow.test", 5, None),
+    ("luis@cleanflow.test",   "lucia@cleanflow.test",   5, "Rápido y muy cuidadoso."),
+    ("luis@cleanflow.test",   "javier@cleanflow.test",  4, "Todo correcto."),
+    ("luis@cleanflow.test",   "rocio@cleanflow.test",   4, None),
+    ("luis@cleanflow.test",   "cliente@cleanflow.test", 5, "Muy amable."),
+    ("carlos@cleanflow.test", "lucia@cleanflow.test",   4, "Buen trabajo."),
+    ("carlos@cleanflow.test", "javier@cleanflow.test",  3, "Se dejó el baño a medias."),
+    ("carlos@cleanflow.test", "rocio@cleanflow.test",   4, None),
 ]
 
 
@@ -447,11 +455,6 @@ def create_reviews():
     if exists:
         return 0
 
-    client = user_by_email("cliente@cleanflow.test")
-    address = db.session.execute(
-        db.select(Address).filter_by(client_id=client.user_id, is_active=True)
-    ).scalars().first()
-
     profunda = service_by_slug("limpieza-profunda")
     habitacion = db.session.execute(
         db.select(Task).filter_by(task_name="Limpiar habitación")
@@ -461,26 +464,55 @@ def create_reviews():
 
     # Una por semana hacia atrás, siempre un martes: nunca se pisan. Dos
     # habitaciones de profunda = 2 h, empezando 2 h después de su turno.
-    for weeks_ago, (email, rating, comment) in enumerate(PAST_REVIEWS, start=1):
-        worker = worker_by_email(email)
+    for weeks_ago, (worker_email, client_email, rating, comment) in enumerate(
+        PAST_REVIEWS, start=1
+    ):
+        worker = worker_by_email(worker_email)
+
+        # Cada reseña es de un cliente distinto: en la web pública se ven
+        # nombres variados y no seis veces el mismo.
+        review_client = user_by_email(client_email)
+        review_address = db.session.execute(
+            db.select(Address).filter_by(
+                client_id=review_client.user_id, is_active=True
+            )
+        ).scalars().first()
+
         day = next_weekday(today - timedelta(weeks=weeks_ago), 2)
         start = worker.shift.start_time.hour + 2
 
         booking = add_booking(
-            client, address, profunda, worker,
+            review_client, review_address, profunda, worker,
             [(at(day, start), at(day, start + 2))],
             "Ya hecha, con reseña.",
             tasks=[habitacion] * 2,
             status=BookingStatus.COMPLETED,
         )
 
-        db.session.add(Review(
+        review = Review(
             booking_id=booking.booking_id,
-            client_id=client.user_id,
+            client_id=review_client.user_id,
             rating=rating,
             comment=comment,
             created_at=at(day, start + 3),
-        ))
+        )
+        db.session.add(review)
+
+        # flush: hace falta el id de la reseña para colgarle las fotos.
+        db.session.flush()
+
+        # Solo la primera lleva fotos: con una basta para ver la galería
+        # en el detalle, y así el seed no se llena de imágenes de relleno.
+        if weeks_ago == 1:
+            for n in (1, 2):
+                db.session.add(Media(
+                    review_id=review.review_id,
+                    kind=MediaKind.REVIEW,
+                    media_url=f"https://picsum.photos/seed/resena-{n}/640/480",
+                    media_type=MediaType.IMAGE,
+                    uploaded_by=review_client.user_id,
+                    uploaded_at=at(day, start + 3),
+                ))
 
     return len(PAST_REVIEWS)
 
@@ -620,6 +652,26 @@ def create_states():
 
     add_photo(vencida.tasks[0], MediaKind.BEFORE, "antes-3", luis)
     add_photo(vencida.tasks[0], MediaKind.AFTER, "despues-3", luis)
+
+    # ---- CONFIRMADA A MANO: el cliente dijo que sí y aún no ha valorado ----
+    # Es la que enseña el formulario de valoración (#20): finalizada,
+    # confirmada y sin reseña.
+    confirmada = add_booking(
+        client, address, profunda, ana,
+        [(at(hoy - timedelta(days=2), 9), at(hoy - timedelta(days=2), 11))],
+        "Finalizada y confirmada, pendiente de valorar.",
+        tasks=[habitacion],
+        status=BookingStatus.COMPLETED,
+    )
+    confirmada.started_at = at(hoy - timedelta(days=2), 9)
+    confirmada.completed_at = at(hoy - timedelta(days=2), 11)
+    confirmada.client_confirmed_at = at(hoy - timedelta(days=1), 12)
+    confirmada.days[0].started_at = confirmada.started_at
+    confirmada.days[0].finished_at = confirmada.completed_at
+    db.session.flush()
+
+    add_photo(confirmada.tasks[0], MediaKind.BEFORE, "antes-4", ana)
+    add_photo(confirmada.tasks[0], MediaKind.AFTER, "despues-4", ana)
 
     # ---- EN REVISIÓN: el cliente reclamó y sigue abierta (#83) ----
     reclamada = add_booking(
