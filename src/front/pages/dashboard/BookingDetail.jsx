@@ -5,8 +5,8 @@
  * está, qué se contrató, cuánto costó, quién lo hizo, cómo quedó y si
  * hubo alguna incidencia.
  *
- * Es la pantalla donde aterrizarán cancelar (#17), confirmar o reclamar
- * (#83) y valorar (#20). Aquí solo se lee.
+ * Permite cancelar (#17). Confirmar o reclamar (#83) y valorar (#20)
+ * se integrarán en esta pantalla.
  *
  * Estilos: dashboard.css, sección 9 (cf-bookdetail).
  */
@@ -19,6 +19,7 @@ import { getMyBookings } from "../../services/bookingService";
 import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
 import { BookingCancelled } from "../../components/dashboard/bookings/BookingCancelled";
+import { BookingCancel } from "../../components/dashboard/bookings/BookingCancel";
 import { BookingWhat } from "../../components/dashboard/bookings/BookingWhat";
 import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
 import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker";
@@ -168,6 +169,7 @@ export const BookingDetail = () => {
                 <div className="cf-bookdetail__col">
                     <BookingTimeline booking={booking} />
                     <BookingCancelled booking={booking} />
+                    <BookingCancel key={booking.booking_id} booking={booking} onCancelled={setBooking} />
                     <BookingWhat booking={booking} />
                     <BookingPhotos tasks={booking.tasks} onZoom={setZoomed} />
                 </div>
