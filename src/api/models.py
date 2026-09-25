@@ -67,11 +67,13 @@ class MediaKind(Enum):
     """Para qué es la foto.
 
     before / after: el antes y el después de una tarea, que el trabajador
-    sube para cerrarla. incident: la prueba de una incidencia.
+    sube para cerrarla. incident: la prueba de una incidencia. review: lo
+    que el cliente enseña al valorar.
     """
     BEFORE = "before"
     AFTER = "after"
     INCIDENT = "incident"
+    REVIEW = "review"
 
 
 class IncidentType(Enum):
@@ -1106,6 +1108,14 @@ class Review(db.Model):
         nullable=True
     )
 
+    # Las fotos que subió el cliente al valorar, en el orden en que las
+    # eligió. Con la relación se precargan al listar; con una consulta
+    # suelta dentro de serialize() caía una por reseña.
+    media = db.relationship(
+        "Media",
+        order_by="Media.media_id"
+    )
+
     def serialize(self):
         return {
             "review_id": self.review_id,
@@ -1118,6 +1128,7 @@ class Review(db.Model):
                 if self.created_at
                 else None
             ),
+            "media": [media_item.serialize() for media_item in self.media],
         }
 
 
@@ -1271,7 +1282,9 @@ class Media(db.Model):
     media_id: Mapped[int] = mapped_column(
         primary_key=True
     )
-    # Uno de los dos lleva valor y el otro va vacío.
+    # Solo uno de los tres lleva valor y los otros dos van vacíos: la foto
+    # es de una incidencia, del antes y el después de una tarea, o de una
+    # valoración (#20).
     incident_id: Mapped[int | None] = mapped_column(
         ForeignKey("incidents.incident_id"),
         nullable=True,
@@ -1279,6 +1292,11 @@ class Media(db.Model):
     )
     booking_task_id: Mapped[int | None] = mapped_column(
         ForeignKey("booking_tasks.booking_task_id"),
+        nullable=True,
+        index=True
+    )
+    review_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reviews.review_id"),
         nullable=True,
         index=True
     )
@@ -1306,10 +1324,11 @@ class Media(db.Model):
     )
 
     # La regla la pone la base de datos y no el código: así no hay forma
-    # de colar una foto huérfana, venga de donde venga.
+    # de colar una foto huérfana, venga de donde venga. Exactamente uno
+    # de los tres dueños: ni ninguno, ni dos a la vez.
     __table_args__ = (
         db.CheckConstraint(
-            "(incident_id IS NULL) <> (booking_task_id IS NULL)",
+            "num_nonnulls(incident_id, booking_task_id, review_id) = 1",
             name="media_one_owner",
         ),
     )
