@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getWorkerBookings } from "../../services/bookingService";
 import { WorkerBookingCard } from "../../components/dashboard/worker/WorkerBookingCard";
+import { WorkerRating } from "../../components/dashboard/worker/WorkerRating";
 
 // Las dos pestañas, en el orden en que se enseñan, con lo que dice cada
 // una cuando se queda vacía.
@@ -121,6 +122,8 @@ export const MisReservasTrabajador = () => {
                         Lo que tienes asignado, empezando por lo de hoy.
                     </p>
                 </div>
+
+                <WorkerRating token={store.token} />
             </div>
 
             {error && <p className="cf-dash-alert" role="alert">{error}</p>}
