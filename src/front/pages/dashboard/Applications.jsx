@@ -139,7 +139,7 @@ export const Applications = () => {
                 </button>
             </header>
 
-            <div className="cf-services__tabs" aria-label="Filtrar candidaturas">
+            <div className="cf-services__tabs" role="group" aria-label="Filtrar candidaturas">
                 {FILTERS.map((item) => (
                     <button
                         key={item.value}
@@ -182,14 +182,18 @@ export const Applications = () => {
                     ))}
                 </div>
             ) : (
-                !error && (
+                // La lista solo se esconde si no hay nada que enseñar: un
+                // fallo al cambiar un estado no puede borrar de la pantalla
+                // las candidaturas que ya estaban cargadas.
+                (!error || applications.length > 0) && (
                     <>
                         {filteredApplications.length === 0 ? (
                             <div className="cf-dash-state">
-                                <i
-                                    className="fa-regular fa-folder-open cf-dash-state__icon"
-                                    aria-hidden="true"
-                                />
+                                {/* El círculo lo dibuja el span; el icono va
+                                    dentro, como en el resto del panel. */}
+                                <span className="cf-dash-state__icon">
+                                    <i className="fa-regular fa-folder-open" aria-hidden="true" />
+                                </span>
                                 <h2 className="cf-dash-state__title">
                                     No hay candidaturas en este estado
                                 </h2>
@@ -233,18 +237,11 @@ export const Applications = () => {
                                             <span
                                                 className={`cf-applications__state cf-applications__state--${application.status}`}
                                             >
+                                                {/* Solo el punto, que es el patrón
+                                                    del panel: con un icono al lado
+                                                    eran dos marcas para lo mismo. */}
                                                 <span
                                                     className="cf-applications__dot"
-                                                    aria-hidden="true"
-                                                />
-                                                <i
-                                                    className={
-                                                        application.status === "new"
-                                                            ? "fa-regular fa-envelope"
-                                                            : application.status === "contacted"
-                                                                ? "fa-solid fa-check"
-                                                                : "fa-solid fa-xmark"
-                                                    }
                                                     aria-hidden="true"
                                                 />
                                                 {STATUS_LABELS[application.status] ||

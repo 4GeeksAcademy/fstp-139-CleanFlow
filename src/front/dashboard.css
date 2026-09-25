@@ -7987,7 +7987,7 @@ textarea.cf-dash-input {
 }
 
 .cf-applications__card {
-  padding: var(--cf-space-5);
+  padding: var(--cf-space-5, 20px);
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-md);
   background-color: var(--cf-surface);
