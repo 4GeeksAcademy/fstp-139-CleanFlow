@@ -1941,13 +1941,41 @@ def get_availability():
 
         workers = chosen
 
+    
+    # ---- LA RESERVA QUE SE ESTÁ MOVIENDO ----
+    # Al cambiar la fecha de una reserva, sus propios tramos tienen que
+    # contar como libres: si no, no podría moverse ni dos horas dentro
+    # de su mismo día (#17).
+    exclude_id = None
+    exclude_param = request.args.get("exclude_booking")
+
+    if exclude_param:
+        if not exclude_param.isdigit():
+            return jsonify({"message": "La reserva a excluir no es válida"}), 400
+
+        # Solo se puede excluir una reserva propia. Sin esto, cualquiera
+        # podría ir probando ids para sondear la agenda de otro cliente.
+        own = db.session.execute(
+            db.select(Booking).where(
+                Booking.booking_id == int(exclude_param),
+                Booking.client_id == int(get_jwt_identity()),
+            )
+        ).scalar_one_or_none()
+
+        if own is None:
+            return jsonify({"message": "Reserva no encontrada."}), 404
+
+        exclude_id = own.booking_id
+
+
     # ---- CÁLCULO ----
     # Se carga un poco más allá del fin de mes: una reserva que empieza
     # el día 30 puede tener tramos en el mes siguiente.
     next_month = (month_first_day.replace(day=28) +
                   timedelta(days=4)).replace(day=1)
     busy = load_busy(workers, month_first_day, next_month +
-                     timedelta(days=SEARCH_LIMIT_DAYS))
+                     timedelta(days=SEARCH_LIMIT_DAYS),
+                     exclude_booking_id=exclude_id)
 
     days = month_availability(workers, hours, month_first_day, now, busy)
 
