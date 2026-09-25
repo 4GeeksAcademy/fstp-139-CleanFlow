@@ -67,11 +67,13 @@ class MediaKind(Enum):
     """Para qué es la foto.
 
     before / after: el antes y el después de una tarea, que el trabajador
-    sube para cerrarla. incident: la prueba de una incidencia.
+    sube para cerrarla. incident: la prueba de una incidencia. review: lo
+    que el cliente enseña al valorar.
     """
     BEFORE = "before"
     AFTER = "after"
     INCIDENT = "incident"
+    REVIEW = "review"
 
 
 class IncidentType(Enum):
@@ -771,6 +773,13 @@ class Booking(db.Model):
         order_by="Incident.created_at.desc()"
     )
 
+    # La valoración, si la dejó. uselist=False porque solo puede haber una:
+    # Review.booking_id es único.
+    review = db.relationship(
+        "Review",
+        uselist=False
+    )
+
     # ---- DATOS CALCULADOS ----
 
     @property
@@ -886,7 +895,7 @@ class Booking(db.Model):
 
     def serialize_detail(self):
         """La reserva completa: servicio, dirección, tramos, tareas con sus
-        fotos, e incidencias.
+        fotos, incidencias y la valoración.
 
         La usan la confirmación del panel, "Mis reservas" del cliente (#16)
         y el seguimiento del trabajador (#82). Lo pesado (fotos e
@@ -904,6 +913,7 @@ class Booking(db.Model):
             "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
             "incidents": [incident.serialize() for incident in self.incidents],
+            "review": self.review.serialize() if self.review else None,
             # Los datos del cliente, para quien va a su casa. El nombre
             # siempre, con la inicial del apellido como el del trabajador.
             "client_name": (
@@ -1078,6 +1088,20 @@ class BookingTask(db.Model):
 # ==================================================================
 # Valoración del cliente: como mucho una por reserva (booking_id único).
 
+def public_name(user):
+    """El nombre como se enseña fuera: "Ana G.".
+
+    Solo la inicial del apellido: para reconocer a alguien no hace falta
+    su nombre completo, y en la web pública menos todavía.
+    """
+    if user is None:
+        return None
+
+    initial = f" {user.last_name.strip()[0]}." if user.last_name.strip() else ""
+
+    return f"{user.name}{initial}"
+
+
 class Review(db.Model):
     __tablename__ = "reviews"
 
@@ -1106,6 +1130,18 @@ class Review(db.Model):
         nullable=True
     )
 
+    # Quién la escribió. La web pública solo enseña su nombre de pila con
+    # la inicial, pero para eso hay que poder llegar al usuario.
+    client = db.relationship("User")
+
+    # Las fotos que subió el cliente al valorar, en el orden en que las
+    # eligió. Con la relación se precargan al listar; con una consulta
+    # suelta dentro de serialize() caía una por reseña.
+    media = db.relationship(
+        "Media",
+        order_by="Media.media_id"
+    )
+
     def serialize(self):
         return {
             "review_id": self.review_id,
@@ -1118,6 +1154,7 @@ class Review(db.Model):
                 if self.created_at
                 else None
             ),
+            "media": [media_item.serialize() for media_item in self.media],
         }
 
 
@@ -1271,7 +1308,9 @@ class Media(db.Model):
     media_id: Mapped[int] = mapped_column(
         primary_key=True
     )
-    # Uno de los dos lleva valor y el otro va vacío.
+    # Solo uno de los tres lleva valor y los otros dos van vacíos: la foto
+    # es de una incidencia, del antes y el después de una tarea, o de una
+    # valoración (#20).
     incident_id: Mapped[int | None] = mapped_column(
         ForeignKey("incidents.incident_id"),
         nullable=True,
@@ -1279,6 +1318,11 @@ class Media(db.Model):
     )
     booking_task_id: Mapped[int | None] = mapped_column(
         ForeignKey("booking_tasks.booking_task_id"),
+        nullable=True,
+        index=True
+    )
+    review_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reviews.review_id"),
         nullable=True,
         index=True
     )
@@ -1306,10 +1350,11 @@ class Media(db.Model):
     )
 
     # La regla la pone la base de datos y no el código: así no hay forma
-    # de colar una foto huérfana, venga de donde venga.
+    # de colar una foto huérfana, venga de donde venga. Exactamente uno
+    # de los tres dueños: ni ninguno, ni dos a la vez.
     __table_args__ = (
         db.CheckConstraint(
-            "(incident_id IS NULL) <> (booking_task_id IS NULL)",
+            "num_nonnulls(incident_id, booking_task_id, review_id) = 1",
             name="media_one_owner",
         ),
     )

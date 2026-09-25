@@ -2,8 +2,8 @@
  * INCIDENCIAS · la pantalla del encargado.
  *
  * Todo lo que ha salido mal, lo cuente el trabajador (#18) o el cliente
- * al reclamar (#83). Se filtran por estado, tipo y origen, y se cierran
- * con una nota.
+ * al reclamar (#83). Se filtran por estado, por motivo y por quién las
+ * abrió, y se cierran con una nota.
  *
  * Es el último eslabón del flujo: hasta ahora se registraban problemas
  * que nadie podía resolver. Al cerrar la reclamación de un cliente, su
@@ -27,17 +27,24 @@ const TABS = [
     { value: "true", label: "Resueltas", empty: "Todavía no has cerrado ninguna." },
 ];
 
-// Los dos desplegables. El primer valor siempre es "no filtres".
+// Los dos desplegables preguntan cosas distintas. En ambos, el primer
+// valor quiere decir "no filtres".
+
+// El motivo: de qué lado vino el problema. Mismas palabras que ve el
+// trabajador al abrirla, para no tener dos vocabularios.
 const TYPES = [
-    { value: "", label: "Cualquier tipo" },
-    { value: "client", label: "Del cliente" },
-    { value: "company", label: "De la empresa" },
+    { value: "", label: "Cualquier motivo" },
+    { value: "client", label: "Por algo del cliente" },
+    { value: "company", label: "Por algo nuestro" },
 ];
 
+// Quién la escribió, que es otra pregunta: el cliente solo abre
+// incidencias por algo nuestro, pero el trabajador abre de los dos
+// motivos. Se filtra por aquí para ver quién espera respuesta.
 const SOURCES = [
-    { value: "", label: "Cualquier origen" },
-    { value: "worker", label: "Del trabajador" },
-    { value: "client", label: "Del cliente" },
+    { value: "", label: "Quién la abrió" },
+    { value: "worker", label: "La abrió el trabajador" },
+    { value: "client", label: "La abrió el cliente" },
 ];
 
 const SKELETON_ROWS = 3;
@@ -188,7 +195,7 @@ export const ListadoIncidencias = () => {
                 <div className="cf-incidents__picks">
                     <select
                         className={`cf-incidents__pick${type ? " cf-incidents__pick--on" : ""}`}
-                        aria-label="Filtrar por tipo"
+                        aria-label="Filtrar por motivo"
                         value={type}
                         onChange={(event) => setType(event.target.value)}
                     >
@@ -199,7 +206,7 @@ export const ListadoIncidencias = () => {
 
                     <select
                         className={`cf-incidents__pick${source ? " cf-incidents__pick--on" : ""}`}
-                        aria-label="Filtrar por origen"
+                        aria-label="Filtrar por quién la abrió"
                         value={source}
                         onChange={(event) => setSource(event.target.value)}
                     >
@@ -234,7 +241,7 @@ export const ListadoIncidencias = () => {
                     </p>
                     <p className="cf-dash-state__text">
                         {filtering
-                            ? "Prueba con otro tipo o con otro origen."
+                            ? "Prueba con otro motivo o con otra persona."
                             : TABS.find((option) => option.value === resolved).empty}
                     </p>
                 </div>
