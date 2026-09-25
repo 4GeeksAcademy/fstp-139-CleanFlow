@@ -18,9 +18,11 @@ export const BookingCancel = ({ booking, onCancelled }) => {
     const canCancel = eligible && Number.isFinite(deadline) && now <= deadline;
 
     useEffect(() => {
+        if (!eligible) return;
+
         const timer = window.setInterval(() => setNow(Date.now()), 1000);
         return () => window.clearInterval(timer);
-    }, []);
+    }, [eligible]);
 
     const closeDialog = () => {
         if (!sendingRef.current) dialogRef.current?.close();
@@ -78,7 +80,7 @@ export const BookingCancel = ({ booking, onCancelled }) => {
     if (store.user?.role !== "client" || !eligible) return null;
 
     return (
-        <section aria-label="Cancelación de la reserva">
+        <section className="cf-bookblock" aria-label="Cancelación de la reserva">
             {canCancel ? (
                 <button
                     type="button"
@@ -116,28 +118,20 @@ export const BookingCancel = ({ booking, onCancelled }) => {
                         Se liberará el horario reservado. Esta acción no se puede deshacer.
                     </p>
 
-                    <label htmlFor="cancel-booking-reason">
-                        Motivo (opcional)
-                    </label>
-                    <textarea
-                        id="cancel-booking-reason"
-                        value={reason}
-                        onChange={(event) => setReason(event.target.value)}
-                        maxLength={1000}
-                        rows={3}
-                        disabled={busy}
-                        style={{
-                            display: "block",
-                            width: "100%",
-                            marginTop: "8px",
-                            marginBottom: "16px",
-                            padding: "12px",
-                            border: "1px solid #d8d2c4",
-                            borderRadius: "8px",
-                            font: "inherit",
-                            resize: "vertical",
-                        }}
-                    />
+                    <div className="cf-inc-field">
+                        <label className="cf-inc-field__label" htmlFor="cancel-booking-reason">
+                            Motivo (opcional)
+                        </label>
+                        <textarea
+                            id="cancel-booking-reason"
+                            className="cf-dash-input"
+                            value={reason}
+                            onChange={(event) => setReason(event.target.value)}
+                            maxLength={1000}
+                            rows={3}
+                            disabled={busy}
+                        ></textarea>
+                    </div>
 
                     {error && (
                         <p className="cf-dash-alert" role="alert">{error}</p>

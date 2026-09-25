@@ -416,8 +416,7 @@ def get_workers():
     ratings = {
         worker_id: (average, total)
         for worker_id, average, total in db.session.execute(
-            db.select(Booking.worker_id, func.avg(
-                Review.rating), func.count(Review.review_id))
+            db.select(Booking.worker_id, func.avg(Review.rating), func.count(Review.review_id))
             .join(Review, Review.booking_id == Booking.booking_id)
             .group_by(Booking.worker_id)
         ).all()
@@ -438,8 +437,7 @@ def get_workers():
             "reviews_count": total,
             # Una ausencia que incluye hoy. Sin fecha de fin, sigue abierta.
             "on_leave_today": any(
-                absence.starts_on <= today and (
-                    absence.ends_on is None or absence.ends_on >= today)
+                absence.starts_on <= today and (absence.ends_on is None or absence.ends_on >= today)
                 for absence in worker.absences
             ),
         }
