@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getMyBookings, confirmBooking, claimBooking } from "../../services/bookingService";
+import { createReview } from "../../services/reviewService";
 import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
 import { BookingCancelled } from "../../components/dashboard/bookings/BookingCancelled";
@@ -27,6 +28,7 @@ import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker
 import { BookingWhen } from "../../components/dashboard/bookings/BookingWhen";
 import { BookingPhotos } from "../../components/dashboard/bookings/BookingPhotos";
 import { BookingConfirm } from "../../components/dashboard/bookings/BookingConfirm";
+import { BookingReview } from "../../components/dashboard/bookings/BookingReview";
 import { ClaimForm } from "../../components/dashboard/bookings/ClaimForm";
 import { BookingIncidents } from "../../components/dashboard/bookings/BookingIncidents";
 import { BookingZoom } from "../../components/dashboard/bookings/BookingZoom";
@@ -144,6 +146,38 @@ export const BookingDetail = () => {
         setClaiming(false);
     };
 
+
+    // ---------- LA VALORACIÓN (#20) ----------
+
+    // Aparte de answering: valorar no es responder, y el error de una no
+    // tiene por qué borrar el mensaje de la otra.
+    const [rating, setRating] = useState(false);
+    const [rateError, setRateError] = useState("");
+
+    /**
+     * El cliente pone su nota.
+     *
+     * Devuelve la reserva con la reseña ya dentro, así que el bloque pasa
+     * solo del formulario a lo que dejó escrito.
+     */
+    const handleRate = async (data) => {
+        setRating(true);
+        setRateError("");
+
+        const result = await createReview(booking.booking_id, data, store.token);
+
+        setRating(false);
+
+        if (expired(result)) return;
+
+        if (!result.ok) {
+            setRateError(result.data.message);
+            return;
+        }
+
+        setBooking(result.data.booking);
+    };
+
     // ---------- MIENTRAS LLEGA LA RESERVA ----------
 
     if (loading) {
@@ -241,6 +275,12 @@ export const BookingDetail = () => {
                         saving={answering}
                         onConfirm={handleConfirm}
                         onClaim={() => setClaiming(true)}
+                    />
+                    <BookingReview
+                        booking={booking}
+                        saving={rating}
+                        error={rateError}
+                        onSubmit={handleRate}
                     />
                 </div>
 

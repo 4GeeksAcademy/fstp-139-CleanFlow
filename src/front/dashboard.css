@@ -19,7 +19,10 @@
     10. Mis tareas del trabajador (cf-mytasks__*, cf-wcard__*)
     11. Incidencias: formulario y pantalla del encargado
         (cf-inc-sheet__*, cf-incidents__*, cf-incard__*)
-    12. Movimiento reducido
+    12. Candidaturas del encargado (cf-applications__*)
+    13. Valoraciones: estrellas, bloque del cliente y nota del trabajador
+        (cf-stars__*, cf-rate__*, cf-mine__*)
+    14. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -8160,7 +8163,294 @@ textarea.cf-dash-input {
   }
 }
 /* ======================================================================
-   13. MOVIMIENTO REDUCIDO
+   13. VALORACIONES (Stars.jsx, BookingReview.jsx y WorkerRating.jsx)
+   ======================================================================
+
+   La nota que deja el cliente y las dos formas de enseñarla: su bloque
+   en el detalle de la reserva y la media del trabajador en su cabecera.
+
+   En terracota y no en dorado: el dorado de las reseñas de internet no
+   está en index.css y desentonaría con el resto del panel.
+
+   cf-review__* no se puede usar: ya es el bloque de "Lo estamos
+   revisando" de la sección 9, que es otra cosa. */
+
+/* ---------- LAS ESTRELLAS ---------- */
+
+.cf-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Para elegir: 44px de lado, que es lo mínimo que se acierta con el dedo. */
+.cf-stars__btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  background: none;
+  color: var(--cf-border);
+  cursor: pointer;
+  transition:
+    color var(--cf-transition),
+    background-color var(--cf-transition);
+}
+
+.cf-stars__btn:hover {
+  background-color: var(--cf-accent-soft);
+}
+
+.cf-stars__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+.cf-stars__btn--on {
+  color: var(--cf-accent);
+}
+
+/* Solo lectura: más juntas y sin zona de pulsación, que no se toca. */
+.cf-stars--read {
+  gap: 2px;
+}
+
+.cf-stars__mark {
+  display: grid;
+  place-items: center;
+  color: var(--cf-border);
+}
+
+.cf-stars__mark--on {
+  color: var(--cf-accent);
+}
+
+.cf-stars__count {
+  margin-left: var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- EL BLOQUE DEL CLIENTE ---------- */
+
+.cf-rate__ask {
+  margin: 0 0 var(--cf-space-1);
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: 1.1875rem;
+  font-weight: 600;
+}
+
+.cf-rate__hint {
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-rate__field {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-4);
+}
+
+.cf-rate__label {
+  font-size: 0.8438rem;
+  font-weight: 600;
+}
+
+/* ---------- LAS FOTOS QUE ELIGE ---------- */
+
+.cf-rate__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-3);
+}
+
+.cf-rate__shot {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  overflow: hidden;
+}
+
+.cf-rate__shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cf-rate__drop {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(38, 38, 31, 0.6);
+  color: #ffffff;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.cf-rate__drop:hover {
+  background-color: rgba(38, 38, 31, 0.8);
+}
+
+/* El hueco de añadir es una etiqueta: el input va oculto dentro, porque
+   el de archivo del navegador no se puede maquetar. */
+.cf-rate__add {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  width: 76px;
+  height: 76px;
+  border: 1px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  color: var(--cf-muted);
+  font-size: 0.6875rem;
+  cursor: pointer;
+  transition:
+    border-color var(--cf-transition),
+    color var(--cf-transition);
+}
+
+.cf-rate__add:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+.cf-rate__add:focus-within {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+}
+
+.cf-rate__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-top: var(--cf-space-4);
+}
+
+.cf-rate__note {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--cf-muted);
+  font-size: 0.78rem;
+}
+
+/* ---------- LA QUE YA DEJÓ ---------- */
+
+.cf-rate__done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2) var(--cf-space-4);
+}
+
+.cf-rate__when {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* Su comentario, entre comillas visuales: la barra terracota lo separa
+   de lo que dice la aplicación. */
+.cf-rate__mine {
+  margin: var(--cf-space-3) 0 0;
+  padding-left: var(--cf-space-3);
+  border-left: 3px solid var(--cf-accent-soft);
+  color: var(--cf-text);
+  font-size: 0.9063rem;
+  line-height: 1.55;
+}
+
+.cf-rate__gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-3);
+}
+
+.cf-rate__pic {
+  width: 88px;
+  height: 66px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  object-fit: cover;
+  display: block;
+}
+
+.cf-rate__locked {
+  margin: var(--cf-space-3) 0 0;
+  padding-top: var(--cf-space-3);
+  border-top: 1px solid var(--cf-border);
+  color: var(--cf-muted);
+  font-size: 0.78rem;
+}
+
+/* ---------- LA NOTA DEL TRABAJADOR ---------- */
+
+.cf-mine {
+  display: grid;
+  justify-items: end;
+  gap: var(--cf-space-1);
+  padding: 10px var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+}
+
+.cf-mine__label {
+  color: var(--cf-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-mine__row {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-mine__num {
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-mine__count {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* En móvil la cabecera se apila, y la nota alineada a la derecha queda
+   descolgada: se pega al borde izquierdo con el título. */
+@media (max-width: 640px) {
+  .cf-mine {
+    justify-items: start;
+  }
+}
+
+/* ======================================================================
+   14. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
