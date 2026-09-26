@@ -33,6 +33,8 @@ export const ServicesLoader = () => {
             // saldrían las dos antes de que la primera terminara.
             lastRecharge = Date.now()
 
+            dispatch({ type: "SET_SERVICES_LOADING" })
+
             const { ok, data } = await getServices()
 
             if (ok) {
@@ -40,8 +42,9 @@ export const ServicesLoader = () => {
                 return
             }
 
-            // Si falla no se despacha nada: se conserva la lista anterior.
-            // Vaciar el menú por un fallo sería peor que enseñarla vieja.
+            dispatch({ type: "SET_SERVICES_ERROR" })
+            // Si falla, se conserva la lista anterior y se marca el error.
+            // Vaciar el catálogo por un fallo sería peor que enseñar la lista anterior.
             console.warn("The service catalog could not be updated.")
 
             // Se borra la marca para poder reintentar en el siguiente
