@@ -21,7 +21,7 @@ import { createReview } from "../../services/reviewService";
 import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
 import { BookingCancelled } from "../../components/dashboard/bookings/BookingCancelled";
-import { BookingCancel } from "../../components/dashboard/bookings/BookingCancel";
+import { BookingChanges } from "../../components/dashboard/bookings/BookingChanges";
 import { BookingWhat } from "../../components/dashboard/bookings/BookingWhat";
 import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
 import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker";
@@ -267,7 +267,7 @@ export const BookingDetail = () => {
                 <div className="cf-bookdetail__col">
                     <BookingTimeline booking={booking} />
                     <BookingCancelled booking={booking} />
-                    <BookingCancel key={booking.booking_id} booking={booking} onCancelled={setBooking} />
+                    <BookingChanges key={booking.booking_id} booking={booking} onChanged={setBooking} />
                     <BookingWhat booking={booking} />
                     <BookingPhotos tasks={booking.tasks} onZoom={setZoomed} />
                     <BookingConfirm

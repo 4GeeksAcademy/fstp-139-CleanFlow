@@ -8575,6 +8575,26 @@ textarea.cf-dash-input {
   border-top: 1px solid var(--cf-border);
 }
 
+/* ---------- EL BLOQUE DEL DETALLE ----------
+   Las dos salidas juntas: cambiar la fecha y cancelar. En fila, y en
+   columna cuando no caben. */
+
+.cf-changes__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+/* Cuántas veces se movió ya. Dicho sin regañar: es un dato, no un aviso. */
+.cf-changes__moved {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
 /* ---------- LO QUE TIENE AHORA ----------
    Arriba del todo: sin esto habría que cerrar el diálogo para recordar
    qué día tenía. */
