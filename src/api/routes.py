@@ -1941,7 +1941,6 @@ def get_availability():
 
         workers = chosen
 
-    
     # ---- LA RESERVA QUE SE ESTÁ MOVIENDO ----
     # Al cambiar la fecha de una reserva, sus propios tramos tienen que
     # contar como libres: si no, no podría moverse ni dos horas dentro
@@ -1966,7 +1965,6 @@ def get_availability():
             return jsonify({"message": "Reserva no encontrada."}), 404
 
         exclude_id = own.booking_id
-
 
     # ---- CÁLCULO ----
     # Se carga un poco más allá del fin de mes: una reserva que empieza
@@ -2180,15 +2178,19 @@ def validate_booking(data, user):
     }, None
 
 
-def free_options_at(workers, hours, start, busy):
+def free_options_at(workers, hours, start, busy, min_notice=MIN_NOTICE):
     """Las opciones libres para empezar justo a esa hora, o [].
 
     Usa month_availability, el mismo cálculo que el calendario: lo que no
     sale allí tampoco se puede reservar aquí.
+
+    min_notice a cero deja pasar los huecos de menos de 24 h. Solo lo
+    hace el encargado al mover una reserva (#17).
     """
     day = start.date()
     slots = month_availability(
-        workers, hours, day.replace(day=1), madrid_now(), busy)
+        workers, hours, day.replace(day=1), madrid_now(), busy,
+        min_notice=min_notice)
 
     for slot in slots.get(day, []):
         if slot["start"] == start.strftime("%H:%M"):
@@ -2427,23 +2429,6 @@ def cancel_booking(booking_id):
             "message": "Para cancelar, contacta con CleanFlow"
         }), 409
 
-    # Fechas guardadas en hora de Madrid. Los timestamps permiten
-    # contar 24 horas reales incluso con el cambio de horario.
-    seconds_left = (
-        first_start.replace(tzinfo=MADRID).timestamp()
-        - now.replace(tzinfo=MADRID).timestamp()
-    )
-
-    if booking.started_at is not None or seconds_left <= 0:
-        return jsonify({
-            "message": "No se puede cancelar una reserva que ya ha comenzado."
-        }), 409
-
-    if user.role == "client" and seconds_left < 24 * 60 * 60:
-        return jsonify({
-            "message": "Para cancelar, contacta con CleanFlow"
-        }), 409
-
     data = request.get_json(silent=True)
     if data is None and not request.get_data():
         data = {}
@@ -2480,6 +2465,175 @@ def cancel_booking(booking_id):
 
     return jsonify({"booking": booking.serialize_detail()}), 200
 
+
+# ----------------------------------------------------------------------
+# CAMBIAR LA FECHA (#17)
+# ----------------------------------------------------------------------
+#   PATCH  /api/bookings/<id>/reschedule   cliente hasta 24 h antes,
+#                                          encargado siempre
+#
+# Se mueve la reserva, no se crea otra: conserva su número, su precio,
+# sus tareas, su dirección y sus notas. El cliente no reescribe nada.
+#
+# Las reservas de varios días se mueven en bloque: booking_intervals()
+# recoloca todos los tramos a partir de la hora nueva.
+
+
+def parse_start(value):
+    """La hora que llega del calendario, en Madrid y sin zona.
+
+    Devuelve (fecha, None) o (None, mensaje).
+    """
+    if not isinstance(value, str):
+        return None, "Indica la fecha y la hora nuevas."
+
+    for formato in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(value, formato), None
+        except ValueError:
+            continue
+
+    return None, "La fecha tiene que venir como 2026-10-07T09:00."
+
+
+@api.route("/bookings/<int:booking_id>/reschedule", methods=["PATCH"])
+@role_required("client", "manager")
+@booking_transaction
+def reschedule_booking(booking_id):
+    """Mueve una reserva a otro día y hora.
+
+    { "starts_at": "2026-10-07T09:00", "worker_id": 3 }
+
+    worker_id es opcional: sin él se reparte como al contratar, con quien
+    menos horas tenga ese día.
+    """
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    # Mismo mensaje para "no existe" y "no es tuya": decir cuál es
+    # confirmaría que la otra existe.
+    if booking is None or (user.role == "client" and booking.client_id != user_id):
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    if booking.status not in (BookingStatus.PENDING, BookingStatus.CONFIRMED):
+        return jsonify({
+            "message": "El estado actual no permite cambiar la fecha."
+        }), 409
+
+    if booking.started_at is not None:
+        return jsonify({
+            "message": "No se puede mover una reserva que ya ha comenzado."
+        }), 409
+
+    now = madrid_now()
+    deadline = booking.change_deadline
+
+    # El plazo es el mismo que el de cancelar, y lo calcula el modelo.
+    if user.role == "client" and (deadline is None
+                                  or now.replace(tzinfo=MADRID) > deadline):
+        return jsonify({
+            "message": "Para cambiar la fecha, contacta con CleanFlow"
+        }), 409
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos válidos"}), 400
+
+    start, error = parse_start(data.get("starts_at"))
+
+    if error:
+        return jsonify({"message": error}), 400
+
+    # Las horas se leen ANTES de tocar los tramos: booking.hours los suma,
+    # y en cuanto se borren daría cero.
+    hours = booking.hours
+
+    # ---- CON QUIÉN ----
+
+    workers = bookable_workers()
+    wanted = data.get("worker_id")
+
+    if wanted is not None:
+        workers = [w for w in workers if w.worker_id == wanted]
+
+        if not workers:
+            return jsonify({
+                "message": "Ese trabajador no está disponible para reservar"
+            }), 404
+
+    # Bloquea a los candidatos hasta el commit: si dos peticiones piden el
+    # mismo hueco a la vez, la segunda espera aquí y vuelve a mirar.
+    db.session.execute(
+        db.select(Worker)
+        .where(Worker.worker_id.in_([w.worker_id for w in workers]))
+        .with_for_update()
+    )
+
+    # ---- ¿SIGUE LIBRE? ----
+
+    day = start.date()
+
+    # exclude_booking_id: los tramos de esta reserva cuentan como libres,
+    # o no podría moverse ni dos horas dentro de su propio día.
+    busy = load_busy(workers, day, day + timedelta(days=SEARCH_LIMIT_DAYS),
+                     exclude_booking_id=booking.booking_id)
+
+    # El encargado puede recolocar una reserva para mañana: cuando surge
+    # un imprevisto, esperar 24 horas no es una opción. Al cliente no se
+    # le quita nunca, porque al trabajador hay que avisarlo con tiempo.
+    notice = timedelta(0) if user.role == "manager" else MIN_NOTICE
+
+    options = free_options_at(workers, hours, start, busy, min_notice=notice)
+
+    if not options:
+        # Se vuelve a mirar sin reservas por medio: si entonces sí había
+        # hueco, es que acaban de ocuparlo mientras elegía.
+        if free_options_at(workers, hours, start, {}, min_notice=notice):
+            return jsonify({
+                "message": "Ese hueco acaba de ocuparse, elige otro"
+            }), 409
+
+        return jsonify({
+            "message": "Esa hora no está disponible"
+        }), 400
+
+    by_id = {w.worker_id: w for w in workers}
+    worker = pick_worker([by_id[option["worker_id"]] for option in options],
+                         busy, day)
+
+    intervals = booking_intervals(worker, start, hours)
+
+    # ---- SE MUEVE ----
+
+    # Los tramos viejos se borran uno a uno: la relación no lleva
+    # delete-orphan, así que vaciar la lista dejaría filas con booking_id
+    # a null, y esa columna no lo admite.
+    for old_day in list(booking.days):
+        db.session.delete(old_day)
+
+    db.session.flush()
+
+    for begins, ends in intervals:
+        booking.days.append(BookingDay(starts_at=begins, ends_at=ends))
+
+    booking.worker_id = worker.worker_id
+    booking.scheduled_start = intervals[0][0]
+    booking.scheduled_end = intervals[-1][1]
+    booking.rescheduled_count += 1
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({
+        "booking": {**booking.serialize_detail(), "worker": public_worker(worker)}
+    }), 200
 
 
 @api.route("/bookings", methods=["GET"])

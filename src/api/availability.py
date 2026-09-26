@@ -206,7 +206,8 @@ def candidate_starts(worker, day):
         current += SLOT_STEP
 
 
-def month_availability(workers, hours, month_first_day, now, busy):
+def month_availability(workers, hours, month_first_day, now, busy,
+                       min_notice=MIN_NOTICE):
     """Huecos del mes: {día: [{"start": "09:00", "options": [...]}]}.
 
     Cada opción es un trabajador libre y los días que ocuparía:
@@ -215,8 +216,12 @@ def month_availability(workers, hours, month_first_day, now, busy):
 
     Solo salen los días con hueco dentro de la ventana de reserva. `now`
     llega de fuera para poder probar con cualquier fecha.
+
+    min_notice: la antelación mínima. El encargado la pone a cero para
+    recolocar una reserva de mañana cuando surge un imprevisto (#17); a
+    un cliente nunca se le quita.
     """
-    earliest = now + MIN_NOTICE
+    earliest = now + min_notice
     latest = now + BOOKING_HORIZON
 
     # Día 1 del mes siguiente: el mes acaba justo antes.
