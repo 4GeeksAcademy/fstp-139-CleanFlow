@@ -154,8 +154,6 @@ export const BookingChanges = ({ booking, onChanged }) => {
     // detalle del cliente.
     if (store.user?.role !== "client" || !eligible) return null;
 
-    const moved = booking.rescheduled_count || 0;
-
     return (
         <section className="cf-bookblock" aria-label="Cambios en la reserva">
             <p className="cf-bookblock__title">Si algo cambia</p>
@@ -184,15 +182,6 @@ export const BookingChanges = ({ booking, onChanged }) => {
                    no ayuda a nadie. */
                 <p className="cf-dash-alert" role="status">
                     Para cambiar la fecha o cancelar, contacta con CleanFlow
-                </p>
-            )}
-
-            {moved > 0 && (
-                <p className="cf-changes__moved">
-                    <i className="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i>
-                    {moved === 1
-                        ? "Ya la cambiaste de fecha una vez."
-                        : `Ya la has cambiado de fecha ${moved} veces.`}
                 </p>
             )}
 

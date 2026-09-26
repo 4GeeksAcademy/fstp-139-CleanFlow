@@ -8585,8 +8585,10 @@ textarea.cf-dash-input {
   gap: var(--cf-space-2);
 }
 
-/* Cuántas veces se movió ya. Dicho sin regañar: es un dato, no un aviso. */
-.cf-changes__moved {
+
+/* Que la reserva se movió, en el bloque de fechas del trabajador. Es un
+   dato, no un aviso: por eso en gris y sin recuadro. */
+.cf-wday__moved {
   display: flex;
   align-items: center;
   gap: var(--cf-space-2);
