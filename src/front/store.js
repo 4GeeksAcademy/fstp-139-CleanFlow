@@ -54,6 +54,8 @@ export const initialStore = () => {
     // es la mejor forma de enseñar un catálogo viejo. Lo rellena
     // ServicesLoader al arrancar.
     services: [],
+    servicesLoading: true,
+    servicesError: false,
   };
 };
 
@@ -67,7 +69,6 @@ export const initialStore = () => {
  */
 export default function storeReducer(store, action = {}) {
   switch (action.type) {
-
     // Login correcto: token y usuario llegan juntos desde /api/login.
     case "LOGIN": {
       const { token, user } = action.payload;
@@ -130,7 +131,23 @@ export default function storeReducer(store, action = {}) {
       return {
         ...store,
         services: action.payload,
-      }
+        servicesLoading: false,
+        servicesError: false,
+      };
+
+    case "SET_SERVICES_LOADING":
+      return {
+        ...store,
+        servicesLoading: true,
+        servicesError: false,
+      };
+
+    case "SET_SERVICES_ERROR":
+      return {
+        ...store,
+        servicesLoading: false,
+        servicesError: true,
+      };
 
     // Acción desconocida: se avisa por consola para cazar erratas, pero NO
     // se lanza. Un reducer que lanza tumba la aplicación entera: React
