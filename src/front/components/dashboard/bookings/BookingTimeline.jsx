@@ -115,7 +115,7 @@ export const BookingTimeline = ({ booking }) => {
 
     return (
         <section className="cf-bookblock">
-            <h2 className="cf-bookblock__title">Cómo va</h2>
+            <h2 className="cf-bookblock__title">Estado de la reserva</h2>
 
             <div className="cf-timeline">
                 {steps.map((step, position) => (
