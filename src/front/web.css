@@ -2030,7 +2030,7 @@ main > section:nth-of-type(even) {
   overflow: hidden;
 
   border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius);
+  border-radius: var(--cf-radius-md);
   background: var(--cf-surface);
 }
 

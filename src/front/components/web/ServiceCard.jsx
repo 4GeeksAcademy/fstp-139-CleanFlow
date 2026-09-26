@@ -7,11 +7,11 @@
 
 import { Link } from "react-router-dom";
 
-import servicePlaceholder from "../assets/img/service-placeholder.svg";
-import limpiezaEsencial from "../assets/img/services/limpieza-esencial.png";
-import limpiezaIntegral from "../assets/img/services/limpieza-integral.png";
-import limpiezaProfunda from "../assets/img/services/limpieza-profunda.png";
-import limpiezaFinDeObra from "../assets/img/services/limpieza-fin-de-obra.png";
+import servicePlaceholder from "../../assets/img/service-placeholder.svg";
+import limpiezaEsencial from "../../assets/img/services/limpieza-esencial.webp";
+import limpiezaIntegral from "../../assets/img/services/limpieza-integral.webp";
+import limpiezaProfunda from "../../assets/img/services/limpieza-profunda.webp";
+import limpiezaFinDeObra from "../../assets/img/services/limpieza-fin-de-obra.webp";
 
 const serviceImages = {
     "limpieza-esencial": limpiezaEsencial,
@@ -70,15 +70,11 @@ export const ServiceCard = ({ service }) => {
                     </p>
 
                     <Link
-                        to={`/services/${service.slug}`}
-                        className="cf-service-card__link"
-                        aria-label={`Ver detalles de ${service.name}`}
+                        to={`/dashboard/book?servicio=${service.slug}`}
+                        className="cf-btn"
+                        aria-label={`Contratar ${service.name}`}
                     >
-                        Ver servicio
-                        <i
-                            className="fa-solid fa-arrow-right"
-                            aria-hidden="true"
-                        />
+                        Contratar
                     </Link>
                 </div>
             </div>

@@ -9,56 +9,57 @@
  * cada una. Aquí el navegador avisa solo cuando algo entra o sale.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
+
 
 export const useActiveSection = (ids) => {
-  // Vacío hasta que el observador diga algo: mejor no marcar nada que
-  // suponer que estamos en la primera sección.
-  const [activeSection, setActiveSection] = useState("");
 
-  useEffect(() => {
-    // filter(Boolean) descarta las que no existan: fuera de la landing
-    // no hay ninguna de estas secciones.
-    const sections = ids
-      .map((id) => document.getElementById(id))
-      .filter(Boolean);
+    // Vacío hasta que el observador diga algo: mejor no marcar nada que
+    // suponer que estamos en la primera sección.
+    const [activeSection, setActiveSection] = useState("");
 
-    if (sections.length === 0) return;
+    useEffect(() => {
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Avisa solo de las que HAN CAMBIADO, y puede haber varias
-        // visibles: se elige la que más pantalla ocupa.
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        // filter(Boolean) descarta las que no existan: fuera de la landing
+        // no hay ninguna de estas secciones.
+        const sections = ids
+            .map((id) => document.getElementById(id))
+            .filter(Boolean);
 
-        // Si no hay ninguna, se conserva la última marcada. Que
-        // parpadee es peor que quedarse un momento en la anterior.
-        if (visible) setActiveSection(visible.target.id);
-      },
-      {
-        // Estos dos números son los que hay que tocar si el
-        // resaltado cambia antes o después de lo debido.
+        if (sections.length === 0) return;
 
-        // Varios valores para que intersectionRatio se actualice al
-        // bajar y la comparación de arriba pueda comparar de verdad.
-        threshold: 0,
+        const observer = new IntersectionObserver(
+            (entries) => {
 
-        // Recorta la zona que cuenta como "pantalla": solo la franja
-        // central. Así una sección no se marca al asomar por el borde.
-        rootMargin: "-40% 0px -40% 0px",
-      },
-    );
+                // De las entradas que han cambiado, se toma la sección que
+                // acaba de entrar en la franja central de la pantalla.
+                const visible = entries.find((entry) => entry.isIntersecting);
 
-    sections.forEach((section) => observer.observe(section));
+                // Si no hay ninguna, se conserva la última marcada. Que
+                // parpadee es peor que quedarse un momento en la anterior.
+                if (visible) setActiveSection(visible.target.id);
+            },
+            {
+                // Estos dos números son los que hay que tocar si el
+                // resaltado cambia antes o después de lo debido.
 
-    // disconnect deja de vigilarlas todas de una vez.
-    return () => observer.disconnect();
+                // Basta con entrar en la franja central para activar la sección.
+                threshold: 0,
+
+                // Recorta la zona que cuenta como "pantalla": solo la franja
+                // central. Así una sección no se marca al asomar por el borde.
+                rootMargin: "-40% 0px -40% 0px"
+            }
+        );
+
+        sections.forEach((section) => observer.observe(section));
+
+        // disconnect deja de vigilarlas todas de una vez.
+        return () => observer.disconnect();
 
     // ids es un array nuevo en cada render: comparándolo tal cual, el efecto
     // se reharía siempre. Como texto, React ve dos cadenas iguales.
-  }, [ids.join(",")]);
+    }, [ids.join(",")]);
 
-  return activeSection;
+    return activeSection;
 };

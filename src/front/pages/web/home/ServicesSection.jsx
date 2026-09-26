@@ -7,7 +7,7 @@
 
 import { useRef } from "react";
 import useGlobalReducer from "../../../hooks/useGlobalReducer.jsx";
-import { ServiceCard } from "../../../components/ServiceCard.jsx";
+import { ServiceCard } from "../../../components/web/ServiceCard.jsx";
 
 export const ServicesSection = () => {
     const { store } = useGlobalReducer();
