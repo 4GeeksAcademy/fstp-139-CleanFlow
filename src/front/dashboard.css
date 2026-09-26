@@ -22,7 +22,8 @@
     12. Candidaturas del encargado (cf-applications__*)
     13. Valoraciones: estrellas, bloque del cliente y nota del trabajador
         (cf-stars__*, cf-rate__*, cf-mine__*)
-    14. Movimiento reducido
+    14. Cambiar la fecha de una reserva (cf-resched__*)
+    15. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -8483,7 +8484,240 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   14. MOVIMIENTO REDUCIDO
+   14. CAMBIAR LA FECHA (RescheduleForm.jsx)
+   ======================================================================
+
+   El diálogo donde el cliente mueve su reserva. Por dentro reutiliza el
+   calendario del panel de contratación (cf-booking__*, sección 7): lo
+   propio de aquí es el marco, la elección de con quién se busca y los
+   dos avisos.
+
+   Es un <dialog> de verdad y no un div: el navegador ya oscurece el
+   fondo, atrapa el foco dentro y cierra con Escape. */
+
+.cf-resched {
+  width: min(460px, 92vw);
+  max-height: 88vh;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  overflow: hidden;
+}
+
+.cf-resched::backdrop {
+  background-color: rgba(38, 38, 31, 0.6);
+}
+
+/* Cabecera y pie quietos, el centro se desplaza: el calendario más las
+   horas no caben en una pantalla de móvil. */
+.cf-resched__form {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: 88vh;
+}
+
+.cf-resched__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4) var(--cf-space-5, 20px) var(--cf-space-3);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-resched__title {
+  margin: 0;
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cf-resched__sub {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-resched__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+
+.cf-resched__close:hover {
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+}
+
+.cf-resched__body {
+  padding: var(--cf-space-4) var(--cf-space-5, 20px);
+  overflow-y: auto;
+}
+
+.cf-resched__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-3) var(--cf-space-5, 20px) var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+/* ---------- LO QUE TIENE AHORA ----------
+   Arriba del todo: sin esto habría que cerrar el diálogo para recordar
+   qué día tenía. */
+
+.cf-resched__now {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0 0 var(--cf-space-4);
+  padding: 10px var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-resched__now strong {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+/* ---------- CON QUIÉN SE BUSCA ---------- */
+
+.cf-resched__who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-resched__chip {
+  padding: 7px var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition),
+    color var(--cf-transition);
+}
+
+.cf-resched__chip:hover {
+  border-color: var(--cf-primary);
+}
+
+.cf-resched__chip[aria-pressed="true"] {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 600;
+}
+
+.cf-resched__chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+/* ---------- SIN HUECOS ----------
+   La salida a todo el equipo ocupa su sitio y no es un enlace escondido:
+   es lo único que se puede hacer desde ahí. */
+
+.cf-resched__none {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin-top: var(--cf-space-4);
+  padding: var(--cf-space-4);
+  border: 1px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-align: center;
+}
+
+.cf-resched__none p { margin: 0; }
+.cf-resched__none strong { color: var(--cf-text); }
+
+.cf-resched__switch {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cf-primary);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- HORAS LIBRES ----------
+   La píldora es la del panel (cf-booking__slot); aquí solo cambia el
+   hueco que la rodea. */
+
+.cf-resched__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-4);
+  padding-top: var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-resched__slots-title {
+  width: 100%;
+  margin: 0 0 var(--cf-space-1);
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---------- LOS DOS AVISOS ---------- */
+
+.cf-resched__spill {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* Que cambie quien viene no es un error, pero tampoco puede pasar
+   inadvertido: terracota, que es el color de avisar. */
+.cf-resched__swap {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 0;
+  padding: var(--cf-space-3);
+  border: 1px solid var(--cf-accent);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-resched__swap strong { font-weight: 600; }
+
+/* ======================================================================
+   15. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
