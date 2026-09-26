@@ -11,7 +11,7 @@
  * margen entre servicios y el reparto ya están resueltos allí.
  *
  * Pide los huecos él mismo, porque cambian con cada mes que se pasa. La
- * llamada que mueve la reserva la hace la página, con onSubmit.
+ * llamada que mueve la reserva la hace BookingChanges, con onSubmit.
  *
  * Estilos: dashboard.css, sección 14 (cf-resched).
  */

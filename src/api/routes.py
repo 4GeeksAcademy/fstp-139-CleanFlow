@@ -1859,7 +1859,10 @@ def public_worker(worker):
         "worker_id": worker.worker_id,
         "name": f"{user.name}{initial}",
         "avatar_url": user.avatar_url,
-        # Sin valorar todavía: las notas por trabajador llegan con la #20.
+        # La #20 ya calcula la media de cada trabajador, pero solo la
+        # trae GET /api/workers, con una consulta agrupada. Aquí sigue
+        # vacía: traerla pediría repetir esa consulta y el panel de
+        # contratación todavía no la enseña.
         "rating": None,
     }
 

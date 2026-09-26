@@ -746,7 +746,7 @@ class Booking(db.Model):
     # "mal": puede estar aún en plazo o confirmarse solo (#83).
     client_confirmed_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True)
-    
+
     # Cuántas veces el cliente le ha cambiado la fecha (#17). No hay tope
     # de cambios: uno se saltaría cancelando y reservando otra vez, y lo
     # que protege la agenda es el plazo de 24 h. Se cuenta para poder
