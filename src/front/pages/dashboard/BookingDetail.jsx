@@ -267,7 +267,6 @@ export const BookingDetail = () => {
                 <div className="cf-bookdetail__col">
                     <BookingTimeline booking={booking} />
                     <BookingCancelled booking={booking} />
-                    <BookingChanges key={booking.booking_id} booking={booking} onChanged={setBooking} />
                     <BookingWhat booking={booking} />
                     <BookingPhotos tasks={booking.tasks} onZoom={setZoomed} />
                     <BookingConfirm
@@ -292,6 +291,14 @@ export const BookingDetail = () => {
                 </div>
 
             </div>
+
+            {/* Fuera de la rejilla y a lo ancho: lo que modifica la
+                reserva se decide después de haberla leído entera. */}
+            <BookingChanges
+                key={booking.booking_id}
+                booking={booking}
+                onChanged={setBooking}
+            />
 
             <BookingZoom photo={zoomed} onClose={() => setZoomed(null)} />
 

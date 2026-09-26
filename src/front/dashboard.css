@@ -8488,16 +8488,102 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   14. CAMBIAR LA FECHA (RescheduleForm.jsx)
+   14. CAMBIAR LA FECHA (BookingChanges.jsx, RescheduleForm.jsx)
    ======================================================================
 
-   El diálogo donde el cliente mueve su reserva. Por dentro reutiliza el
-   calendario del panel de contratación (cf-booking__*, sección 7): lo
-   propio de aquí es el marco, la elección de con quién se busca y los
-   dos avisos.
+   Dos piezas en orden: la franja del pie del detalle, desde la que el
+   cliente mueve o cancela su reserva, y el diálogo que abre para elegir
+   el día nuevo.
+
+   El diálogo reutiliza por dentro el calendario del panel de
+   contratación (cf-booking__*, sección 7): lo propio de aquí es el
+   marco, la elección de con quién se busca y los dos avisos.
 
    Es un <dialog> de verdad y no un div: el navegador ya oscurece el
    fondo, atrapa el foco dentro y cierra con Escape. */
+
+/* ---------- LA FRANJA DEL FINAL ----------
+   Las dos salidas de una reserva que aún no ha empezado. Van al pie de
+   la página y no en una tarjeta: primero se lee el detalle entero y
+   después se decide.
+
+   Sin borde y con el fondo apenas teñido, para separarse de las tarjetas
+   blancas sin competir con ellas.
+
+   Los dos pesos son distintos a propósito. Cambiar es lo reversible y va
+   como botón; cancelar vive dentro de la frase, junto al plazo, que es
+   donde tiene sentido leerlo. */
+
+.cf-bookend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-4) var(--cf-space-6);
+  margin-top: var(--cf-space-6);
+  padding: var(--cf-space-4) var(--cf-space-6);
+  border-radius: var(--cf-radius-md);
+  /* ⚠️ El tinte a mano: es --cf-text al 3,5 %, y no hay token para eso. */
+  background-color: rgba(38, 38, 31, 0.035);
+}
+
+.cf-bookend__ask {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cf-bookend__when {
+  margin: 5px 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  line-height: 1.5;
+}
+
+/* El enlace dice "cancelarla aquí" entero y no solo "aquí": quien
+   navega por la lista de enlaces de la página solo oye su texto. */
+.cf-bookend__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cf-accent-dark);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cf-bookend__link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.cf-bookend__link:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+  border-radius: var(--cf-radius-sm);
+}
+
+/* Fuera de plazo solo queda el aviso, y sin nada a la derecha se alinea
+   a la izquierda en vez de quedarse centrado. */
+.cf-bookend--closed {
+  justify-content: flex-start;
+}
+
+.cf-bookend--closed .cf-bookend__ask {
+  color: var(--cf-muted);
+  font-weight: 500;
+}
+
+/* En móvil el botón cae debajo del texto, y a medio ancho se vería
+   descolgado: ocupa la fila entera. */
+@media (max-width: 620px) {
+  .cf-bookend .cf-dash-btn {
+    width: 100%;
+  }
+}
+
 
 .cf-resched {
   width: min(460px, 92vw);
@@ -8578,17 +8664,6 @@ textarea.cf-dash-input {
   padding: var(--cf-space-3) var(--cf-space-5, 20px) var(--cf-space-4);
   border-top: 1px solid var(--cf-border);
 }
-
-/* ---------- EL BLOQUE DEL DETALLE ----------
-   Las dos salidas juntas: cambiar la fecha y cancelar. En fila, y en
-   columna cuando no caben. */
-
-.cf-changes__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cf-space-2);
-}
-
 
 /* Que la reserva se movió, en el bloque de fechas del trabajador. Es un
    dato, no un aviso: por eso en gris y sin recuadro. */

@@ -1,19 +1,25 @@
 /**
- * SI ALGO CAMBIA (#17).
+ * LAS DOS SALIDAS DE UNA RESERVA (#17).
  *
- * Las dos salidas de una reserva que aún no ha empezado: cambiarle la
- * fecha o cancelarla. Van juntas en un bloque porque son la misma
+ * Cambiarle la fecha o cancelarla. Van juntas porque son la misma
  * decisión vista de dos maneras, y las dos caducan a la vez.
  *
+ * No es una tarjeta más: es una franja al pie de la página, debajo de
+ * las dos columnas. Primero se lee el detalle entero y después se
+ * decide, que es el orden en el que se mira una reserva.
+ *
+ * Los dos pesos son distintos a propósito. Cambiar la fecha es lo
+ * reversible y va como botón; cancelar vive dentro de la frase, junto al
+ * plazo, que es donde tiene sentido leerlo.
+ *
  * El cliente puede hasta 24 h antes del primer día. Pasado el plazo se
- * le dice a quién acudir en lugar de los botones: el encargado sí puede,
- * pero desde aquí no.
+ * le dice a quién acudir: el encargado sí puede, pero desde aquí no.
  *
  * El plazo lo calcula el backend (Booking.change_deadline) y aquí solo
  * se compara con la hora actual, que se refresca cada segundo para que
- * los botones desaparezcan solos al cruzarlo.
+ * la franja se cierre sola al cruzarlo.
  *
- * Estilos: dashboard.css, sección 9 (cf-bookblock) y 14 (cf-resched).
+ * Estilos: dashboard.css, sección 14 (cf-bookend y cf-resched).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -21,6 +27,7 @@ import useGlobalReducer from "../../../hooks/useGlobalReducer";
 import { cancelBooking, rescheduleBooking } from "../../../services/bookingService";
 import { refreshAffected } from "../../../services/absenceService";
 import { RescheduleForm } from "./RescheduleForm";
+import { dayAndTime } from "./bookingFormat";
 
 // Lo mismo que acepta el backend.
 const REASON_MAX_LENGTH = 1000;
@@ -155,35 +162,49 @@ export const BookingChanges = ({ booking, onChanged }) => {
     if (store.user?.role !== "client" || !eligible) return null;
 
     return (
-        <section className="cf-bookblock" aria-label="Cambios en la reserva">
-            <p className="cf-bookblock__title">Si algo cambia</p>
+        <>
+            <section
+                className={`cf-bookend${inTime ? "" : " cf-bookend--closed"}`}
+                aria-label="Cambios en la reserva"
+            >
+                {inTime ? (
+                    <>
+                        <div>
+                            <p className="cf-bookend__ask">
+                                ¿Necesitas cambiar el día de la reserva?
+                            </p>
+                            <p className="cf-bookend__when">
+                                Puedes cambiarla, o{" "}
+                                <button
+                                    type="button"
+                                    className="cf-bookend__link"
+                                    onClick={openDialog}
+                                >
+                                    cancelarla aquí
+                                </button>
+                                , antes del {dayAndTime(booking.change_deadline)}.
+                            </p>
+                        </div>
 
-            {inTime ? (
-                <div className="cf-changes__row">
-                    <button
-                        type="button"
-                        className="cf-dash-btn cf-dash-btn--ghost"
-                        onClick={() => { setMovingError(""); setMoving(true); }}
-                    >
-                        <i className="fa-regular fa-calendar" aria-hidden="true"></i>
-                        Cambiar la fecha
-                    </button>
-
-                    <button
-                        type="button"
-                        className="cf-dash-btn cf-dash-btn--danger"
-                        onClick={openDialog}
-                    >
-                        Cancelar reserva
-                    </button>
-                </div>
-            ) : (
-                /* Un solo aviso para las dos: decir lo mismo dos veces
-                   no ayuda a nadie. */
-                <p className="cf-dash-alert" role="status">
-                    Para cambiar la fecha o cancelar, contacta con CleanFlow
-                </p>
-            )}
+                        <button
+                            type="button"
+                            className="cf-dash-btn"
+                            onClick={() => { setMovingError(""); setMoving(true); }}
+                        >
+                            <i className="fa-regular fa-calendar" aria-hidden="true"></i>
+                            Cambiar la fecha
+                        </button>
+                    </>
+                ) : (
+                    /* Un solo aviso para las dos: decir lo mismo dos veces
+                       no ayuda a nadie. */
+                    <p className="cf-bookend__ask" role="status">
+                        <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
+                        {" "}Ya no se puede cambiar la fecha ni cancelar por aquí.
+                        {" "}Escríbenos y lo vemos.
+                    </p>
+                )}
+            </section>
 
             <RescheduleForm
                 booking={booking}
@@ -258,6 +279,6 @@ export const BookingChanges = ({ booking, onChanged }) => {
                     </div>
                 </form>
             </dialog>
-        </section>
+        </>
     );
 };
