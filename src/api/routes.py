@@ -2443,9 +2443,9 @@ def cancel_booking(booking_id):
     return jsonify({"booking": booking.serialize_detail()}), 200
 
 
-def serialize_booking_with_cancellation(booking):
+def serialize_booking_with_cancellation(booking, with_review=False):
     """Incluye el límite de cancelación con zona horaria explícita."""
-    data = booking.serialize_detail()
+    data = booking.serialize_detail(with_review=with_review)
     first_start = min(
         (day.starts_at for day in booking.days),
         default=booking.scheduled_start,
@@ -2513,19 +2513,29 @@ def my_bookings():
                 "message": "Solo puedes consultar tus propias reservas."
             }), 403
 
+    # Solo el cliente se lleva su valoración; al trabajador no le viaja.
+    is_client = user.role == "client"
+
+    options = [
+        selectinload(Booking.worker).selectinload(Worker.user),
+        selectinload(Booking.client),
+        selectinload(Booking.days),
+        selectinload(Booking.service),
+        selectinload(Booking.address),
+        # Las tareas con sus fotos y las incidencias con las suyas: el
+        # detalle las pinta todas, y sin precargarlas sería una consulta
+        # por cada tarea y otra por cada incidencia.
+        selectinload(Booking.tasks).selectinload(BookingTask.photos),
+        selectinload(Booking.incidents).selectinload(Incident.media),
+    ]
+
+    # Lo mismo con la valoración y sus fotos: sin esto serían dos consultas
+    # más por cada reserva del listado.
+    if is_client:
+        options.append(selectinload(Booking.review).selectinload(Review.media))
+
     bookings = db.session.execute(
-        db.select(Booking).options(
-            selectinload(Booking.worker).selectinload(Worker.user),
-            selectinload(Booking.client),
-            selectinload(Booking.days),
-            selectinload(Booking.service),
-            selectinload(Booking.address),
-            # Las tareas con sus fotos y las incidencias con las suyas: el
-            # detalle las pinta todas, y sin precargarlas sería una consulta
-            # por cada tarea y otra por cada incidencia.
-            selectinload(Booking.tasks).selectinload(BookingTask.photos),
-            selectinload(Booking.incidents).selectinload(Incident.media),
-        ).where(
+        db.select(Booking).options(*options).where(
             booking_filter
         ).order_by(
             Booking.scheduled_start.desc(),
@@ -2534,7 +2544,10 @@ def my_bookings():
     ).scalars().all()
 
     return jsonify({
-        "bookings": [serialize_booking_with_cancellation(booking) for booking in bookings]
+        "bookings": [
+            serialize_booking_with_cancellation(booking, with_review=is_client)
+            for booking in bookings
+        ]
     })
 
 
@@ -3497,7 +3510,9 @@ def create_review(booking_id):
 
     db.session.commit()
 
-    return jsonify({"booking": booking.serialize_detail()}), 201
+    # Con la valoración: es de quien acaba de dejarla, y la pantalla la
+    # pinta al momento sin volver a pedir la reserva.
+    return jsonify({"booking": booking.serialize_detail(with_review=True)}), 201
 
 
 # ----------------------------------------------------------------------
