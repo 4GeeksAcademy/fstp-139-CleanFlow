@@ -31,11 +31,9 @@ export const useActiveSection = (ids) => {
         const observer = new IntersectionObserver(
             (entries) => {
 
-                // Avisa solo de las que HAN CAMBIADO, y puede haber varias
-                // visibles: se elige la que más pantalla ocupa.
-                const visible = entries
-                    .filter((entry) => entry.isIntersecting)
-                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+                // De las entradas que han cambiado, se toma la sección que
+                // acaba de entrar en la franja central de la pantalla.
+                const visible = entries.find((entry) => entry.isIntersecting);
 
                 // Si no hay ninguna, se conserva la última marcada. Que
                 // parpadee es peor que quedarse un momento en la anterior.
@@ -45,9 +43,8 @@ export const useActiveSection = (ids) => {
                 // Estos dos números son los que hay que tocar si el
                 // resaltado cambia antes o después de lo debido.
 
-                // Varios valores para que intersectionRatio se actualice al
-                // bajar y la comparación de arriba pueda comparar de verdad.
-                threshold: [0.25, 0.5, 0.75 ],
+                // Basta con entrar en la franja central para activar la sección.
+                threshold: 0,
 
                 // Recorta la zona que cuenta como "pantalla": solo la franja
                 // central. Así una sección no se marca al asomar por el borde.

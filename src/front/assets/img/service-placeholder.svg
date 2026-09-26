@@ -1,0 +1,43 @@
+<svg width="800" height="520" viewBox="0 0 800 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="520" fill="#F4F8F7"/>
+
+  <circle cx="400" cy="235" r="92" fill="#E4EFEC"/>
+
+  <path
+    d="M400 160L414 207L461 221L414 235L400 282L386 235L339 221L386 207L400 160Z"
+    fill="#5F8F83"
+  />
+
+  <path
+    d="M487 185L494 208L517 215L494 222L487 245L480 222L457 215L480 208L487 185Z"
+    fill="#A8C9C1"
+  />
+
+  <path
+    d="M321 257L328 280L351 287L328 294L321 317L314 294L291 287L314 280L321 257Z"
+    fill="#A8C9C1"
+  />
+
+  <text
+    x="400"
+    y="370"
+    text-anchor="middle"
+    font-family="Arial, sans-serif"
+    font-size="28"
+    font-weight="600"
+    fill="#315E55"
+  >
+    CleanFlow
+  </text>
+
+  <text
+    x="400"
+    y="405"
+    text-anchor="middle"
+    font-family="Arial, sans-serif"
+    font-size="18"
+    fill="#66857E"
+  >
+    Servicio de limpieza
+  </text>
+</svg>
