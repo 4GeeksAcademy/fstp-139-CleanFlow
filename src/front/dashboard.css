@@ -504,16 +504,20 @@ textarea.cf-dash-input {
    Confirma acciones que quitan algo de la vista del cliente.
    ⚠️ Rojo a mano: ver .cf-dash-alert. */
 
+/* Lo que no tiene vuelta atrás, en el terracota de la marca. El rojo de
+   antes no estaba en index.css y desentonaba con el resto del panel.
+   --cf-accent a secas no vale: con texto encima se queda en 3,3:1. */
 .cf-dash-btn--danger {
-  background-color: #a33b2b;
-  border-color: #a33b2b;
-  color: #ffffff;
+  background-color: var(--cf-accent-dark);
+  border-color: var(--cf-accent-dark);
+  color: var(--cf-on-primary);
 }
 
+/* ⚠️ El tono del hover a mano: no hay token más oscuro que accent-dark. */
 .cf-dash-btn--danger:hover {
-  background-color: #8a3123;
-  border-color: #8a3123;
-  color: #ffffff;
+  background-color: #7e4320;
+  border-color: #7e4320;
+  color: var(--cf-on-primary);
 }
 
 /* ---------- VENTANA DE CONFIRMACIÓN ----------
@@ -3103,19 +3107,19 @@ textarea.cf-dash-input {
   border-top: 1px solid var(--cf-border);
 }
 
-/* Quitar, apartado a la derecha y en rojo: mismos colores que el botón de
-   desactivar servicios. ⚠️ A mano: no hay tokens de estado. */
+/* Quitar, apartado a la derecha: el mismo terracota que el botón lleno,
+   en texto y borde en vez de en fondo. */
 .cf-dash-btn--danger-ghost {
   margin-left: auto;
-  border-color: #c2574a;
+  border-color: var(--cf-accent);
   background: none;
-  color: #a33b2b;
+  color: var(--cf-accent-dark);
 }
 
 .cf-dash-btn--danger-ghost:hover {
-  background-color: #fbe9e6;
-  border-color: #a33b2b;
-  color: #a33b2b;
+  background-color: var(--cf-accent-soft);
+  border-color: var(--cf-accent-dark);
+  color: var(--cf-accent-dark);
 }
 
 /* ---------- CARGANDO ---------- */
@@ -3544,9 +3548,9 @@ textarea.cf-dash-input {
 }
 
 .cf-shifts__delete:hover:not(:disabled) {
-  border-color: #c2574a;
-  background-color: #fbe9e6;
-  color: #a33b2b;
+  border-color: var(--cf-accent);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
 }
 
 .cf-shifts__delete:focus-visible {
