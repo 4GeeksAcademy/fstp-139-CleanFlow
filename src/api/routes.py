@@ -16,6 +16,7 @@ from flask import Flask, request, jsonify, url_for, Blueprint, current_app
 from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
+from api.absence_routes import affected_reasons, booking_query
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -3652,4 +3653,153 @@ def update_contact_message_status(contact_message_id):
     return jsonify({
         "message": "Estado actualizado correctamente",
         "contact_message": contact_message.serialize()
+    }), 200
+
+
+# ----------------------------------------------------------------------
+# MÉTRICAS DEL ENCARGADO (#24)
+# ----------------------------------------------------------------------
+#   GET    /api/stats    encargado
+#
+# Todas las cifras de su pantalla de inicio en una sola llamada: las que
+# se pintan y las cuatro bandejas que piden atención. Van juntas porque
+# nadie necesita una sin las otras, y cuatro viajes al entrar serían
+# cuatro esperas.
+#
+# Todo se cuenta en la base de datos. Traerse las filas y contarlas en
+# Python aguanta con treinta reservas y no con tres mil.
+# ----------------------------------------------------------------------
+
+
+def month_window(now=None):
+    """El mes en curso en hora de Madrid: [día 1, día 1 del siguiente).
+
+    Medio abierto a propósito: así no hay que saber si el mes tiene 28 o
+    31 días ni empatar con el último segundo.
+    """
+    now = now or madrid_now()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # 32 días caen siempre dentro del mes siguiente, mida lo que mida.
+    return start, (start + timedelta(days=32)).replace(day=1)
+
+
+def count_of(query):
+    """El número que devuelve un SELECT count(...), ya desenvuelto."""
+    return db.session.execute(query).scalar_one()
+
+
+@api.route("/stats", methods=["GET"])
+@role_required("manager")
+def stats():
+    """El resumen del negocio, para la pantalla de inicio del encargado."""
+    now = madrid_now()
+    start, end = month_window(now)
+
+    # Del mes y ya terminadas: es la condición de "esto está hecho y
+    # cobrado", y la comparten los ingresos y las horas.
+    done_this_month = (
+        Booking.status == BookingStatus.COMPLETED,
+        Booking.scheduled_start >= start,
+        Booking.scheduled_start < end,
+    )
+
+    # ---- RESERVAS ----
+
+    # Una sola consulta agrupada en vez de una por estado.
+    by_status = dict(db.session.execute(
+        db.select(Booking.status, func.count(Booking.booking_id))
+        .group_by(Booking.status)
+    ).all())
+
+    pending = by_status.get(BookingStatus.PENDING, 0)
+    confirmed = by_status.get(BookingStatus.CONFIRMED, 0)
+    in_progress = by_status.get(BookingStatus.IN_PROGRESS, 0)
+
+    # ---- DINERO Y HORAS ----
+
+    revenue = db.session.execute(
+        db.select(func.sum(Booking.total_price)).where(*done_this_month)
+    ).scalar()
+
+    # Las horas se suman desde los tramos y no desde la reserva:
+    # Booking.hours es una propiedad de Python y no se puede sumar en SQL.
+    seconds = db.session.execute(
+        db.select(func.sum(
+            func.extract("epoch", BookingDay.ends_at - BookingDay.starts_at)
+        ))
+        .join(Booking, Booking.booking_id == BookingDay.booking_id)
+        .where(*done_this_month)
+    ).scalar()
+
+    # ---- EQUIPO ----
+
+    workers_total = count_of(db.select(func.count(Worker.worker_id)))
+    workers_active = count_of(
+        db.select(func.count(Worker.worker_id)).where(Worker.is_active.is_(True))
+    )
+
+    # ---- EL SERVICIO QUE MÁS SE PIDE ----
+
+    # Las canceladas no cuentan: pedir y arrepentirse no es demanda.
+    top = db.session.execute(
+        db.select(Service.name, func.count(Booking.booking_id))
+        .join(Booking, Booking.service_id == Service.service_id)
+        .where(
+            Booking.status != BookingStatus.CANCELLED,
+            Booking.scheduled_start >= start,
+            Booking.scheduled_start < end,
+        )
+        .group_by(Service.name)
+        .order_by(func.count(Booking.booking_id).desc())
+        .limit(1)
+    ).first()
+
+    # ---- LO QUE PIDE ATENCIÓN ----
+
+    # Las afectadas se cuentan con la misma función que la pantalla de
+    # Reservas afectadas, no con una copia: si cambia el criterio de qué
+    # es "afectada", cambia en los dos sitios a la vez.
+    candidates = db.session.execute(booking_query().where(
+        Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+        Booking.scheduled_end > now,
+    )).scalars().all()
+
+    affected = sum(1 for booking in candidates if affected_reasons(booking, now))
+
+    return jsonify({
+        "bookings": {
+            "active": pending + confirmed + in_progress,
+            "pending": pending,
+            "confirmed": confirmed,
+            "in_progress": in_progress,
+        },
+        # Sin nada terminado la suma es None, y un "null €" en pantalla
+        # queda peor que un cero.
+        "revenue_month": float(revenue or 0),
+        "hours_month": int((seconds or 0) // 3600),
+        "workers": {"active": workers_active, "total": workers_total},
+        "top_service": (
+            {"name": top[0], "count": top[1]}
+            if top
+            else None
+        ),
+        "inbox": {
+            "affected": affected,
+            "incidents": count_of(
+                db.select(func.count(Incident.incident_id))
+                .where(Incident.resolved.is_(False))
+            ),
+            "applications": count_of(
+                db.select(func.count(JobApplication.application_id))
+                .where(JobApplication.status == ApplicationStatus.NEW)
+            ),
+            "messages": count_of(
+                db.select(func.count(ContactMessage.contact_message_id))
+                .where(ContactMessage.status == ApplicationStatus.NEW)
+            ),
+        },
+        # TODO (#96): "rating" con la media global de CleanFlow. Sale de
+        # la misma consulta que public_reviews(), que todavía está en el
+        # PR de valoraciones y no ha llegado a develop.
     }), 200
