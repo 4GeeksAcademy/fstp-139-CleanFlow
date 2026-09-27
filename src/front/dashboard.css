@@ -19,7 +19,8 @@
     10. Mis tareas del trabajador (cf-mytasks__*, cf-wcard__*)
     11. Incidencias: formulario y pantalla del encargado
         (cf-inc-sheet__*, cf-incidents__*, cf-incard__*)
-    12. Movimiento reducido
+    12. Bandejas: candidaturas y mensajes (Inbox.jsx)
+    13. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -7925,13 +7926,22 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   12. PÁGINA: CANDIDATURAS (Applications.jsx)
+  /* 12. Bandejas: candidaturas y mensajes (Inbox.jsx) *
    ====================================================================== */
 
 .cf-applications {
   max-width: 1180px;
   color: var(--cf-text);
   font-family: var(--cf-font-body);
+}
+
+.cf-applications__header-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.cf-applications__subject {
+    overflow-wrap: anywhere;
 }
 
 /* ---------- CABECERA ---------- */
@@ -7984,7 +7994,7 @@ textarea.cf-dash-input {
 }
 
 .cf-applications__card {
-  padding: var(--cf-space-5);
+  padding: var(--cf-space-5, 20px);
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-md);
   background-color: var(--cf-surface);
@@ -8110,6 +8120,7 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-sm);
   line-height: 1.55;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- ACCIONES ---------- */

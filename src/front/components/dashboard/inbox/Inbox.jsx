@@ -15,7 +15,7 @@ const newestFirst = (rows) => [...rows].sort((a, b) =>
     (b.created_at || "").localeCompare(a.created_at || "")
 );
 
-export const InboxFilters = ({ filters, rows, value, onChange, label }) => (
+const InboxFilters = ({ filters, rows, value, onChange, label }) => (
     <div className="cf-services__tabs" role="group" aria-label={label}>
         {filters.map((filter) => (
             <button
@@ -34,14 +34,14 @@ export const InboxFilters = ({ filters, rows, value, onChange, label }) => (
     </div>
 );
 
-export const InboxStatus = ({ value, labels }) => (
+const InboxStatus = ({ value, labels }) => (
     <span className={`cf-applications__state cf-applications__state--${value}`}>
         <span className="cf-applications__dot" aria-hidden="true" />
         {labels[value] || value}
     </span>
 );
 
-export const InboxList = ({ rows, config, busy, updatingId, onStatusChange }) => (
+const InboxList = ({ rows, config, busy, updatingId, onStatusChange }) => (
     <div className="cf-applications__list">
         {rows.map((row) => {
             const id = row[config.idKey];
@@ -51,7 +51,7 @@ export const InboxList = ({ rows, config, busy, updatingId, onStatusChange }) =>
             return (
                 <article className="cf-applications__card" key={id} aria-busy={updatingId === id}>
                     <div className="cf-applications__card-header">
-                        <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                        <div className="cf-applications__header-content">
                             <h2 className="cf-applications__name">{config.name(row)}</h2>
                             <div className="cf-applications__contact">
                                 <a href={mailto}>
@@ -73,7 +73,7 @@ export const InboxList = ({ rows, config, busy, updatingId, onStatusChange }) =>
                         {shortMoment(row.created_at)}
                     </p>
                     {config.subject && (
-                        <p style={{ overflowWrap: "anywhere" }}>
+                        <p className="cf-applications__subject">
                             <strong>Asunto: </strong>{row.subject}
                         </p>
                     )}
@@ -83,7 +83,7 @@ export const InboxList = ({ rows, config, busy, updatingId, onStatusChange }) =>
                             {config.fields.map((field) => (
                                 <div key={field.key}>
                                     <strong>{field.label}</strong>
-                                    <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                                    <p>
                                         {row[field.key] || "No indicado"}
                                     </p>
                                 </div>

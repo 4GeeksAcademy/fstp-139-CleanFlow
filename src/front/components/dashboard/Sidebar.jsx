@@ -74,6 +74,7 @@ const LINKS = [
         ],
     },
 ]
+
 // Mismo corte que el bloque "SIDEBAR EN MÓVIL" de dashboard.css.
 const MOBILE_QUERY = "(max-width: 767.98px)"
 

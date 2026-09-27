@@ -2,6 +2,8 @@
 import { Inbox } from "../../components/dashboard/inbox/Inbox";
 import { getContactMessages, updateMessageStatus } from "../../services/contactService";
 
+// Mantener config fuera del componente para conservar una referencia estable.
+// Si se crea dentro, los callbacks dependientes podrían recrearse y disparar peticiones en bucle.
 const config = {
     idKey: "contact_message_id",
     responseKey: "contact_message",
