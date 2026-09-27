@@ -8739,8 +8739,9 @@ textarea.cf-dash-input {
 }
 
 /* ---------- MIENTRAS CARGA ----------
-   Tres barras con la altura de lo que van a ser. La animación la pone
-   cf-dash-skel; aquí solo se les da la forma. */
+   Tres alturas, una por tipo de bloque, para que el hueco tenga el
+   tamaño de lo que va a ocupar. La animación la pone cf-dash-skel;
+   aquí solo se le da la forma. */
 
 .cf-home__skel--hero {
   height: 208px;

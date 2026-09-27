@@ -5,10 +5,11 @@
  * el trabajador entran a preguntar "¿qué hago ahora?"; él entra a
  * preguntar "¿cómo va la cosa?".
  *
- * Dos llamadas con vidas distintas: las métricas se piden al entrar y
- * se quedan, y el día se vuelve a pedir al cambiar de fecha y cada
- * minuto. Por eso llevan su propio estado y su propio error cada una:
- * con uno compartido, un refresco fallido borraría toda la pantalla.
+ * Tres llamadas con vidas distintas: las métricas se piden al entrar y
+ * se quedan, el día se vuelve a pedir al cambiar de fecha y cada minuto,
+ * y el detalle de un servicio solo cuando se abre. Por eso el día lleva
+ * su propio error: con uno compartido, un refresco fallido borraría la
+ * pantalla entera.
  *
  * Estilos: dashboard.css, sección 14 (cf-home).
  */
@@ -98,7 +99,8 @@ const longDay = (iso) => {
     }).format(new Date(year, month - 1, day));
 };
 
-// Los cuatro estados de un día de servicio, en el orden en que pasan.
+// En qué puede estar un día de servicio: los tres del camino normal y
+// "no realizado", que es la salida de cuando se fue y no se pudo hacer.
 // El texto va aquí y no en el JSX para que se lean juntos: `label` es
 // el de la fila, y `count` el del resumen, en singular y en plural.
 const STATES = {
@@ -173,8 +175,8 @@ export const ManagerHome = () => {
     const [reason, setReason] = useState("");
     const [busy, setBusy] = useState(false);
 
-    // Las métricas, una sola vez. No cambian de un minuto para otro y
-    // son la consulta cara de las dos.
+    // Las métricas, una sola vez: no cambian de un minuto para otro, y
+    // son la consulta más cara de la pantalla.
     useEffect(() => {
         let alive = true;
 
@@ -210,10 +212,10 @@ export const ManagerHome = () => {
 
     useEffect(() => { loadDay(); }, [loadDay]);
 
-    // Solo se refresca solo si se está mirando HOY: un día pasado ya no
-    // cambia, y pedirlo cada minuto sería gastar por gastar. Y se para
-    // con el diálogo abierto, para que la lista no se mueva por debajo
-    // de lo que estás a punto de cancelar.
+    // Se refresca únicamente si se está mirando hoy: un día pasado ya
+    // no cambia, y pedirlo cada minuto sería gastar por gastar. Y se
+    // para con el diálogo abierto, para que la lista no se mueva por
+    // debajo de lo que estás a punto de cancelar.
     useEffect(() => {
         if (date !== today || dropping) return;
 

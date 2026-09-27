@@ -1,9 +1,9 @@
 /**
  * LLAMADAS DEL INICIO DEL ENCARGADO (#24).
  *
- * Tres, y las dos primeras son distintas a propósito: las métricas se
- * piden una vez al entrar, y el día se vuelve a pedir cada minuto y
- * cada vez que se cambia de fecha. Por eso no van en la misma función.
+ * Tres, y van separadas porque se piden en momentos distintos: las
+ * métricas una vez al entrar, el día cada minuto y cada vez que se
+ * cambia de fecha, y el detalle solo al abrir un servicio.
  */
 
 import { apiRequest } from "./apiClient";
