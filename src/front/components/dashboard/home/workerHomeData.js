@@ -42,7 +42,7 @@ export const workerHomeData = (bookings, today, now) => {
         const ended = days.length > 0 && days.every((day) => day.ends_at <= now);
         (booking.tasks || []).forEach((task) => {
             const pending = ended && ["pending", "in_progress"].includes(task.status);
-            const missingPhoto = task.status === "completed" && !task.photos?.length;
+            const missingPhoto = task.status === "completed" && !["before", "after"].every((kind) => task.photos?.some((photo) => photo.kind === kind));
             if (pending || missingPhoto) unfinished.push({
                 key: `task-${task.booking_task_id}`, booking,
                 text: `${task.task_name || "Tarea"} · ${missingPhoto ? "falta la foto" : "sin completar"}`,

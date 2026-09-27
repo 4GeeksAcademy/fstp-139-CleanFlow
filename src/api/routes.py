@@ -2931,12 +2931,12 @@ def finish_booking_day(booking_id, day_id):
 # cliente (#83) y, si reclama, la respuesta del encargado (#19).
 
 
-def task_in_progress(task_id):
+def task_in_progress(task_id, *, allow_missing_photo=False):
     """La tarea y su reserva, si es de quien pregunta y está en curso.
 
     Devuelve (task, booking, None), o (None, None, (respuesta, código)).
-    Las fotos solo se tocan con el servicio en marcha: ni antes de llegar
-    ni después de finalizarlo.
+    Tras finalizar solo la subida puede añadir una foto que falta;
+    borrar y sustituir pruebas sigue bloqueado.
     """
     user_id = int(get_jwt_identity())
 
@@ -2961,7 +2961,10 @@ def task_in_progress(task_id):
             "message": "Solo puedes subir fotos de tus reservas asignadas."
         }), 403)
 
-    if booking.status != BookingStatus.IN_PROGRESS:
+    can_complete_photos = (allow_missing_photo
+        and booking.status == BookingStatus.COMPLETED
+        and task.status == BookingTaskStatus.COMPLETED)
+    if booking.status != BookingStatus.IN_PROGRESS and not can_complete_photos:
         return None, None, (jsonify({
             "message": "Solo puedes tocar las fotos con el servicio en curso."
         }), 409)
@@ -2978,7 +2981,7 @@ def upload_task_photo(task_id):
     Llega como archivo (multipart/form-data): el campo `photo` con la
     imagen y `kind` con "before" o "after".
     """
-    task, booking, error = task_in_progress(task_id)
+    task, booking, error = task_in_progress(task_id, allow_missing_photo=True)
 
     if error:
         return error
@@ -2989,6 +2992,14 @@ def upload_task_photo(task_id):
         return jsonify({
             "message": 'La foto debe ser "before" o "after".'
         }), 400
+
+    kind = MediaKind(kind_value)
+    previous = db.session.execute(db.select(Media).where(
+        Media.booking_task_id == task_id, Media.kind == kind,
+    )).scalars().all()
+    # El bloqueo de la reserva serializa subidas: tras cerrar, solo se rellenan huecos.
+    if task.status == BookingTaskStatus.COMPLETED and previous:
+        return jsonify({"message": "Las fotos de una tarea cerrada no se sustituyen."}), 409
 
     # Antes de leer nada: un archivo enorme no se carga en memoria solo
     # para caducar. El margen cubre las cabeceras del multipart.
@@ -3001,16 +3012,7 @@ def upload_task_photo(task_id):
         message, status = error
         return jsonify({"message": message}), status
 
-    kind = MediaKind(kind_value)
-
-    # Repetir el antes sustituye al anterior: dos "antes" de la misma
-    # tarea no significan nada, y el segundo sería el bueno.
-    previous = db.session.execute(
-        db.select(Media).where(
-            Media.booking_task_id == task_id,
-            Media.kind == kind,
-        )
-    ).scalars().all()
+    # Solo las tareas abiertas pueden reemplazar fotos existentes.
 
     for photo in previous:
         db.session.delete(photo)

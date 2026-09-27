@@ -82,6 +82,7 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
                 const complete = task.status === "completed";
                 const busy = busyTaskId === task.booking_task_id;
                 const ready = Boolean(before && after);
+                const fillMissing = complete && (running || booking.status === "completed");
 
                 return (
                     <article
@@ -109,14 +110,16 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
                             )}
                         </div>
 
-                        {/* Cerrada y sin servicio en curso: las fotos ya
-                            están y no hay nada que tocar, solo mirarlas. */}
+                        {fillMissing && !ready && <p className="cf-wtask__hint">
+                            Añade las fotos pendientes. La tarea y el servicio conservan su estado.
+                        </p>}
+                        {/* Una foto ya guardada de una tarea cerrada no se sustituye. */}
                         <div className="cf-wtask__shots">
                             <WorkerShot
                                 kind="before"
                                 photo={before}
                                 uploading={uploading === `${task.booking_task_id}-before`}
-                                canEdit={running && !complete}
+                                canEdit={(running && !complete) || (fillMissing && !before)}
                                 onPick={(kind, file) => onPick(task, kind, file)}
                                 onDelete={onDeletePhoto}
                             />
@@ -124,7 +127,7 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
                                 kind="after"
                                 photo={after}
                                 uploading={uploading === `${task.booking_task_id}-after`}
-                                canEdit={running && !complete}
+                                canEdit={(running && !complete) || (fillMissing && !after)}
                                 onPick={(kind, file) => onPick(task, kind, file)}
                                 onDelete={onDeletePhoto}
                             />

@@ -9532,6 +9532,11 @@ textarea.cf-dash-input {
 .cf-worker-home__upcoming li + li { padding-top: var(--cf-space-3); }
 .cf-worker-home__card .cf-mine { align-items: flex-start; text-align: left; }
 .cf-worker-home__skeleton { height: 28rem; border-radius: var(--cf-radius-lg); }
+.cf-worker-home__absence-form,
+.cf-worker-home__absence-form label { display: grid; gap: var(--cf-space-2); min-width: 0; }
+.cf-worker-home__absence-form { gap: var(--cf-space-4); }
+.cf-worker-home__absence-form .cf-dash-input { width: 100%; min-width: 0; box-sizing: border-box; }
+.cf-worker-home__absence-form button { white-space: normal; min-height: var(--cf-space-12); }
 .cf-wtask[id], .cf-wday[id] { scroll-margin-block: var(--cf-space-8); }
 .cf-wtask[id]:focus, .cf-wday[id]:focus { outline: 3px solid var(--cf-accent-dark); outline-offset: 4px; }
 

@@ -10,10 +10,12 @@ from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_cors import CORS
+from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 
-from api.models import db, Absence, Booking, BookingStatus, Worker, User
+from api.models import db, Absence, Booking, BookingStatus, Worker, User, ContactMessage
 from api.availability import (
     can_work, is_free, load_busy, madrid_now, worker_unavailable_days,
 )
@@ -91,6 +93,56 @@ def own_absence(worker_id, absence_id):
     if absence is None or absence.worker_id != worker_id:
         raise APIException("Ausencia no encontrada para este trabajador.", 404)
     return absence
+
+
+def session_worker():
+    worker = db.session.execute(db.select(Worker).where(
+        Worker.user_id == int(get_jwt_identity())
+    )).scalar_one_or_none()
+    if worker is None:
+        raise APIException("Trabajador no encontrado.", 404)
+    return worker
+
+
+@absence_api.route("/workers/me/absences", methods=["GET"])
+@role_required("worker")
+def my_absences():
+    worker = session_worker()
+    today = madrid_now().date()
+    rows = db.session.execute(db.select(Absence).where(
+        Absence.worker_id == worker.worker_id,
+        or_(Absence.ends_on.is_(None), Absence.ends_on >= today),
+    ).order_by(Absence.starts_on, Absence.absence_id)).scalars().all()
+    # Son ausencias registradas por el encargado; las notas internas no salen.
+    return jsonify({"absences": [{
+        "absence_id": row.absence_id,
+        "starts_on": row.starts_on.isoformat(),
+        "ends_on": row.ends_on.isoformat() if row.ends_on else None,
+        "reason": row.reason,
+    } for row in rows]})
+
+
+@absence_api.route("/workers/me/absence-requests", methods=["POST"])
+@role_required("worker")
+@transaction
+def request_my_absence():
+    worker = session_worker()
+    user = db.session.get(User, worker.user_id)
+    fields = absence_fields(body_object())
+    # Pedir no modifica disponibilidad: el encargado la registra tras revisarla.
+    end = fields["ends_on"].isoformat() if fields["ends_on"] else "sin fecha de fin"
+    message = ContactMessage(
+        name=f"{user.name} {user.last_name}"[:100], email=user.email,
+        phone=user.phone,
+        subject=f"Solicitud de ausencia · trabajador #{worker.worker_id}",
+        message=(f"Trabajador #{worker.worker_id} solicita {fields['reason']}.\n"
+                 f"Desde {fields['starts_on'].isoformat()} hasta {end}.\n"
+                 f"{fields['notes'] or ''}\n\n"
+                 "Pendiente de revisión. Registrar en Ausencias si procede."),
+    )
+    db.session.add(message)
+    db.session.commit()
+    return jsonify({"message": "Solicitud enviada al encargado. Aún no está aprobada."}), 201
 
 
 @absence_api.route("/workers/<int:worker_id>/absences", methods=["GET"])

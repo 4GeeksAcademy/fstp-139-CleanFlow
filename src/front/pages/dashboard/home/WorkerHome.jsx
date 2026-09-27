@@ -5,6 +5,7 @@ import useGlobalReducer from "../../../hooks/useGlobalReducer";
 import { getWorkerBookings, startBookingDay } from "../../../services/bookingService";
 import { madridToday, madridMoment } from "../../../utils/madridDate";
 import { longDate, timeOf } from "../../../components/dashboard/bookings/bookingFormat";
+import { WorkerAbsences } from "../../../components/dashboard/home/WorkerAbsences";
 import { WorkerRating } from "../../../components/dashboard/worker/WorkerRating";
 import { WorkerJourney } from "../../../components/dashboard/home/WorkerJourney";
 import { WorkerUpcoming } from "../../../components/dashboard/home/WorkerUpcoming";
@@ -153,10 +154,7 @@ export const WorkerHome = () => {
                     <section className="cf-worker-home__card">
                         <WorkerRating token={store.token} />
                     </section>
-                    <section className="cf-worker-home__card">
-                        <h2>Tus ausencias</h2>
-                        <p>Para consultar tus próximas ausencias o pedir una, contacta con tu encargado.</p>
-                    </section>
+                    <WorkerAbsences today={today} />
                 </aside>
             </div>
         </div>
