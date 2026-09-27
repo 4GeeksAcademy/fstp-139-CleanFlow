@@ -3735,17 +3735,27 @@ def public_reviews():
     arma el diccionario a mano en vez de usar Review.serialize(), que
     lleva client_id y las fotos: ni el id de un cliente ni el interior de
     su casa tienen por qué salir de la aplicación.
+
+    Sí sale su avatar, que es distinto: es la cara que el propio cliente
+    eligió como pública. Y el servicio y la fecha, que dan contexto sin
+    decir de quién es la casa ni dónde está.
     """
     media, total = global_rating()
 
+    # El nombre del servicio sale del join y no de la reserva de cada
+    # opinión: Review no tiene relación con Booking, solo el id suelto, y
+    # resolverlo dentro del bucle sería una consulta por cada una.
+    #
     # Solo las que traen comentario: una cita vacía no se puede enseñar.
-    reviews = db.session.execute(
-        db.select(Review)
+    rows = db.session.execute(
+        db.select(Review, Service.name)
+        .join(Booking, Booking.booking_id == Review.booking_id)
+        .join(Service, Service.service_id == Booking.service_id)
         .where(Review.comment.is_not(None))
         .order_by(Review.created_at.desc())
         .limit(PUBLIC_REVIEWS_LIMIT)
         .options(selectinload(Review.client))
-    ).scalars().all()
+    ).all()
 
     return jsonify({
         "average": media,
@@ -3754,10 +3764,24 @@ def public_reviews():
             {
                 "review_id": review.review_id,
                 "client_name": public_name(review.client),
+                # Si no tiene foto, la web pinta sus iniciales. Ponerle
+                # una cara de archivo que no es la suya sería mentir.
+                "client_avatar_url": (
+                    review.client.avatar_url if review.client else None
+                ),
+                "service_name": service_name,
+                # La fecha entera: es la web la que decide cómo contarla,
+                # y lo hace en relativo para no señalar el día exacto en
+                # que hubo alguien en esa casa.
+                "created_at": (
+                    review.created_at.isoformat()
+                    if review.created_at
+                    else None
+                ),
                 "rating": review.rating,
                 "comment": review.comment,
             }
-            for review in reviews
+            for review, service_name in rows
         ],
     }), 200
 
