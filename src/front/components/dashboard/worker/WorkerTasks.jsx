@@ -52,9 +52,11 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
     // tocan; en los otros dos porque ese trabajo ya no se va a hacer.
     if (!running && booking.status !== "completed") {
         return (
-            <section className="cf-wblock">
+            <section className="cf-wblock" id="worker-tasks" tabIndex={-1}>
                 <h2 className="cf-wblock__title">Qué hay que hacer</h2>
 
+                {tasks.map((task) => <span key={task.booking_task_id}
+                    id={`task-${task.booking_task_id}`} tabIndex={-1} />)}
                 {groupTasks(tasks).map((group) => (
                     <article key={group.name} className="cf-wtask">
                         <div className="cf-wtask__top">
@@ -84,6 +86,8 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
                 return (
                     <article
                         key={task.booking_task_id}
+                        id={`task-${task.booking_task_id}`}
+                        tabIndex={-1}
                         className={`cf-wtask${complete ? " cf-wtask--done" : ""}`}
                     >
                         <div className="cf-wtask__top">

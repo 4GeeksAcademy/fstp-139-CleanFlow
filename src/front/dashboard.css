@@ -24,7 +24,8 @@
         (cf-stars__*, cf-rate__*, cf-mine__*)
     14. Cambiar la fecha de una reserva (cf-resched__*)
     15. Inicio del encargado (cf-home__*)
-    16. Movimiento reducido
+    16. Inicio del trabajador (cf-worker-home__*)
+    17. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -9418,7 +9419,140 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   16. MOVIMIENTO REDUCIDO
+   16. INICIO DEL TRABAJADOR (cf-worker-home__*)
+   ====================================================================== */
+
+.cf-worker-home {
+  display: grid;
+  gap: var(--cf-space-6);
+  min-width: 0;
+  color: var(--cf-text);
+}
+
+.cf-worker-home h1,
+.cf-worker-home h2,
+.cf-worker-home h3,
+.cf-worker-home p { margin: 0; }
+
+.cf-worker-home h2 { font: 500 var(--cf-text-xl) var(--cf-font-heading); }
+.cf-worker-home h3 { font: 600 var(--cf-text-base) var(--cf-font-body); }
+
+.cf-worker-home__hero,
+.cf-worker-home__card {
+  padding: var(--cf-space-6);
+  border-radius: var(--cf-radius-lg);
+  box-shadow: var(--cf-shadow-md);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cf-worker-home__hero {
+  display: grid;
+  gap: var(--cf-space-3);
+  background: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+.cf-worker-home__hero h1 {
+  color: inherit;
+  font: 500 clamp(var(--cf-text-2xl), 6vw, var(--cf-text-3xl)) var(--cf-font-heading);
+}
+
+.cf-worker-home__hero h2 { color: inherit; }
+.cf-worker-home__hero a { color: inherit; text-underline-offset: var(--cf-space-1); }
+.cf-worker-home__date,
+.cf-worker-home__summary { color: var(--cf-on-primary-muted); font-size: var(--cf-text-sm); }
+
+.cf-worker-home__now {
+  display: grid;
+  justify-items: start;
+  gap: var(--cf-space-3);
+  margin-block: var(--cf-space-4);
+}
+
+.cf-worker-home__time { font: 500 var(--cf-text-2xl) var(--cf-font-heading); }
+.cf-worker-home .cf-worker-home__action {
+  background: var(--cf-on-primary);
+  color: var(--cf-primary);
+  margin-top: var(--cf-space-3);
+  min-height: var(--cf-space-12);
+  width: 100%;
+  white-space: normal;
+}
+.cf-worker-home .cf-worker-home__action:hover { background: var(--cf-primary-soft); }
+.cf-worker-home__hero :focus-visible { outline: 3px solid var(--cf-on-primary); outline-offset: 4px; }
+.cf-worker-home__now > a { padding-block: var(--cf-space-2); }
+.cf-worker-home__now p a { display: inline-block; padding-block: var(--cf-space-2); }
+
+.cf-worker-home__journey { min-width: 0; }
+.cf-worker-home__journey h2 { font-size: var(--cf-text-lg); }
+.cf-worker-home__journey ol {
+  list-style: none;
+  margin: var(--cf-space-4) 0 0;
+  padding: 0;
+  display: grid;
+}
+.cf-worker-home__journey li {
+  display: grid;
+  position: relative;
+  gap: var(--cf-space-1);
+  padding: 0 0 var(--cf-space-6) var(--cf-space-6);
+  border-left: 2px solid var(--cf-on-primary-muted);
+  color: var(--cf-on-primary-muted);
+  font-size: var(--cf-text-sm);
+}
+.cf-worker-home__journey li:last-child { border-color: transparent; padding-bottom: 0; }
+.cf-worker-home__journey li[aria-current] { color: var(--cf-on-primary); }
+.cf-worker-home__stop {
+  position: absolute;
+  left: -7px;
+  top: var(--cf-space-1);
+  width: var(--cf-space-3);
+  height: var(--cf-space-3);
+  border-radius: 50%;
+  background: var(--cf-on-primary-muted);
+}
+.cf-worker-home__journey li[aria-current] .cf-worker-home__stop {
+  background: var(--cf-on-primary);
+  box-shadow: 0 0 0 4px var(--cf-accent-dark);
+}
+.cf-worker-home__card { background: var(--cf-surface); display: grid; align-content: start; gap: var(--cf-space-4); }
+.cf-worker-home__grid,
+.cf-worker-home__aside { display: grid; gap: var(--cf-space-6); min-width: 0; align-content: start; }
+.cf-worker-home__unfinished { background: var(--cf-accent-soft); }
+.cf-worker-home__unfinished .cf-dash-eyebrow,
+.cf-worker-home__unfinished h2 { color: var(--cf-accent-dark); }
+.cf-worker-home__list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--cf-space-4); }
+.cf-worker-home__list li { display: grid; gap: var(--cf-space-2); }
+.cf-worker-home__list a { display: grid; gap: var(--cf-space-1); color: var(--cf-text); padding-block: var(--cf-space-2); }
+.cf-worker-home__list a span { font-size: var(--cf-text-sm); }
+.cf-worker-home__planned { display: grid; gap: var(--cf-space-1); font-size: var(--cf-text-sm); }
+.cf-worker-home__muted,
+.cf-worker-home__planned span { color: var(--cf-muted); }
+.cf-worker-home__upcoming li + li { padding-top: var(--cf-space-3); }
+.cf-worker-home__card .cf-mine { align-items: flex-start; text-align: left; }
+.cf-worker-home__skeleton { height: 28rem; border-radius: var(--cf-radius-lg); }
+.cf-wtask[id], .cf-wday[id] { scroll-margin-block: var(--cf-space-8); }
+.cf-wtask[id]:focus, .cf-wday[id]:focus { outline: 3px solid var(--cf-accent-dark); outline-offset: 4px; }
+
+@media (min-width: 769px) {
+  .cf-worker-home__hero { padding: var(--cf-space-8); }
+  .cf-worker-home__grid { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+  .cf-worker-home .cf-worker-home__action { width: auto; }
+  .cf-worker-home__journey ol { display: flex; overflow-x: auto; padding-block: var(--cf-space-2); }
+  .cf-worker-home__journey li {
+    flex: 1 0 10rem;
+    border-left: none;
+    border-top: 2px solid var(--cf-on-primary-muted);
+    padding: var(--cf-space-4) var(--cf-space-4) 0 0;
+  }
+  .cf-worker-home__journey li:last-child { border-top-color: var(--cf-on-primary-muted); }
+  .cf-worker-home__stop { left: 0; top: -7px; }
+}
+
+
+/* ======================================================================
+   17. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
