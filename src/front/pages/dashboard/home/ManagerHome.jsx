@@ -51,17 +51,17 @@ const EUROS = new Intl.NumberFormat("es-ES", {
     maximumFractionDigits: 0,
 });
 
-/** La frase del hero: el estado del negocio en una línea. */
-const summaryLine = ({ bookings, workers }) => {
-    const activas = bookings.active === 1
-        ? "1 reserva en la agenda"
-        : `${bookings.active} reservas en la agenda`;
+// El ancho de cada trozo de la barra. En porcentaje y no en píxeles:
+// los tres reparten el total sin que importe cuánto mide.
+const share = (part, total) => `${total ? (part / total) * 100 : 0}%`;
 
-    const equipo = workers.active === 1
-        ? "1 persona en activo"
-        : `${workers.active} personas en activo`;
+/** La frase del hero: el titular, no los números. Esos van en el bento. */
+const summaryLine = ({ bookings }) => {
+    if (bookings.active === 0) return "No hay ninguna reserva viva ahora mismo.";
 
-    return `${activas} y ${equipo}, de ${workers.total} dadas de alta.`;
+    return bookings.active === 1
+        ? "Hay 1 reserva viva en la agenda."
+        : `Hay ${bookings.active} reservas vivas en la agenda.`;
 };
 
 export const ManagerHome = () => {
@@ -158,6 +158,79 @@ export const ManagerHome = () => {
                     </div>
                 </div>
             </section>
+
+            <div className="cf-home__bento">
+
+                <section className="cf-home__kpi cf-home__kpi--wide">
+                    <p className="cf-home__kpi-label">Reservas vivas</p>
+                    <span className="cf-home__num">{stats.bookings.active}</span>
+                    <span className="cf-home__unit">en la agenda</span>
+
+                    {stats.bookings.active > 0 && (
+                        <>
+                            <div className="cf-home__bar">
+                                <span
+                                    className="cf-home__bar-ok"
+                                    style={{ width: share(stats.bookings.confirmed, stats.bookings.active) }}
+                                />
+                                <span
+                                    className="cf-home__bar-doing"
+                                    style={{ width: share(stats.bookings.in_progress, stats.bookings.active) }}
+                                />
+                                <span
+                                    className="cf-home__bar-wait"
+                                    style={{ width: share(stats.bookings.pending, stats.bookings.active) }}
+                                />
+                            </div>
+
+                            <p className="cf-home__legend">
+                                <span>
+                                    <i style={{ backgroundColor: "var(--cf-primary)" }} />
+                                    {stats.bookings.confirmed} confirmadas
+                                </span>
+                                <span>
+                                    <i style={{ backgroundColor: "var(--cf-accent)" }} />
+                                    {stats.bookings.in_progress} en curso
+                                </span>
+                                <span>
+                                    <i style={{ backgroundColor: "var(--cf-border)" }} />
+                                    {stats.bookings.pending} pendientes
+                                </span>
+                            </p>
+                        </>
+                    )}
+                </section>
+
+                <section className="cf-home__kpi">
+                    <p className="cf-home__kpi-label">Equipo en activo</p>
+                    <span className="cf-home__num">{stats.workers.active}</span>
+                    <span className="cf-home__unit">de {stats.workers.total}</span>
+                    <p className="cf-home__note">
+                        {stats.workers.total === stats.workers.active
+                            ? "Nadie de baja ni inactivo"
+                            : `${stats.workers.total - stats.workers.active} fuera de servicio`}
+                    </p>
+                </section>
+
+                <section className="cf-home__kpi">
+                    <p className="cf-home__kpi-label">El más pedido este mes</p>
+                    {stats.top_service ? (
+                        <>
+                            <span className="cf-home__num">{stats.top_service.count}</span>
+                            <span className="cf-home__unit">
+                                {stats.top_service.count === 1 ? "vez" : "veces"}
+                            </span>
+                            <p className="cf-home__note">{stats.top_service.name}</p>
+                        </>
+                    ) : (
+                        <p className="cf-home__note">Todavía no se ha contratado nada este mes.</p>
+                    )}
+                </section>
+
+                {/* TODO (#96): la nota global de CleanFlow, cuando el PR de
+                    valoraciones llegue a develop. El hueco es este. */}
+
+            </div>
 
             {/* PROVISIONAL (pasos 6 y 7): el selector de verdad, con ayer,
                 hoy, mañana y el calendario, llega en el paso 7. */}

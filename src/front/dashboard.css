@@ -8348,6 +8348,127 @@ textarea.cf-dash-input {
   }
 }
 
+/* ---------- LAS CIFRAS ----------
+   Rejilla asimétrica a propósito: con cuatro cajas iguales esto sería
+   una tabla, y una tabla no se mira, se consulta. La de reservas ocupa
+   el doble porque es la única que tiene algo que contar por dentro. */
+
+.cf-home__bento {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cf-space-4);
+}
+
+.cf-home__kpi {
+  padding: 20px 22px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-home__kpi--wide {
+  grid-column: span 2;
+  background-color: var(--cf-primary-soft);
+  box-shadow: none;
+}
+
+.cf-home__kpi-label {
+  margin: 0 0 10px;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cf-home__num {
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-home__unit {
+  margin-left: 9px;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+.cf-home__note {
+  margin: 9px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---------- LA BARRA DE ESTADOS ----------
+   Los tres trozos en una sola línea, cada uno con su ancho en
+   porcentaje. Sin hueco entre ellos: es un total repartido, no tres
+   barras sueltas. */
+
+.cf-home__bar {
+  display: flex;
+  height: 6px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background-color: var(--cf-border);
+  overflow: hidden;
+}
+
+.cf-home__bar span {
+  height: 100%;
+}
+
+/* En curso en terracota porque está pasando ahora; confirmadas en el
+   verde de marca; pendientes en el beige, que es esperar. */
+.cf-home__bar-doing {
+  background-color: var(--cf-accent);
+}
+
+.cf-home__bar-ok {
+  background-color: var(--cf-primary);
+}
+
+.cf-home__bar-wait {
+  background-color: var(--cf-border);
+}
+
+.cf-home__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 11px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+}
+
+.cf-home__legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+}
+
+/* A dos columnas la ancha sigue ocupando el doble; por debajo, todas
+   iguales o los números no caben. */
+@media (max-width: 1080px) {
+  .cf-home__bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .cf-home__bento {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cf-home__kpi--wide {
+    grid-column: span 1;
+  }
+}
+
 /* ======================================================================
    15. MOVIMIENTO REDUCIDO
    ====================================================================== */
