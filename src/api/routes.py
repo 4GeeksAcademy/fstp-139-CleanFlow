@@ -3928,3 +3928,34 @@ def bookings_of_day():
         "summary": summary,
         "bookings": services,
     }), 200
+
+
+@api.route("/manage/bookings/<int:booking_id>", methods=["GET"])
+@role_required("manager")
+def booking_for_manager(booking_id):
+    """El detalle de una reserva, para el encargado.
+
+    El mismo que ven el cliente y el trabajador, pero por su propia
+    puerta: los suyos filtran por dueño y aquí no hay dueño que valga.
+
+    No choca con /manage/bookings/affected: el convertidor <int:> no
+    acepta "affected", así que esa ruta sigue cogiendo lo suyo.
+    """
+    booking = db.session.execute(
+        db.select(Booking).where(Booking.booking_id == booking_id).options(
+            selectinload(Booking.days),
+            selectinload(Booking.service),
+            selectinload(Booking.client),
+            selectinload(Booking.address),
+            selectinload(Booking.worker).selectinload(Worker.user),
+            # Las fotos del antes y el después, y las pruebas de cada
+            # incidencia: es lo que se viene a mirar aquí.
+            selectinload(Booking.tasks).selectinload(BookingTask.photos),
+            selectinload(Booking.incidents).selectinload(Incident.media),
+        )
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    return jsonify({"booking": booking.serialize_detail()}), 200

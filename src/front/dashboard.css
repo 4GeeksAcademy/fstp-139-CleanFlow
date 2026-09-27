@@ -8646,6 +8646,98 @@ textarea.cf-dash-input {
   }
 }
 
+/* ---------- EL DETALLE DE UN SERVICIO ----------
+   Una hoja ancha y no un modal de confirmación: aquí se viene a mirar
+   fotos y una línea de tiempo, no a decir que sí. */
+
+.cf-home__open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cf-home__open:hover {
+  color: var(--cf-accent-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cf-home__open:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+  border-radius: var(--cf-radius-sm);
+}
+
+.cf-home__sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  padding: var(--cf-space-4);
+  border: 0;
+  background-color: rgba(38, 38, 31, 0.5);
+}
+
+.cf-home__sheet-in {
+  width: min(760px, 100%);
+  max-height: 88vh;
+  padding: 24px 26px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  overflow-y: auto;
+}
+
+.cf-home__sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-home__close {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--cf-border);
+  border-radius: 50%;
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+
+.cf-home__close:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+/* Los bloques que vienen de la pantalla del cliente traen su propio
+   marco, así que aquí solo se separan. */
+.cf-home__sheet-body {
+  display: grid;
+  gap: var(--cf-space-4);
+}
+
+.cf-home__sheet-who {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-home__sheet-who b {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
 /* ---------- MIENTRAS CARGA ----------
    Tres barras con la altura de lo que van a ser. La animación la pone
    cf-dash-skel; aquí solo se les da la forma. */

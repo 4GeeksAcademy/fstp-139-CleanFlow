@@ -17,7 +17,11 @@ import "../../../dashboard.css";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import useGlobalReducer from "../../../hooks/useGlobalReducer";
-import { getStats, getDayBookings } from "../../../services/statsService";
+import { getStats, getDayBookings, getManagedBooking } from "../../../services/statsService";
+import { BookingTimeline } from "../../../components/dashboard/bookings/BookingTimeline";
+import { BookingPhotos } from "../../../components/dashboard/bookings/BookingPhotos";
+import { BookingIncidents } from "../../../components/dashboard/bookings/BookingIncidents";
+import { BookingZoom } from "../../../components/dashboard/bookings/BookingZoom";
 import { cancelCompany } from "../../../services/absenceService";
 
 /**
@@ -159,6 +163,11 @@ export const ManagerHome = () => {
     const [error, setError] = useState("");
     const [dayError, setDayError] = useState("");
 
+    // La reserva abierta en el panel de detalle, y la foto ampliada.
+    // null en las dos = cerrado.
+    const [opened, setOpened] = useState(null);
+    const [zoomed, setZoomed] = useState(null);
+
     // La reserva que se está cancelando, con su motivo. null = cerrado.
     const [dropping, setDropping] = useState(null);
     const [reason, setReason] = useState("");
@@ -213,6 +222,21 @@ export const ManagerHome = () => {
         // Sin esto seguiría pidiendo al salir de la pantalla.
         return () => window.clearInterval(timer);
     }, [date, today, dropping, loadDay]);
+
+    /**
+     * Abre el detalle de una reserva.
+     *
+     * Se pide al abrir y no con el listado: las fotos y las incidencias
+     * multiplicarían el peso de la respuesta del día por diez, y casi
+     * nunca se miran.
+     */
+    const openDetail = async (bookingId) => {
+        setOpened({ loading: true });
+
+        const result = await getManagedBooking(bookingId, store.token);
+
+        setOpened(result.ok ? { booking: result.data.booking } : { error: result.data.message });
+    };
 
     /** Cancela como empresa. El cliente lo verá en Mis servicios. */
     const confirmDrop = async () => {
@@ -416,7 +440,16 @@ export const ManagerHome = () => {
                                 </span>
 
                                 <span>
-                                    {service.service_name}
+                                    {/* El nombre abre el detalle. Botón y no
+                                        la fila entera: dentro ya hay otro
+                                        botón, y anidarlos no vale. */}
+                                    <button
+                                        type="button"
+                                        className="cf-home__open"
+                                        onClick={() => openDetail(service.booking_id)}
+                                    >
+                                        {service.service_name}
+                                    </button>
                                     {service.open_incidents > 0 && (
                                         <span className="cf-home__warn">
                                             <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
@@ -458,6 +491,58 @@ export const ManagerHome = () => {
                     <p className="cf-home__empty">Ese día no hay ningún servicio.</p>
                 )}
             </section>
+
+            {/* El detalle: la línea de tiempo, las fotos del antes y el
+                después y las incidencias. Los tres componentes son los
+                mismos que ve el cliente, que solo pintan lo que reciben. */}
+            {opened && (
+                <dialog className="cf-home__sheet" open>
+                    <div className="cf-home__sheet-in">
+                        <div className="cf-home__sheet-head">
+                            <h2 className="cf-home__t">
+                                {opened.booking
+                                    ? `${opened.booking.service?.name} · n.º ${opened.booking.booking_id}`
+                                    : "Detalle del servicio"}
+                            </h2>
+
+                            <button
+                                type="button"
+                                className="cf-home__close"
+                                aria-label="Cerrar"
+                                onClick={() => setOpened(null)}
+                            >
+                                <i className="fa-solid fa-xmark" aria-hidden="true" />
+                            </button>
+                        </div>
+
+                        {opened.loading && (
+                            <span className="cf-dash-skel cf-home__skel--day" aria-label="Cargando" />
+                        )}
+
+                        {opened.error && (
+                            <p className="cf-dash-alert" role="alert">{opened.error}</p>
+                        )}
+
+                        {opened.booking && (
+                            <div className="cf-home__sheet-body">
+                                <p className="cf-home__sheet-who">
+                                    <b>{opened.booking.worker_name}</b> · {opened.booking.client_name}
+                                    {opened.booking.client_phone && ` · ${opened.booking.client_phone}`}
+                                </p>
+
+                                <BookingTimeline booking={opened.booking} />
+                                <BookingPhotos tasks={opened.booking.tasks} onZoom={setZoomed} />
+                                <BookingIncidents
+                                    incidents={opened.booking.incidents}
+                                    onZoom={setZoomed}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </dialog>
+            )}
+
+            <BookingZoom photo={zoomed} onClose={() => setZoomed(null)} />
 
             {/* Cancelar como empresa: el cliente lo verá en Mis servicios,
                 así que el motivo importa. */}
