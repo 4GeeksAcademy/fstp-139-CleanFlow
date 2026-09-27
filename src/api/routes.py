@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus, public_name
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from api.absence_routes import affected_reasons, booking_query
@@ -809,17 +809,6 @@ def get_tasks():
 
     Sin minutos: dependen del servicio (Service.minutes_per_task).
     """
-    now = madrid_now()
-
-    last_service_day = max(
-        (day.starts_at.date() for day in booking.days),
-        default=booking.scheduled_start.date(),
-    )
-
-    if last_service_day > now.date():
-        return jsonify({
-            "message": "No puedes completar la reserva antes de su último día de servicio."
-        }), 409
     tasks = db.session.execute(
         db.select(Task).filter_by(is_active=True).order_by(Task.task_id)
     ).scalars().all()
@@ -873,10 +862,12 @@ IMAGE_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
 PHOTO_MAX_BYTES = 5 * 1024 * 1024
 AVATAR_FOLDER = "cleanflow/avatars"
-# Estas dos aún no las usa nadie: las estrenan las fotos de tarea (#82)
-# y las de incidencia (#18), que ya solo tienen que llamar a upload_image().
+# Una carpeta por tipo de foto: el antes y el después de las tareas (#82),
+# las pruebas de las incidencias (#18, #83) y lo que el cliente enseña al
+# valorar (#20).
 BOOKING_FOLDER = "cleanflow/bookings"
 INCIDENT_FOLDER = "cleanflow/incidents"
+REVIEW_FOLDER = "cleanflow/reviews"
 
 # Números, espacios y un + inicial. Entre 9 y 15 dígitos: 9 son los de un
 # teléfono español y 15 el máximo internacional.
@@ -1869,7 +1860,10 @@ def public_worker(worker):
         "worker_id": worker.worker_id,
         "name": f"{user.name}{initial}",
         "avatar_url": user.avatar_url,
-        # Sin valorar todavía: las notas por trabajador llegan con la #20.
+        # La #20 ya calcula la media de cada trabajador, pero solo la
+        # trae GET /api/workers, con una consulta agrupada. Aquí sigue
+        # vacía: traerla pediría repetir esa consulta y el panel de
+        # contratación todavía no la enseña.
         "rating": None,
     }
 
@@ -1951,13 +1945,39 @@ def get_availability():
 
         workers = chosen
 
+    # ---- LA RESERVA QUE SE ESTÁ MOVIENDO ----
+    # Al cambiar la fecha de una reserva, sus propios tramos tienen que
+    # contar como libres: si no, no podría moverse ni dos horas dentro
+    # de su mismo día (#17).
+    exclude_id = None
+    exclude_param = request.args.get("exclude_booking")
+
+    if exclude_param:
+        if not exclude_param.isdigit():
+            return jsonify({"message": "La reserva a excluir no es válida"}), 400
+
+        # Solo se puede excluir una reserva propia. Sin esto, cualquiera
+        # podría ir probando ids para sondear la agenda de otro cliente.
+        own = db.session.execute(
+            db.select(Booking).where(
+                Booking.booking_id == int(exclude_param),
+                Booking.client_id == int(get_jwt_identity()),
+            )
+        ).scalar_one_or_none()
+
+        if own is None:
+            return jsonify({"message": "Reserva no encontrada."}), 404
+
+        exclude_id = own.booking_id
+
     # ---- CÁLCULO ----
     # Se carga un poco más allá del fin de mes: una reserva que empieza
     # el día 30 puede tener tramos en el mes siguiente.
     next_month = (month_first_day.replace(day=28) +
                   timedelta(days=4)).replace(day=1)
     busy = load_busy(workers, month_first_day, next_month +
-                     timedelta(days=SEARCH_LIMIT_DAYS))
+                     timedelta(days=SEARCH_LIMIT_DAYS),
+                     exclude_booking_id=exclude_id)
 
     days = month_availability(workers, hours, month_first_day, now, busy)
 
@@ -2162,15 +2182,19 @@ def validate_booking(data, user):
     }, None
 
 
-def free_options_at(workers, hours, start, busy):
+def free_options_at(workers, hours, start, busy, min_notice=MIN_NOTICE):
     """Las opciones libres para empezar justo a esa hora, o [].
 
     Usa month_availability, el mismo cálculo que el calendario: lo que no
     sale allí tampoco se puede reservar aquí.
+
+    min_notice a cero deja pasar los huecos de menos de 24 h. Solo lo
+    hace el encargado al mover una reserva (#17).
     """
     day = start.date()
     slots = month_availability(
-        workers, hours, day.replace(day=1), madrid_now(), busy)
+        workers, hours, day.replace(day=1), madrid_now(), busy,
+        min_notice=min_notice)
 
     for slot in slots.get(day, []):
         if slot["start"] == start.strftime("%H:%M"):
@@ -2388,30 +2412,25 @@ def cancel_booking(booking_id):
             "message": "El estado actual no permite cancelar la reserva."
         }), 409
 
-    now = madrid_now()
-    first_start = min(
-        (day.starts_at for day in booking.days),
-        default=booking.scheduled_start,
-    )
+    deadline = booking.change_deadline
 
-    if first_start is None:
+    if deadline is None:
         return jsonify({
             "message": "La reserva no tiene una fecha de inicio válida."
         }), 409
 
-    # Fechas guardadas en hora de Madrid. Los timestamps permiten
-    # contar 24 horas reales incluso con el cambio de horario.
-    seconds_left = (
-        first_start.replace(tzinfo=MADRID).timestamp()
-        - now.replace(tzinfo=MADRID).timestamp()
-    )
+    # El plazo lo calcula el modelo: aquí solo se mira si ya pasó. Con
+    # datetime.now(MADRID) y no poniéndole la zona a una hora sin ella,
+    # que perdería el `fold` de la madrugada en que se atrasan los
+    # relojes: ese día las 02:30 existen dos veces.
+    fuera_de_plazo = datetime.now(MADRID) > deadline
 
-    if booking.started_at is not None or seconds_left <= 0:
+    if booking.started_at is not None:
         return jsonify({
             "message": "No se puede cancelar una reserva que ya ha comenzado."
         }), 409
 
-    if user.role == "client" and seconds_left < 24 * 60 * 60:
+    if user.role == "client" and fuera_de_plazo:
         return jsonify({
             "message": "Para cancelar, contacta con CleanFlow"
         }), 409
@@ -2453,24 +2472,177 @@ def cancel_booking(booking_id):
     return jsonify({"booking": booking.serialize_detail()}), 200
 
 
-def serialize_booking_with_cancellation(booking):
-    """Incluye el límite de cancelación con zona horaria explícita."""
-    data = booking.serialize_detail()
-    first_start = min(
-        (day.starts_at for day in booking.days),
-        default=booking.scheduled_start,
+# ----------------------------------------------------------------------
+# CAMBIAR LA FECHA (#17)
+# ----------------------------------------------------------------------
+#   PATCH  /api/bookings/<id>/reschedule   cliente hasta 24 h antes,
+#                                          encargado siempre
+#
+# Se mueve la reserva, no se crea otra: conserva su número, su precio,
+# sus tareas, su dirección y sus notas. El cliente no reescribe nada.
+#
+# Las reservas de varios días se mueven en bloque: booking_intervals()
+# recoloca todos los tramos a partir de la hora nueva.
+
+
+def parse_start(value):
+    """La hora que llega del calendario, en Madrid y sin zona.
+
+    Devuelve (fecha, None) o (None, mensaje).
+    """
+    if not isinstance(value, str):
+        return None, "Indica la fecha y la hora nuevas."
+
+    for formato in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(value, formato), None
+        except ValueError:
+            continue
+
+    return None, "La fecha tiene que venir como 2026-10-07T09:00."
+
+
+@api.route("/bookings/<int:booking_id>/reschedule", methods=["PATCH"])
+@role_required("client", "manager")
+@booking_transaction
+def reschedule_booking(booking_id):
+    """Mueve una reserva a otro día y hora.
+
+    { "starts_at": "2026-10-07T09:00", "worker_id": 3 }
+
+    worker_id es opcional: sin él se reparte como al contratar, con quien
+    menos horas tenga ese día.
+    """
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+
+    booking = db.session.execute(
+        db.select(Booking).where(
+            Booking.booking_id == booking_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    # Mismo mensaje para "no existe" y "no es tuya": decir cuál es
+    # confirmaría que la otra existe.
+    if booking is None or (user.role == "client" and booking.client_id != user_id):
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    if booking.status not in (BookingStatus.PENDING, BookingStatus.CONFIRMED):
+        return jsonify({
+            "message": "El estado actual no permite cambiar la fecha."
+        }), 409
+
+    if booking.started_at is not None:
+        return jsonify({
+            "message": "No se puede mover una reserva que ya ha comenzado."
+        }), 409
+
+    deadline = booking.change_deadline
+
+    # El plazo es el mismo que el de cancelar, y lo calcula el modelo.
+    # datetime.now(MADRID) y no madrid_now().replace(tzinfo=...): ponerle
+    # la zona a una hora sin zona pierde el `fold`, y en la madrugada en
+    # que se atrasan los relojes las 02:30 existen dos veces. Así se
+    # compara el instante real contra el instante real.
+    if user.role == "client" and (deadline is None
+                                  or datetime.now(MADRID) > deadline):
+        return jsonify({
+            "message": "Para cambiar la fecha, contacta con CleanFlow"
+        }), 409
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos válidos"}), 400
+
+    start, error = parse_start(data.get("starts_at"))
+
+    if error:
+        return jsonify({"message": error}), 400
+
+    # Las horas se leen ANTES de tocar los tramos: booking.hours los suma,
+    # y en cuanto se borren daría cero.
+    hours = booking.hours
+
+    # ---- CON QUIÉN ----
+
+    workers = bookable_workers()
+    wanted = data.get("worker_id")
+
+    if wanted is not None:
+        workers = [w for w in workers if w.worker_id == wanted]
+
+        if not workers:
+            return jsonify({
+                "message": "Ese trabajador no está disponible para reservar"
+            }), 404
+
+    # Bloquea a los candidatos hasta el commit: si dos peticiones piden el
+    # mismo hueco a la vez, la segunda espera aquí y vuelve a mirar.
+    db.session.execute(
+        db.select(Worker)
+        .where(Worker.worker_id.in_([w.worker_id for w in workers]))
+        .with_for_update()
     )
-    data["cancellation_deadline"] = None
 
-    if first_start is not None:
-        madrid_start = first_start.replace(tzinfo=MADRID)
-        deadline = datetime.fromtimestamp(
-            madrid_start.timestamp() - 24 * 60 * 60,
-            tz=MADRID,
-        )
-        data["cancellation_deadline"] = deadline.isoformat()
+    # ---- ¿SIGUE LIBRE? ----
 
-    return data
+    day = start.date()
+
+    # exclude_booking_id: los tramos de esta reserva cuentan como libres,
+    # o no podría moverse ni dos horas dentro de su propio día.
+    busy = load_busy(workers, day, day + timedelta(days=SEARCH_LIMIT_DAYS),
+                     exclude_booking_id=booking.booking_id)
+
+    # El encargado puede recolocar una reserva para mañana: cuando surge
+    # un imprevisto, esperar 24 horas no es una opción. Al cliente no se
+    # le quita nunca, porque al trabajador hay que avisarlo con tiempo.
+    notice = timedelta(0) if user.role == "manager" else MIN_NOTICE
+
+    options = free_options_at(workers, hours, start, busy, min_notice=notice)
+
+    if not options:
+        # Se vuelve a mirar sin reservas por medio: si entonces sí había
+        # hueco, es que acaban de ocuparlo mientras elegía.
+        if free_options_at(workers, hours, start, {}, min_notice=notice):
+            return jsonify({
+                "message": "Ese hueco acaba de ocuparse, elige otro"
+            }), 409
+
+        return jsonify({
+            "message": "Esa hora no está disponible"
+        }), 400
+
+    by_id = {w.worker_id: w for w in workers}
+    worker = pick_worker([by_id[option["worker_id"]] for option in options],
+                         busy, day)
+
+    intervals = booking_intervals(worker, start, hours)
+
+    # ---- SE MUEVE ----
+
+    # Los tramos viejos se borran uno a uno: la relación no lleva
+    # delete-orphan, así que vaciar la lista dejaría filas con booking_id
+    # a null, y esa columna no lo admite.
+    for old_day in list(booking.days):
+        db.session.delete(old_day)
+
+    db.session.flush()
+
+    for begins, ends in intervals:
+        booking.days.append(BookingDay(starts_at=begins, ends_at=ends))
+
+    booking.worker_id = worker.worker_id
+    booking.scheduled_start = intervals[0][0]
+    booking.scheduled_end = intervals[-1][1]
+    booking.rescheduled_count += 1
+    booking.updated_at = now
+
+    db.session.commit()
+
+    return jsonify({
+        "booking": {**booking.serialize_detail(), "worker": public_worker(worker)}
+    }), 200
 
 
 @api.route("/bookings", methods=["GET"])
@@ -2523,19 +2695,29 @@ def my_bookings():
                 "message": "Solo puedes consultar tus propias reservas."
             }), 403
 
+    # Solo el cliente se lleva su valoración; al trabajador no le viaja.
+    is_client = user.role == "client"
+
+    options = [
+        selectinload(Booking.worker).selectinload(Worker.user),
+        selectinload(Booking.client),
+        selectinload(Booking.days),
+        selectinload(Booking.service),
+        selectinload(Booking.address),
+        # Las tareas con sus fotos y las incidencias con las suyas: el
+        # detalle las pinta todas, y sin precargarlas sería una consulta
+        # por cada tarea y otra por cada incidencia.
+        selectinload(Booking.tasks).selectinload(BookingTask.photos),
+        selectinload(Booking.incidents).selectinload(Incident.media),
+    ]
+
+    # Lo mismo con la valoración y sus fotos: sin esto serían dos consultas
+    # más por cada reserva del listado.
+    if is_client:
+        options.append(selectinload(Booking.review).selectinload(Review.media))
+
     bookings = db.session.execute(
-        db.select(Booking).options(
-            selectinload(Booking.worker).selectinload(Worker.user),
-            selectinload(Booking.client),
-            selectinload(Booking.days),
-            selectinload(Booking.service),
-            selectinload(Booking.address),
-            # Las tareas con sus fotos y las incidencias con las suyas: el
-            # detalle las pinta todas, y sin precargarlas sería una consulta
-            # por cada tarea y otra por cada incidencia.
-            selectinload(Booking.tasks).selectinload(BookingTask.photos),
-            selectinload(Booking.incidents).selectinload(Incident.media),
-        ).where(
+        db.select(Booking).options(*options).where(
             booking_filter
         ).order_by(
             Booking.scheduled_start.desc(),
@@ -2544,7 +2726,10 @@ def my_bookings():
     ).scalars().all()
 
     return jsonify({
-        "bookings": [serialize_booking_with_cancellation(booking) for booking in bookings]
+        "bookings": [
+            booking.serialize_detail(with_review=is_client)
+            for booking in bookings
+        ]
     })
 
 
@@ -3385,6 +3570,215 @@ def resolve_incident(incident_id):
     db.session.commit()
 
     return jsonify({"incident": incident.serialize_managed()}), 200
+
+
+# ----------------------------------------------------------------------
+# VALORAR EL SERVICIO (#20)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/reviews   cliente, multipart con hasta 3 fotos
+#
+# El último paso del recorrido del cliente. Hasta aquí daba el servicio
+# por bueno y ahí se acababa: no podía decir cuánto le gustó ni enseñar
+# cómo quedó su casa.
+#
+# Una valoración por reserva y no se edita: una media que se puede
+# reescribir no mide nada.
+
+# Tres fotos y no cinco como en una reclamación: allí se documenta un
+# problema y hace falta sitio; aquí se enseña un resultado.
+REVIEW_COMMENT_MAX_LENGTH = 500
+REVIEW_MAX_PHOTOS = 3
+
+
+@api.route("/bookings/<int:booking_id>/reviews", methods=["POST"])
+@role_required("client")
+@booking_transaction
+def create_review(booking_id):
+    """El cliente valora el servicio. Multipart: nota, comentario y fotos.
+
+    Solo cuando el servicio ya se dio por bueno, a mano o solo. En
+    revisión no se puede: pedir nota con algo sin resolver es pedirla
+    enfadado.
+    """
+    booking, error = client_booking(booking_id)
+
+    if error:
+        return error
+
+    # Quién puede valorar lo decide confirmation, igual que en la #83: no
+    # se vuelven a contar los días aquí.
+    state = booking.confirmation
+
+    if state == "in_review":
+        return jsonify({
+            "message": "Primero tenemos que resolver lo que nos contaste."
+        }), 409
+
+    if state not in ("confirmed", "auto_confirmed"):
+        return jsonify({
+            "message": "Podrás valorar cuando des el servicio por bueno."
+        }), 409
+
+    # Review.booking_id es único, así que como mucho hay una.
+    if db.session.execute(
+        db.select(Review).where(Review.booking_id == booking.booking_id)
+    ).scalar_one_or_none():
+        return jsonify({"message": "Ya valoraste este servicio."}), 409
+
+    rating = (request.form.get("rating") or "").strip()
+
+    # isdigit descarta el vacío, los decimales y los negativos de una vez.
+    if not rating.isdigit() or not 1 <= int(rating) <= 5:
+        return jsonify({
+            "message": "La nota tiene que ser de 1 a 5 estrellas."
+        }), 400
+
+    rating = int(rating)
+
+    comment = (request.form.get("comment") or "").strip()
+
+    if len(comment) > REVIEW_COMMENT_MAX_LENGTH:
+        return jsonify({
+            "message": f"El comentario no puede pasar de {REVIEW_COMMENT_MAX_LENGTH} caracteres."
+        }), 400
+
+    # getlist y no get: el formulario puede repetir el campo "photo". Las
+    # que pasen del máximo se ignoran en vez de tirar el envío: quien
+    # escribió un comentario no debería perderlo por una foto de más.
+    photos = [
+        photo for photo in request.files.getlist("photo")[:REVIEW_MAX_PHOTOS]
+        if photo and photo.filename
+    ]
+
+    urls = []
+
+    for photo in photos:
+        url, error = upload_image(photo, REVIEW_FOLDER)
+
+        if error:
+            message, status = error
+            return jsonify({"message": message}), status
+
+        urls.append(url)
+
+    now = madrid_now()
+
+    review = Review(
+        booking_id=booking.booking_id,
+        client_id=int(get_jwt_identity()),
+        rating=rating,
+        # Sin comentario se guarda vacío y no una cadena en blanco: así
+        # "no dijo nada" y "dijo algo" se distinguen al leer.
+        comment=comment or None,
+        created_at=now,
+    )
+
+    db.session.add(review)
+
+    # flush: hace falta el id de la reseña para colgarle las fotos.
+    db.session.flush()
+
+    for url in urls:
+        db.session.add(Media(
+            review_id=review.review_id,
+            kind=MediaKind.REVIEW,
+            media_url=url,
+            media_type=MediaType.IMAGE,
+            uploaded_by=review.client_id,
+            uploaded_at=now,
+        ))
+
+    booking.updated_at = now
+
+    db.session.commit()
+
+    # Con la valoración: es de quien acaba de dejarla, y la pantalla la
+    # pinta al momento sin volver a pedir la reserva.
+    return jsonify({"booking": booking.serialize_detail(with_review=True)}), 201
+
+
+# ----------------------------------------------------------------------
+# LEER LAS VALORACIONES (#20)
+# ----------------------------------------------------------------------
+#   GET  /api/reviews/public       público, sin sesión
+#   GET  /api/workers/me/rating    el trabajador, su propia nota
+#
+# La misma nota que deja el cliente se cuenta de dos maneras: la media de
+# la empresa para la web (#41) y la de cada trabajador (#75).
+
+# Cuántas opiniones viajan a la landing. Las justas para llenar la
+# sección: traerlas todas sería mandar cientos para enseñar seis.
+PUBLIC_REVIEWS_LIMIT = 6
+
+
+@api.route("/reviews/public", methods=["GET"])
+def public_reviews():
+    """La media de CleanFlow y las últimas opiniones, para la web.
+
+    Sin sesión: lo llama cualquiera que entre en la landing. Por eso se
+    arma el diccionario a mano en vez de usar Review.serialize(), que
+    lleva client_id y las fotos: ni el id de un cliente ni el interior de
+    su casa tienen por qué salir de la aplicación.
+    """
+    average, total = db.session.execute(
+        db.select(func.avg(Review.rating), func.count(Review.review_id))
+    ).one()
+
+    # Sin valoraciones se devuelve null y no un cero: la web no puede
+    # enseñar "0 sobre 5" cuando lo que pasa es que aún no hay ninguna.
+    media = round(float(average), 1) if total else None
+
+    # Solo las que traen comentario: una cita vacía no se puede enseñar.
+    reviews = db.session.execute(
+        db.select(Review)
+        .where(Review.comment.is_not(None))
+        .order_by(Review.created_at.desc())
+        .limit(PUBLIC_REVIEWS_LIMIT)
+        .options(selectinload(Review.client))
+    ).scalars().all()
+
+    return jsonify({
+        "average": media,
+        "total": total,
+        "reviews": [
+            {
+                "review_id": review.review_id,
+                "client_name": public_name(review.client),
+                "rating": review.rating,
+                "comment": review.comment,
+            }
+            for review in reviews
+        ],
+    }), 200
+
+
+@api.route("/workers/me/rating", methods=["GET"])
+@role_required("worker")
+def my_rating():
+    """La nota del propio trabajador: la media de los servicios que hizo.
+
+    Solo el número y cuántas son. Quién puso cada nota no se devuelve: el
+    cliente valora el servicio, no habla con quien fue a su casa.
+    """
+    user_id = int(get_jwt_identity())
+
+    worker = db.session.execute(
+        db.select(Worker).where(Worker.user_id == user_id)
+    ).scalar_one_or_none()
+
+    if worker is None:
+        return jsonify({"message": "No tienes un perfil de trabajador."}), 403
+
+    average, total = db.session.execute(
+        db.select(func.avg(Review.rating), func.count(Review.review_id))
+        .join(Booking, Review.booking_id == Booking.booking_id)
+        .where(Booking.worker_id == worker.worker_id)
+    ).one()
+
+    return jsonify({
+        "average": round(float(average), 1) if total else None,
+        "total": total,
+    }), 200
 
 
 # ----------------------------------------------------------------------

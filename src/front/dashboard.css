@@ -19,7 +19,12 @@
     10. Mis tareas del trabajador (cf-mytasks__*, cf-wcard__*)
     11. Incidencias: formulario y pantalla del encargado
         (cf-inc-sheet__*, cf-incidents__*, cf-incard__*)
-    12. Movimiento reducido
+    12. Candidaturas del encargado (cf-applications__*)
+    13. Valoraciones: estrellas, bloque del cliente y nota del trabajador
+        (cf-stars__*, cf-rate__*, cf-mine__*)
+    14. Cambiar la fecha de una reserva (cf-resched__*)
+    15. Inicio del encargado (cf-home__*)
+    16. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -500,16 +505,20 @@ textarea.cf-dash-input {
    Confirma acciones que quitan algo de la vista del cliente.
    ⚠️ Rojo a mano: ver .cf-dash-alert. */
 
+/* Lo que no tiene vuelta atrás, en el terracota de la marca. El rojo de
+   antes no estaba en index.css y desentonaba con el resto del panel.
+   --cf-accent a secas no vale: con texto encima se queda en 3,3:1. */
 .cf-dash-btn--danger {
-  background-color: #a33b2b;
-  border-color: #a33b2b;
-  color: #ffffff;
+  background-color: var(--cf-accent-dark);
+  border-color: var(--cf-accent-dark);
+  color: var(--cf-on-primary);
 }
 
+/* ⚠️ El tono del hover a mano: no hay token más oscuro que accent-dark. */
 .cf-dash-btn--danger:hover {
-  background-color: #8a3123;
-  border-color: #8a3123;
-  color: #ffffff;
+  background-color: #7e4320;
+  border-color: #7e4320;
+  color: var(--cf-on-primary);
 }
 
 /* ---------- VENTANA DE CONFIRMACIÓN ----------
@@ -3099,19 +3108,19 @@ textarea.cf-dash-input {
   border-top: 1px solid var(--cf-border);
 }
 
-/* Quitar, apartado a la derecha y en rojo: mismos colores que el botón de
-   desactivar servicios. ⚠️ A mano: no hay tokens de estado. */
+/* Quitar, apartado a la derecha: el mismo terracota que el botón lleno,
+   en texto y borde en vez de en fondo. */
 .cf-dash-btn--danger-ghost {
   margin-left: auto;
-  border-color: #c2574a;
+  border-color: var(--cf-accent);
   background: none;
-  color: #a33b2b;
+  color: var(--cf-accent-dark);
 }
 
 .cf-dash-btn--danger-ghost:hover {
-  background-color: #fbe9e6;
-  border-color: #a33b2b;
-  color: #a33b2b;
+  background-color: var(--cf-accent-soft);
+  border-color: var(--cf-accent-dark);
+  color: var(--cf-accent-dark);
 }
 
 /* ---------- CARGANDO ---------- */
@@ -3540,9 +3549,9 @@ textarea.cf-dash-input {
 }
 
 .cf-shifts__delete:hover:not(:disabled) {
-  border-color: #c2574a;
-  background-color: #fbe9e6;
-  color: #a33b2b;
+  border-color: var(--cf-accent);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
 }
 
 .cf-shifts__delete:focus-visible {
@@ -7984,7 +7993,7 @@ textarea.cf-dash-input {
 }
 
 .cf-applications__card {
-  padding: var(--cf-space-5);
+  padding: var(--cf-space-5, 20px);
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-md);
   background-color: var(--cf-surface);
@@ -8160,7 +8169,657 @@ textarea.cf-dash-input {
   }
 }
 /* ======================================================================
-   14. INICIO DEL ENCARGADO (pages/dashboard/home/ManagerHome.jsx)
+   13. VALORACIONES (Stars.jsx, BookingReview.jsx y WorkerRating.jsx)
+   ======================================================================
+
+   La nota que deja el cliente y las dos formas de enseñarla: su bloque
+   en el detalle de la reserva y la media del trabajador en su cabecera.
+
+   En terracota y no en dorado: el dorado de las reseñas de internet no
+   está en index.css y desentonaría con el resto del panel.
+
+   cf-review__* no se puede usar: ya es el bloque de "Lo estamos
+   revisando" de la sección 9, que es otra cosa. */
+
+/* ---------- LAS ESTRELLAS ---------- */
+
+.cf-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Para elegir: 44px de lado, que es lo mínimo que se acierta con el dedo. */
+.cf-stars__btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  background: none;
+  color: var(--cf-border);
+  cursor: pointer;
+  transition:
+    color var(--cf-transition),
+    background-color var(--cf-transition);
+}
+
+.cf-stars__btn:hover {
+  background-color: var(--cf-accent-soft);
+}
+
+.cf-stars__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+.cf-stars__btn--on {
+  color: var(--cf-accent);
+}
+
+/* Solo lectura: más juntas y sin zona de pulsación, que no se toca. */
+.cf-stars--read {
+  gap: 2px;
+}
+
+.cf-stars__mark {
+  display: grid;
+  place-items: center;
+  color: var(--cf-border);
+}
+
+.cf-stars__mark--on {
+  color: var(--cf-accent);
+}
+
+.cf-stars__count {
+  margin-left: var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- EL BLOQUE DEL CLIENTE ---------- */
+
+.cf-rate__ask {
+  margin: 0 0 var(--cf-space-1);
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: 1.1875rem;
+  font-weight: 600;
+}
+
+.cf-rate__hint {
+  margin: 0 0 var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-rate__field {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-4);
+}
+
+.cf-rate__label {
+  font-size: 0.8438rem;
+  font-weight: 600;
+}
+
+/* ---------- LAS FOTOS QUE ELIGE ---------- */
+
+.cf-rate__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-3);
+}
+
+.cf-rate__shot {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  overflow: hidden;
+}
+
+.cf-rate__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ⚠️ El fondo a mano, como en .cf-inc-shot__del: es --cf-text con
+   transparencia, y no hay token para eso. */
+.cf-rate__drop {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(38, 38, 31, 0.7);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  cursor: pointer;
+}
+
+.cf-rate__drop:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+/* Añadir fotos es una franja de lado a lado y no un cuadradito: es
+   opcional, y lo opcional que no se ve no lo usa nadie. El icono de
+   cámara dice de qué va antes de leer el texto. */
+.cf-rate__pick {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  width: 100%;
+  margin-top: var(--cf-space-3);
+  padding: var(--cf-space-3) var(--cf-space-4);
+  border: 1.5px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--cf-transition),
+    color var(--cf-transition),
+    background-color var(--cf-transition);
+}
+
+.cf-rate__pick:hover {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-rate__pick:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+}
+
+/* Lo que se hace, en el color del texto para que pese más que el resto. */
+.cf-rate__pick-main {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+.cf-rate__pick:hover .cf-rate__pick-main {
+  color: var(--cf-primary);
+}
+
+/* Cuántas caben, al otro extremo: es un dato, no una llamada a la acción. */
+.cf-rate__pick-sub {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-rate__count {
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-rate__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-top: var(--cf-space-4);
+}
+
+.cf-rate__note {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--cf-muted);
+  font-size: 0.78rem;
+}
+
+/* ---------- LA QUE YA DEJÓ ---------- */
+
+.cf-rate__done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2) var(--cf-space-4);
+}
+
+.cf-rate__when {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* Su comentario, entre comillas visuales: la barra terracota lo separa
+   de lo que dice la aplicación. */
+.cf-rate__mine {
+  margin: var(--cf-space-3) 0 0;
+  padding-left: var(--cf-space-3);
+  border-left: 3px solid var(--cf-accent-soft);
+  color: var(--cf-text);
+  font-size: 0.9063rem;
+  line-height: 1.55;
+}
+
+.cf-rate__gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-3);
+}
+
+.cf-rate__pic {
+  width: 88px;
+  height: 66px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  object-fit: cover;
+  display: block;
+}
+
+.cf-rate__locked {
+  margin: var(--cf-space-3) 0 0;
+  padding-top: var(--cf-space-3);
+  border-top: 1px solid var(--cf-border);
+  color: var(--cf-muted);
+  font-size: 0.78rem;
+}
+
+/* ---------- LA NOTA DEL TRABAJADOR ---------- */
+
+.cf-mine {
+  display: grid;
+  justify-items: end;
+  gap: var(--cf-space-1);
+  padding: 10px var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+}
+
+.cf-mine__label {
+  color: var(--cf-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-mine__row {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-mine__num {
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-mine__count {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* En móvil la cabecera se apila, y la nota alineada a la derecha queda
+   descolgada: se pega al borde izquierdo con el título. */
+@media (max-width: 640px) {
+  .cf-mine {
+    justify-items: start;
+  }
+}
+
+/* ======================================================================
+   14. CAMBIAR LA FECHA (BookingChanges.jsx, RescheduleForm.jsx)
+   ======================================================================
+
+   Dos piezas en orden: la franja del pie del detalle, desde la que el
+   cliente mueve o cancela su reserva, y el diálogo que abre para elegir
+   el día nuevo.
+
+   El diálogo reutiliza por dentro el calendario del panel de
+   contratación (cf-booking__*, sección 7): lo propio de aquí es el
+   marco, la elección de con quién se busca y los dos avisos.
+
+   Es un <dialog> de verdad y no un div: el navegador ya oscurece el
+   fondo, atrapa el foco dentro y cierra con Escape. */
+
+/* ---------- LA FRANJA DEL FINAL ----------
+   Las dos salidas de una reserva que aún no ha empezado. Van al pie de
+   la página y no en una tarjeta: primero se lee el detalle entero y
+   después se decide.
+
+   Sin borde y con el fondo apenas teñido, para separarse de las tarjetas
+   blancas sin competir con ellas.
+
+   Los dos pesos son distintos a propósito. Cambiar es lo reversible y va
+   como botón; cancelar vive dentro de la frase, junto al plazo, que es
+   donde tiene sentido leerlo. */
+
+.cf-bookend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-4) var(--cf-space-6);
+  margin-top: var(--cf-space-6);
+  padding: var(--cf-space-4) var(--cf-space-6);
+  border-radius: var(--cf-radius-md);
+  /* ⚠️ El tinte a mano: es --cf-text al 3,5 %, y no hay token para eso. */
+  background-color: rgba(38, 38, 31, 0.035);
+}
+
+.cf-bookend__ask {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cf-bookend__when {
+  margin: 5px 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  line-height: 1.5;
+}
+
+/* El enlace dice "cancelarla aquí" entero y no solo "aquí": quien
+   navega por la lista de enlaces de la página solo oye su texto. */
+.cf-bookend__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cf-accent-dark);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cf-bookend__link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.cf-bookend__link:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+  border-radius: var(--cf-radius-sm);
+}
+
+/* Fuera de plazo solo queda el aviso, y sin nada a la derecha se alinea
+   a la izquierda en vez de quedarse centrado. */
+.cf-bookend--closed {
+  justify-content: flex-start;
+}
+
+.cf-bookend--closed .cf-bookend__ask {
+  color: var(--cf-muted);
+  font-weight: 500;
+}
+
+/* En móvil el botón cae debajo del texto, y a medio ancho se vería
+   descolgado: ocupa la fila entera. */
+@media (max-width: 620px) {
+  .cf-bookend .cf-dash-btn {
+    width: 100%;
+  }
+}
+
+
+.cf-resched {
+  width: min(460px, 92vw);
+  max-height: 88vh;
+  padding: 0;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  overflow: hidden;
+}
+
+.cf-resched::backdrop {
+  background-color: rgba(38, 38, 31, 0.6);
+}
+
+/* Cabecera y pie quietos, el centro se desplaza: el calendario más las
+   horas no caben en una pantalla de móvil. */
+.cf-resched__form {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: 88vh;
+}
+
+.cf-resched__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-4) var(--cf-space-5, 20px) var(--cf-space-3);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-resched__title {
+  margin: 0;
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-xl);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cf-resched__sub {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-resched__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+
+.cf-resched__close:hover {
+  background-color: var(--cf-bg);
+  color: var(--cf-text);
+}
+
+.cf-resched__body {
+  padding: var(--cf-space-4) var(--cf-space-5, 20px);
+  overflow-y: auto;
+}
+
+.cf-resched__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-3) var(--cf-space-5, 20px) var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+/* Que la reserva se movió, en el bloque de fechas del trabajador. Es un
+   dato, no un aviso: por eso en gris y sin recuadro. */
+.cf-wday__moved {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- LO QUE TIENE AHORA ----------
+   Arriba del todo: sin esto habría que cerrar el diálogo para recordar
+   qué día tenía. */
+
+.cf-resched__now {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin: 0 0 var(--cf-space-4);
+  padding: 10px var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-resched__now strong {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+/* ---------- CON QUIÉN SE BUSCA ---------- */
+
+.cf-resched__who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-resched__chip {
+  padding: 7px var(--cf-space-4);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition),
+    color var(--cf-transition);
+}
+
+.cf-resched__chip:hover {
+  border-color: var(--cf-primary);
+}
+
+.cf-resched__chip[aria-pressed="true"] {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 600;
+}
+
+.cf-resched__chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+/* ---------- SIN HUECOS ----------
+   La salida a todo el equipo ocupa su sitio y no es un enlace escondido:
+   es lo único que se puede hacer desde ahí. */
+
+.cf-resched__none {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin-top: var(--cf-space-4);
+  padding: var(--cf-space-4);
+  border: 1px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-bg);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-align: center;
+}
+
+.cf-resched__none p { margin: 0; }
+.cf-resched__none strong { color: var(--cf-text); }
+
+.cf-resched__switch {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cf-primary);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- HORAS LIBRES ----------
+   La píldora es la del panel (cf-booking__slot); aquí solo cambia el
+   hueco que la rodea. */
+
+.cf-resched__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-4);
+  padding-top: var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-resched__slots-title {
+  width: 100%;
+  margin: 0 0 var(--cf-space-1);
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---------- LOS DOS AVISOS ---------- */
+
+.cf-resched__spill {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* Que cambie quien viene no es un error, pero tampoco puede pasar
+   inadvertido: terracota, que es el color de avisar. */
+.cf-resched__swap {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-2);
+  margin: var(--cf-space-3) 0 0;
+  padding: var(--cf-space-3);
+  border: 1px solid var(--cf-accent);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-resched__swap strong { font-weight: 600; }
+
+/* ======================================================================
+   15. INICIO DEL ENCARGADO (pages/dashboard/home/ManagerHome.jsx)
    ======================================================================
 
    La entrada del panel, y la única pantalla que no se parece al resto.
@@ -8759,7 +9418,7 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   15. MOVIMIENTO REDUCIDO
+   16. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */

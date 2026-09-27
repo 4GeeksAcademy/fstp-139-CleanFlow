@@ -18,7 +18,7 @@ const streetOf = (address) =>
 
 export const BookingWhen = ({ booking }) => (
     <section className="cf-bookblock">
-        <h2 className="cf-bookblock__title">Cuándo y dónde</h2>
+        <h2 className="cf-bookblock__title">Fecha y lugar</h2>
 
         {booking.days.map((day) => (
             <div key={day.booking_day_id} className="cf-bookday">
