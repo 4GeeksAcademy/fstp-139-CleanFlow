@@ -813,14 +813,42 @@ main > section:nth-of-type(even) {
   font-size: var(--cf-text-2xl);
 }
 
-.cf-reviews__example-label {
+/* ---------- LA MEDIA ----------
+   El dato que más convence, y hasta ahora se calculaba y se tiraba. Va
+   pegado al título y en una píldora blanca: sobre el verde suave de la
+   sección, el blanco es lo que más salta. */
+
+.cf-reviews__score {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-4);
   flex-shrink: 0;
-  padding: var(--cf-space-2) var(--cf-space-4);
-  border: 1px solid var(--cf-border);
+  padding: 14px 22px;
   border-radius: 999px;
-  background-color: var(--cf-bg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-reviews__avg {
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-reviews__of {
+  display: block;
   color: var(--cf-muted);
-  font-size: var(--cf-text-sm);
+  font-size: 0.75rem;
+}
+
+.cf-reviews__count {
+  margin: 3px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
 }
 
 .cf-reviews__grid {

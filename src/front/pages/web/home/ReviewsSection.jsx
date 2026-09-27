@@ -1,19 +1,38 @@
+/**
+ * QUÉ OPINAN NUESTROS CLIENTES (#41).
+ *
+ * Las últimas opiniones de CleanFlow y la media que forman. Nunca de
+ * Google ni de ninguna fuente externa: son las mismas notas que dejan
+ * los clientes al terminar un servicio (#20).
+ *
+ * Lo que sale de cada uno: su nombre de pila con la inicial del
+ * apellido, su foto de perfil si la tiene, el servicio y cuándo fue.
+ * Las fotos que sube al valorar no salen nunca: son el interior de su
+ * casa y las hizo para nosotros, no para publicarlas.
+ *
+ * Estilos: web.css, bloque cf-reviews.
+ */
+
 import { useEffect, useState } from "react";
-import { getPublicReviews } from "../../../services/reviewService";
+import { getReviewsSummary } from "../../../services/reviewService";
+import { Stars } from "../../../components/dashboard/bookings/Stars";
 
 export const ReviewsSection = () => {
-    const [reviews, setReviews] = useState([]);
-    const [isProvisional, setIsProvisional] = useState(false);
+    // Los tres juntos: vienen en la misma respuesta y se pintan a la vez.
+    const [summary, setSummary] = useState({ average: null, total: 0, reviews: [] });
 
     useEffect(() => {
         let isMounted = true;
 
         const loadReviews = async () => {
-            const result = await getPublicReviews();
+            const result = await getReviewsSummary();
 
             if (isMounted && result.ok) {
-                setReviews(result.data);
-                setIsProvisional(result.provisional === true);
+                setSummary({
+                    average: result.data.average,
+                    total: result.data.total ?? 0,
+                    reviews: result.data.reviews || [],
+                });
             }
         };
 
@@ -24,7 +43,10 @@ export const ReviewsSection = () => {
         };
     }, []);
 
-    // Si no existen opiniones, la sección no se muestra vacía.
+    const { average, total, reviews } = summary;
+
+    // Sin opiniones la sección no aparece: mejor que no exista a que
+    // salga vacía o con un "0 sobre 5" que no significa nada.
     if (reviews.length === 0) {
         return null;
     }
@@ -43,10 +65,25 @@ export const ReviewsSection = () => {
                         </h2>
                     </div>
 
-                    {isProvisional && (
-                        <span className="cf-reviews__example-label">
-                            Opiniones de ejemplo
-                        </span>
+                    {/* La media, que es lo que de verdad convence: un
+                        visitante lee un número antes que ningún comentario. */}
+                    {average !== null && (
+                        <div className="cf-reviews__score">
+                            <span>
+                                {/* La coma es lo que se escribe en español. */}
+                                <span className="cf-reviews__avg">
+                                    {String(average).replace(".", ",")}
+                                </span>
+                                <span className="cf-reviews__of">sobre 5</span>
+                            </span>
+
+                            <span>
+                                <Stars value={average} size={17} />
+                                <p className="cf-reviews__count">
+                                    {total} {total === 1 ? "valoración" : "valoraciones"}
+                                </p>
+                            </span>
+                        </div>
                     )}
                 </div>
 
