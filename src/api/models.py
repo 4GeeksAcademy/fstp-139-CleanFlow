@@ -934,14 +934,19 @@ class Booking(db.Model):
             ),
         }
 
-    def serialize_detail(self):
+    def serialize_detail(self, with_review=False):
         """La reserva completa: servicio, dirección, tramos, tareas con sus
-        fotos, incidencias y la valoración.
+        fotos e incidencias.
 
         La usan la confirmación del panel, "Mis reservas" del cliente (#16)
         y el seguimiento del trabajador (#82). Lo pesado (fotos e
         incidencias) va solo aquí: `serialize()` se queda ligera porque la
         usan las listas, como la de Reservas afectadas.
+
+        La valoración solo sale con `with_review`, y solo la pide el
+        cliente: es suya. El trabajador ve su media en /workers/me/rating,
+        nunca quién puso cada nota (#20). Esta misma respuesta la reciben
+        los dos roles, así que por defecto no viaja.
         """
         return {
             **self.serialize(),
@@ -954,7 +959,11 @@ class Booking(db.Model):
             "days": [day.serialize() for day in self.days],
             "tasks": [task.serialize() for task in self.tasks],
             "incidents": [incident.serialize() for incident in self.incidents],
-            "review": self.review.serialize() if self.review else None,
+            **(
+                {"review": self.review.serialize() if self.review else None}
+                if with_review
+                else {}
+            ),
             "change_deadline": (
                 self.change_deadline.isoformat()
                 if self.change_deadline

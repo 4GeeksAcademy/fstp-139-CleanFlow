@@ -31,11 +31,18 @@ export const BookingReview = ({ booking, saving, error, onSubmit }) => {
     // El input de archivo, que se dispara desde la franja de añadir.
     const input = useRef(null);
 
-    // Al salir de la pantalla se sueltan las vistas previas: cada
-    // createObjectURL reserva memoria hasta que se revoca.
+    // Las vistas previas vivas, para poder soltarlas al salir. Van en una
+    // ref y no en el efecto: con [photos] la limpieza correría en cada
+    // cambio y revocaría también las que siguen puestas, que es lo que
+    // dejaba rota la primera foto al añadir la segunda.
+    const live = useRef([]);
+    live.current = photos;
+
+    // Solo al salir de la pantalla. Cada createObjectURL reserva memoria
+    // hasta que se revoca; las que se quitan a mano las suelta dropPhoto.
     useEffect(() => () => {
-        photos.forEach((photo) => URL.revokeObjectURL(photo.url));
-    }, [photos]);
+        live.current.forEach((photo) => URL.revokeObjectURL(photo.url));
+    }, []);
 
     const review = booking.review;
     const state = booking.confirmation;
