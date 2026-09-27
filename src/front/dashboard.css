@@ -23,7 +23,8 @@
     13. Valoraciones: estrellas, bloque del cliente y nota del trabajador
         (cf-stars__*, cf-rate__*, cf-mine__*)
     14. Cambiar la fecha de una reserva (cf-resched__*)
-    15. Movimiento reducido
+    15. Inicio del encargado (cf-home__*)
+    16. Movimiento reducido
 
    Prefijo cf-dash- y no cf-: web.css sigue cargado en el dashboard y un
    .cf-btn de aquí pisaría el de la web pública.
@@ -8818,7 +8819,606 @@ textarea.cf-dash-input {
 .cf-resched__swap strong { font-weight: 600; }
 
 /* ======================================================================
-   15. MOVIMIENTO REDUCIDO
+   15. INICIO DEL ENCARGADO (pages/dashboard/home/ManagerHome.jsx)
+   ======================================================================
+
+   La entrada del panel, y la única pantalla que no se parece al resto.
+   A propósito: las demás son para trabajar y esta es para mirar. De ahí
+   el verde de fondo, la letra grande y los bloques sin borde.
+
+   El hero es la única superficie oscura de todo el panel. Eso es lo que
+   hace que al entrar se note que estás en otro sitio. */
+
+.cf-home {
+  display: grid;
+  gap: var(--cf-space-4);
+}
+
+/* ---------- EL HERO ---------- */
+
+.cf-home__hero {
+  position: relative;
+  overflow: hidden;
+  padding: 34px 36px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+/* Dos manchas muy suaves para que el verde no sea un rectángulo plano.
+   ⚠️ A mano: los tokens no tienen versiones translúcidas. */
+.cf-home__hero::before,
+.cf-home__hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.cf-home__hero::before {
+  width: 420px;
+  height: 420px;
+  top: -220px;
+  right: -90px;
+  background: radial-gradient(circle, rgba(201, 123, 74, 0.26), transparent 68%);
+}
+
+.cf-home__hero::after {
+  width: 320px;
+  height: 320px;
+  bottom: -200px;
+  left: 18%;
+  background: radial-gradient(circle, rgba(231, 237, 223, 0.14), transparent 70%);
+}
+
+/* position: relative para que quede por encima de las manchas. */
+.cf-home__in {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  align-items: center;
+  gap: var(--cf-space-8);
+}
+
+.cf-home__date {
+  margin: 0 0 10px;
+  color: rgba(247, 243, 232, 0.62);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* clamp: en una pantalla estrecha el saludo no puede ocupar tres líneas. */
+.cf-home__hi {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+
+.cf-home__sub {
+  margin: 12px 0 0;
+  max-width: 40ch;
+  color: rgba(247, 243, 232, 0.74);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+/* ---------- LAS BANDEJAS ---------- */
+
+.cf-home__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: 20px;
+}
+
+.cf-home__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background-color: rgba(247, 243, 232, 0.12);
+  color: var(--cf-on-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cf-home__pill:hover {
+  background-color: rgba(247, 243, 232, 0.2);
+  color: var(--cf-on-primary);
+}
+
+/* Lo que quema, en terracota. Lo que solo espera, no. */
+.cf-home__pill--hot {
+  background-color: var(--cf-accent);
+}
+
+.cf-home__pill--hot:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+.cf-home__pill b {
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-home__pill:focus-visible {
+  outline: 3px solid var(--cf-on-primary);
+  outline-offset: 2px;
+}
+
+/* ---------- LA CIFRA DEL MES, DENTRO DEL HERO ---------- */
+
+.cf-home__money {
+  padding: 20px 22px;
+  border-radius: var(--cf-radius-md);
+  background-color: rgba(247, 243, 232, 0.1);
+}
+
+.cf-home__tag {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: var(--cf-accent);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cf-home__fig {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-home__what {
+  margin: 8px 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cf-home__where {
+  margin: 3px 0 0;
+  color: rgba(247, 243, 232, 0.7);
+  font-size: 0.8125rem;
+}
+
+/* Los cortes van sobre la VENTANA, pero el contenido tiene 268 px menos
+   por el menú lateral: a 1280 de ventana quedan unos 964. Por eso los
+   números parecen altos.
+
+   Aquí el hero se apila: con menos de ~700 px de contenido, el panel de
+   la derecha y el saludo se estrujan los dos. */
+@media (max-width: 1020px) {
+  .cf-home__hero {
+    padding: 26px 22px;
+  }
+
+  .cf-home__in {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cf-space-6);
+  }
+}
+
+/* ---------- LAS CIFRAS ----------
+   Rejilla asimétrica a propósito: con cuatro cajas iguales esto sería
+   una tabla, y una tabla no se mira, se consulta. La de reservas ocupa
+   el doble porque es la única que tiene algo que contar por dentro. */
+
+.cf-home__bento {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cf-space-4);
+}
+
+.cf-home__kpi {
+  padding: 20px 22px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-home__kpi--wide {
+  grid-column: span 2;
+  background-color: var(--cf-primary-soft);
+  box-shadow: none;
+}
+
+.cf-home__kpi-label {
+  margin: 0 0 10px;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cf-home__num {
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-home__unit {
+  margin-left: 9px;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-weight: 600;
+}
+
+.cf-home__note {
+  margin: 9px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---------- LA BARRA DE ESTADOS ----------
+   Los tres trozos en una sola línea, cada uno con su ancho en
+   porcentaje. Sin hueco entre ellos: es un total repartido, no tres
+   barras sueltas. */
+
+.cf-home__bar {
+  display: flex;
+  height: 6px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background-color: var(--cf-border);
+  overflow: hidden;
+}
+
+.cf-home__bar span {
+  height: 100%;
+}
+
+/* En curso en terracota porque está pasando ahora; confirmadas en el
+   verde de marca; pendientes en el beige, que es esperar. */
+.cf-home__bar-doing {
+  background-color: var(--cf-accent);
+}
+
+.cf-home__bar-ok {
+  background-color: var(--cf-primary);
+}
+
+.cf-home__bar-wait {
+  background-color: var(--cf-border);
+}
+
+.cf-home__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 11px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+}
+
+.cf-home__legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+}
+
+/* Cuatro columnas piden unos 1.085 px de contenido, o sea ventana de
+   1.400. Por debajo, dos: la ancha ocupa la fila entera y las otras dos
+   se reparten la siguiente. */
+@media (max-width: 1400px) {
+  .cf-home__bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .cf-home__bento {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cf-home__kpi--wide {
+    grid-column: span 1;
+  }
+}
+
+/* ---------- CÓMO VA EL DÍA ----------
+   El seguimiento: qué hay hoy, quién ha empezado y qué se ha torcido.
+   Es lo único de esta pantalla que cambia solo, cada minuto. */
+
+.cf-home__day {
+  padding: 24px 26px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-home__dayhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-home__t {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.cf-home__picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-home__chip {
+  padding: 7px 15px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cf-home__chip:hover {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+}
+
+/* aria-pressed y no una clase: el estado ya se lo dice al lector de
+   pantalla, así que pintarlo desde ahí evita que se descuadren. */
+.cf-home__chip[aria-pressed="true"] {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+/* El calendario nativo: no se puede maquetar por dentro, así que se le
+   da la misma forma de pastilla por fuera. */
+.cf-home__pick-date {
+  padding: 6px 12px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cf-home__sum {
+  margin: 0 0 var(--cf-space-4);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-home__sum b {
+  color: var(--cf-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- CADA SERVICIO ---------- */
+
+.cf-home__svc {
+  display: grid;
+  grid-template-columns: 8px 104px minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cf-space-3);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--cf-border);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-home__svc:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.cf-home__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--cf-border);
+}
+
+.cf-home__dot--doing { background-color: var(--cf-accent); }
+.cf-home__dot--done { background-color: var(--cf-primary); }
+.cf-home__dot--not_done { background-color: var(--cf-accent-dark); }
+
+.cf-home__hour {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-home__who {
+  color: var(--cf-muted);
+}
+
+.cf-home__who b {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+/* El estado arriba y el botón debajo, alineados a la derecha. En
+   columna y no en fila: en la última columna no hay sitio para los dos
+   seguidos sin estrujar el resto. */
+.cf-home__end {
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cf-home__warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: var(--cf-accent-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cf-home__empty {
+  margin: 0;
+  padding: var(--cf-space-8) 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-align: center;
+}
+
+/* La fila se parte: el punto y la hora arriba, y el resto debajo
+   alineado con el servicio. Con cinco columnas en menos de ~700 px de
+   contenido, el nombre del servicio y el del cliente no caben. */
+@media (max-width: 1020px) {
+  .cf-home__svc {
+    grid-template-columns: 8px minmax(0, 1fr);
+  }
+
+  .cf-home__who,
+  .cf-home__end {
+    grid-column: 2;
+    justify-items: start;
+    text-align: left;
+  }
+}
+
+/* ---------- EL DETALLE DE UN SERVICIO ----------
+   Una hoja ancha y no un modal de confirmación: aquí se viene a mirar
+   fotos y una línea de tiempo, no a decir que sí. */
+
+.cf-home__open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cf-home__open:hover {
+  color: var(--cf-accent-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cf-home__open:focus-visible {
+  outline: 3px solid var(--cf-ring);
+  outline-offset: 2px;
+  border-radius: var(--cf-radius-sm);
+}
+
+.cf-home__sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  padding: var(--cf-space-4);
+  border: 0;
+  background-color: rgba(38, 38, 31, 0.5);
+}
+
+.cf-home__sheet-in {
+  width: min(760px, 100%);
+  max-height: 88vh;
+  padding: 24px 26px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  overflow-y: auto;
+}
+
+.cf-home__sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-home__close {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--cf-border);
+  border-radius: 50%;
+  background-color: var(--cf-surface);
+  color: var(--cf-muted);
+  cursor: pointer;
+}
+
+.cf-home__close:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+
+/* Los bloques que vienen de la pantalla del cliente traen su propio
+   marco, así que aquí solo se separan. */
+.cf-home__sheet-body {
+  display: grid;
+  gap: var(--cf-space-4);
+}
+
+.cf-home__sheet-who {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-home__sheet-who b {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+/* ---------- MIENTRAS CARGA ----------
+   Tres alturas, una por tipo de bloque, para que el hueco tenga el
+   tamaño de lo que va a ocupar. La animación la pone cf-dash-skel;
+   aquí solo se le da la forma. */
+
+.cf-home__skel--hero {
+  height: 208px;
+  border-radius: var(--cf-radius-lg);
+}
+
+.cf-home__skel--kpi {
+  height: 116px;
+  border-radius: var(--cf-radius-lg);
+}
+
+.cf-home__skel--day {
+  height: 280px;
+  border-radius: var(--cf-radius-lg);
+}
+
+/* ======================================================================
+   16. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */

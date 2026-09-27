@@ -16,6 +16,7 @@ from flask import Flask, request, jsonify, url_for, Blueprint, current_app
 from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus, public_name
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
+from api.absence_routes import affected_reasons, booking_query
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -3710,6 +3711,22 @@ def create_review(booking_id):
 PUBLIC_REVIEWS_LIMIT = 6
 
 
+def global_rating():
+    """La media de CleanFlow y cuántas valoraciones la forman.
+
+    La comparten la web (#41) y el panel del encargado (#24), así que la
+    consulta vive aquí y no duplicada en los dos.
+
+    Sin valoraciones devuelve None y no un cero: "0 sobre 5" no es que
+    sea malo, es que todavía no hay ninguna.
+    """
+    average, total = db.session.execute(
+        db.select(func.avg(Review.rating), func.count(Review.review_id))
+    ).one()
+
+    return (round(float(average), 1) if total else None), total
+
+
 @api.route("/reviews/public", methods=["GET"])
 def public_reviews():
     """La media de CleanFlow y las últimas opiniones, para la web.
@@ -3719,13 +3736,7 @@ def public_reviews():
     lleva client_id y las fotos: ni el id de un cliente ni el interior de
     su casa tienen por qué salir de la aplicación.
     """
-    average, total = db.session.execute(
-        db.select(func.avg(Review.rating), func.count(Review.review_id))
-    ).one()
-
-    # Sin valoraciones se devuelve null y no un cero: la web no puede
-    # enseñar "0 sobre 5" cuando lo que pasa es que aún no hay ninguna.
-    media = round(float(average), 1) if total else None
+    media, total = global_rating()
 
     # Solo las que traen comentario: una cita vacía no se puede enseñar.
     reviews = db.session.execute(
@@ -4047,3 +4058,310 @@ def update_contact_message_status(contact_message_id):
         "message": "Estado actualizado correctamente",
         "contact_message": contact_message.serialize()
     }), 200
+
+
+# ----------------------------------------------------------------------
+# EL INICIO DEL ENCARGADO (#24)
+# ----------------------------------------------------------------------
+#   GET    /api/stats                              encargado
+#   GET    /api/manage/bookings?date=YYYY-MM-DD    encargado
+#
+# Las dos piezas de su pantalla de inicio, y son distintas a propósito:
+# stats resume el negocio y se pide una vez; manage/bookings cuenta cómo
+# va un día concreto y se vuelve a pedir cada minuto.
+#
+# En stats van juntas todas las cifras porque nadie necesita una sin las
+# otras, y cuatro viajes al entrar serían cuatro esperas.
+#
+# Todo se cuenta en la base de datos. Traerse las filas y contarlas en
+# Python aguanta con treinta reservas y no con tres mil.
+# ----------------------------------------------------------------------
+
+
+def month_window(now=None):
+    """El mes en curso en hora de Madrid: [día 1, día 1 del siguiente).
+
+    Medio abierto a propósito: así no hay que saber si el mes tiene 28 o
+    31 días ni empatar con el último segundo.
+    """
+    now = now or madrid_now()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # 32 días caen siempre dentro del mes siguiente, mida lo que mida.
+    return start, (start + timedelta(days=32)).replace(day=1)
+
+
+def count_of(query):
+    """El número que devuelve un SELECT count(...), ya desenvuelto."""
+    return db.session.execute(query).scalar_one()
+
+
+@api.route("/stats", methods=["GET"])
+@role_required("manager")
+def stats():
+    """El resumen del negocio, para la pantalla de inicio del encargado."""
+    now = madrid_now()
+    start, end = month_window(now)
+
+    # Del mes y ya terminadas: es la condición de "esto está hecho y
+    # cobrado", y la comparten los ingresos y las horas.
+    done_this_month = (
+        Booking.status == BookingStatus.COMPLETED,
+        Booking.scheduled_start >= start,
+        Booking.scheduled_start < end,
+    )
+
+    # ---- RESERVAS ----
+
+    # Una sola consulta agrupada en vez de una por estado.
+    by_status = dict(db.session.execute(
+        db.select(Booking.status, func.count(Booking.booking_id))
+        .group_by(Booking.status)
+    ).all())
+
+    pending = by_status.get(BookingStatus.PENDING, 0)
+    confirmed = by_status.get(BookingStatus.CONFIRMED, 0)
+    in_progress = by_status.get(BookingStatus.IN_PROGRESS, 0)
+
+    # ---- DINERO Y HORAS ----
+
+    revenue = db.session.execute(
+        db.select(func.sum(Booking.total_price)).where(*done_this_month)
+    ).scalar()
+
+    # Las horas se suman desde los tramos y no desde la reserva:
+    # Booking.hours es una propiedad de Python y no se puede sumar en SQL.
+    seconds = db.session.execute(
+        db.select(func.sum(
+            func.extract("epoch", BookingDay.ends_at - BookingDay.starts_at)
+        ))
+        .join(Booking, Booking.booking_id == BookingDay.booking_id)
+        .where(*done_this_month)
+    ).scalar()
+
+    # ---- EQUIPO ----
+
+    workers_total = count_of(db.select(func.count(Worker.worker_id)))
+    workers_active = count_of(
+        db.select(func.count(Worker.worker_id)).where(Worker.is_active.is_(True))
+    )
+
+    # ---- EL SERVICIO QUE MÁS SE PIDE ----
+
+    # Las canceladas no cuentan: pedir y arrepentirse no es demanda.
+    top = db.session.execute(
+        db.select(Service.name, func.count(Booking.booking_id))
+        .join(Booking, Booking.service_id == Service.service_id)
+        .where(
+            Booking.status != BookingStatus.CANCELLED,
+            Booking.scheduled_start >= start,
+            Booking.scheduled_start < end,
+        )
+        .group_by(Service.name)
+        .order_by(func.count(Booking.booking_id).desc())
+        .limit(1)
+    ).first()
+
+    # ---- LO QUE PIDE ATENCIÓN ----
+
+    # Las afectadas se cuentan con la misma función que la pantalla de
+    # Reservas afectadas, no con una copia: si cambia el criterio de qué
+    # es "afectada", cambia en los dos sitios a la vez.
+    candidates = db.session.execute(booking_query().where(
+        Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+        Booking.scheduled_end > now,
+    )).scalars().all()
+
+    affected = sum(1 for booking in candidates if affected_reasons(booking, now))
+
+    # La nota de CleanFlow, con la misma consulta que la web: una media
+    # que dependiera de dónde se mira no sería una media.
+    rating, ratings_total = global_rating()
+
+    return jsonify({
+        "rating": {"average": rating, "total": ratings_total},
+        "bookings": {
+            "active": pending + confirmed + in_progress,
+            "pending": pending,
+            "confirmed": confirmed,
+            "in_progress": in_progress,
+        },
+        # Sin nada terminado la suma es None, y un "null €" en pantalla
+        # queda peor que un cero.
+        "revenue_month": float(revenue or 0),
+        "hours_month": int((seconds or 0) // 3600),
+        "workers": {"active": workers_active, "total": workers_total},
+        "top_service": (
+            {"name": top[0], "count": top[1]}
+            if top
+            else None
+        ),
+        "inbox": {
+            "affected": affected,
+            "incidents": count_of(
+                db.select(func.count(Incident.incident_id))
+                .where(Incident.resolved.is_(False))
+            ),
+            "applications": count_of(
+                db.select(func.count(JobApplication.application_id))
+                .where(JobApplication.status == ApplicationStatus.NEW)
+            ),
+            "messages": count_of(
+                db.select(func.count(ContactMessage.contact_message_id))
+                .where(ContactMessage.status == ApplicationStatus.NEW)
+            ),
+        },
+    }), 200
+
+
+def day_state(booking, day):
+    """En qué punto está ese día concreto del servicio.
+
+    El estado va por día y no por reserva: en una de varias jornadas, el
+    lunes puede estar cerrado y el martes sin empezar.
+    """
+    if booking.status == BookingStatus.NOT_DONE:
+        return "not_done"
+
+    if day.finished_at:
+        return "done"
+
+    if day.started_at:
+        return "doing"
+
+    return "todo"
+
+
+@api.route("/manage/bookings", methods=["GET"])
+@role_required("manager")
+def bookings_of_day():
+    """Los servicios de un día, para el seguimiento del encargado.
+
+    Sin `date`, hoy. Una reserva de varias jornadas sale en todas, cada
+    una con su horario y su propio estado: por eso se filtra por los
+    tramos y no por scheduled_start, que solo es el primero.
+    """
+    raw = request.args.get("date")
+
+    try:
+        start = (
+            datetime.strptime(raw, "%Y-%m-%d")
+            if raw
+            else madrid_now().replace(hour=0, minute=0, second=0, microsecond=0)
+        )
+    except ValueError:
+        return jsonify({"message": "La fecha debe ser AAAA-MM-DD."}), 400
+
+    end = start + timedelta(days=1)
+
+    # Las canceladas no aparecen: ese día ya no va nadie, y en una lista
+    # de "cómo va el día" solo serían ruido.
+    bookings = db.session.execute(
+        db.select(Booking)
+        .join(BookingDay, BookingDay.booking_id == Booking.booking_id)
+        .where(
+            BookingDay.starts_at >= start,
+            BookingDay.starts_at < end,
+            Booking.status != BookingStatus.CANCELLED,
+        )
+        .options(
+            selectinload(Booking.days),
+            selectinload(Booking.service),
+            selectinload(Booking.client),
+            selectinload(Booking.worker).selectinload(Worker.user),
+            # Las tareas y las incidencias solo se cuentan, pero sin
+            # precargarlas serían dos consultas por cada reserva.
+            selectinload(Booking.tasks),
+            selectinload(Booking.incidents),
+        )
+        .distinct()
+    ).scalars().all()
+
+    services = []
+
+    for booking in bookings:
+        # El tramo de ESTE día. El join ya garantiza que hay uno.
+        day = next(
+            (one for one in booking.days if start <= one.starts_at < end),
+            None,
+        )
+
+        if day is None:
+            continue
+
+        services.append({
+            "booking_id": booking.booking_id,
+            "booking_day_id": day.booking_day_id,
+            "state": day_state(booking, day),
+            "starts_at": day.starts_at.isoformat(),
+            "ends_at": day.ends_at.isoformat(),
+            "started_at": day.started_at.isoformat() if day.started_at else None,
+            "finished_at": day.finished_at.isoformat() if day.finished_at else None,
+            "service_name": booking.service.name if booking.service else None,
+            "worker_name": booking.worker_name,
+            "client_name": (
+                f"{booking.client.name} {booking.client.last_name}"
+                if booking.client
+                else "Cliente"
+            ),
+            "tasks": {
+                "done": sum(
+                    1 for task in booking.tasks
+                    if task.status == BookingTaskStatus.COMPLETED
+                ),
+                "total": len(booking.tasks),
+            },
+            "open_incidents": sum(
+                1 for incident in booking.incidents if not incident.resolved
+            ),
+            # Cancelar solo tiene sentido si nadie ha llegado todavía.
+            "can_cancel": (
+                booking.status in (BookingStatus.PENDING, BookingStatus.CONFIRMED)
+                and day.started_at is None
+            ),
+        })
+
+    # Por hora de entrada: es el orden en que pasan las cosas.
+    services.sort(key=lambda service: service["starts_at"])
+
+    summary = {key: 0 for key in ("todo", "doing", "done", "not_done")}
+
+    for service in services:
+        summary[service["state"]] += 1
+
+    return jsonify({
+        "date": start.strftime("%Y-%m-%d"),
+        "summary": summary,
+        "bookings": services,
+    }), 200
+
+
+@api.route("/manage/bookings/<int:booking_id>", methods=["GET"])
+@role_required("manager")
+def booking_for_manager(booking_id):
+    """El detalle de una reserva, para el encargado.
+
+    El mismo que ven el cliente y el trabajador, pero por su propia
+    puerta: los suyos filtran por dueño y aquí no hay dueño que valga.
+
+    No choca con /manage/bookings/affected: el convertidor <int:> no
+    acepta "affected", así que esa ruta sigue cogiendo lo suyo.
+    """
+    booking = db.session.execute(
+        db.select(Booking).where(Booking.booking_id == booking_id).options(
+            selectinload(Booking.days),
+            selectinload(Booking.service),
+            selectinload(Booking.client),
+            selectinload(Booking.address),
+            selectinload(Booking.worker).selectinload(Worker.user),
+            # Las fotos del antes y el después, y las pruebas de cada
+            # incidencia: es lo que se viene a mirar aquí.
+            selectinload(Booking.tasks).selectinload(BookingTask.photos),
+            selectinload(Booking.incidents).selectinload(Incident.media),
+        )
+    ).scalar_one_or_none()
+
+    if booking is None:
+        return jsonify({"message": "Reserva no encontrada."}), 404
+
+    return jsonify({"booking": booking.serialize_detail()}), 200
