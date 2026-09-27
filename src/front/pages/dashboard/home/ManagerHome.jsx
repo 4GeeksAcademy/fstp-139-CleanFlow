@@ -9,11 +9,12 @@
  * se quedan, y el día se vuelve a pedir al cambiar de fecha y cada
  * minuto (paso 8). Por eso llevan su propio estado cada una.
  *
- * Estilos: dashboard.css, sección 16 (cf-home).
+ * Estilos: dashboard.css, sección 14 (cf-home).
  */
 
 import "../../../dashboard.css";
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import useGlobalReducer from "../../../hooks/useGlobalReducer";
 import { getStats, getDayBookings } from "../../../services/statsService";
 
@@ -30,6 +31,38 @@ export const madridToday = () => new Intl.DateTimeFormat("en-CA", {
     month: "2-digit",
     day: "2-digit",
 }).format(new Date());
+
+/** "Domingo 27 de septiembre", para la cabecera del hero. */
+export const longToday = () => {
+    const text = new Intl.DateTimeFormat("es-ES", {
+        timeZone: "Europe/Madrid",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+    }).format(new Date());
+
+    return `${text[0].toUpperCase()}${text.slice(1)}`;
+};
+
+// Sin céntimos: en un titular, 4.280,00 € se lee peor que 4.280 €.
+const EUROS = new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+});
+
+/** La frase del hero: el estado del negocio en una línea. */
+const summaryLine = ({ bookings, workers }) => {
+    const activas = bookings.active === 1
+        ? "1 reserva en la agenda"
+        : `${bookings.active} reservas en la agenda`;
+
+    const equipo = workers.active === 1
+        ? "1 persona en activo"
+        : `${workers.active} personas en activo`;
+
+    return `${activas} y ${equipo}, de ${workers.total} dadas de alta.`;
+};
 
 export const ManagerHome = () => {
     const { store } = useGlobalReducer();
@@ -74,22 +107,69 @@ export const ManagerHome = () => {
 
     useEffect(() => { loadDay(); }, [loadDay]);
 
-    if (loading) return <p className="cf-dash-lede">Cargando…</p>;
+    // ---------- LO QUE SE PINTA ----------
+
+    if (loading) return <div className="cf-dash-skel" style={{ height: 180 }} />;
 
     if (error) return <p className="cf-dash-alert" role="alert">{error}</p>;
 
-    // PROVISIONAL (pasos 5, 6 y 7): de momento en crudo, para comprobar
-    // que los datos llegan antes de maquetarlos.
+    // Solo se enseña lo que pide algo. Un "0 incidencias" ocupa el sitio
+    // de lo que sí importa.
+    const inbox = [
+        { key: "affected", n: stats.inbox.affected, to: "/dashboard/affected-bookings", one: "reserva afectada", many: "reservas afectadas", hot: true },
+        { key: "incidents", n: stats.inbox.incidents, to: "/dashboard/incidents", one: "incidencia", many: "incidencias", hot: true },
+        { key: "applications", n: stats.inbox.applications, to: "/dashboard/applications", one: "candidatura", many: "candidaturas", hot: false },
+        // TODO (#47): los mensajes de contacto. El número ya viene en
+        // /api/stats, pero todavía no hay pantalla a la que enlazar.
+    ].filter((tray) => tray.n > 0);
+
     return (
-        <>
+        <div className="cf-home">
+
+            <section className="cf-home__hero">
+                <div className="cf-home__in">
+                    <div>
+                        <p className="cf-home__date">{longToday()}</p>
+                        <h1 className="cf-home__hi">Hola, {store.user?.name}</h1>
+                        <p className="cf-home__sub">{summaryLine(stats)}</p>
+
+                        {inbox.length > 0 && (
+                            <div className="cf-home__pills">
+                                {inbox.map((tray) => (
+                                    <Link
+                                        key={tray.key}
+                                        className={`cf-home__pill${tray.hot ? " cf-home__pill--hot" : ""}`}
+                                        to={tray.to}
+                                    >
+                                        <b>{tray.n}</b> {tray.n === 1 ? tray.one : tray.many}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="cf-home__money">
+                        <span className="cf-home__tag">Este mes</span>
+                        <p className="cf-home__fig">{EUROS.format(stats.revenue_month)}</p>
+                        <p className="cf-home__what">Servicios ya finalizados</p>
+                        <p className="cf-home__where">
+                            {stats.hours_month} {stats.hours_month === 1 ? "hora vendida" : "horas vendidas"}
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            {/* PROVISIONAL (pasos 6 y 7): el selector de verdad, con ayer,
+                hoy, mañana y el calendario, llega en el paso 7. */}
             <p>
                 <button type="button" onClick={() => setDate(madridToday())}>Hoy</button>{" "}
                 <button type="button" onClick={() => setDate("2026-09-30")}>30 sep</button>{" "}
                 <button type="button" onClick={() => setDate("2026-10-05")}>5 oct</button>
             </p>
             <pre style={{ fontSize: "0.75rem", overflow: "auto" }}>
-                {JSON.stringify({ stats, day }, null, 2)}
+                {JSON.stringify(day, null, 2)}
             </pre>
-        </>
+
+        </div>
     );
 };

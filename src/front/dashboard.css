@@ -8160,7 +8160,196 @@ textarea.cf-dash-input {
   }
 }
 /* ======================================================================
-   13. MOVIMIENTO REDUCIDO
+   14. INICIO DEL ENCARGADO (pages/dashboard/home/ManagerHome.jsx)
+   ======================================================================
+
+   La entrada del panel, y la única pantalla que no se parece al resto.
+   A propósito: las demás son para trabajar y esta es para mirar. De ahí
+   el verde de fondo, la letra grande y los bloques sin borde.
+
+   El hero es la única superficie oscura de todo el panel. Eso es lo que
+   hace que al entrar se note que estás en otro sitio. */
+
+.cf-home {
+  display: grid;
+  gap: var(--cf-space-4);
+}
+
+/* ---------- EL HERO ---------- */
+
+.cf-home__hero {
+  position: relative;
+  overflow: hidden;
+  padding: 34px 36px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+/* Dos manchas muy suaves para que el verde no sea un rectángulo plano.
+   ⚠️ A mano: los tokens no tienen versiones translúcidas. */
+.cf-home__hero::before,
+.cf-home__hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.cf-home__hero::before {
+  width: 420px;
+  height: 420px;
+  top: -220px;
+  right: -90px;
+  background: radial-gradient(circle, rgba(201, 123, 74, 0.26), transparent 68%);
+}
+
+.cf-home__hero::after {
+  width: 320px;
+  height: 320px;
+  bottom: -200px;
+  left: 18%;
+  background: radial-gradient(circle, rgba(231, 237, 223, 0.14), transparent 70%);
+}
+
+/* position: relative para que quede por encima de las manchas. */
+.cf-home__in {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  align-items: center;
+  gap: var(--cf-space-8);
+}
+
+.cf-home__date {
+  margin: 0 0 10px;
+  color: rgba(247, 243, 232, 0.62);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* clamp: en una pantalla estrecha el saludo no puede ocupar tres líneas. */
+.cf-home__hi {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+
+.cf-home__sub {
+  margin: 12px 0 0;
+  max-width: 40ch;
+  color: rgba(247, 243, 232, 0.74);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+/* ---------- LAS BANDEJAS ---------- */
+
+.cf-home__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  margin-top: 20px;
+}
+
+.cf-home__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background-color: rgba(247, 243, 232, 0.12);
+  color: var(--cf-on-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cf-home__pill:hover {
+  background-color: rgba(247, 243, 232, 0.2);
+  color: var(--cf-on-primary);
+}
+
+/* Lo que quema, en terracota. Lo que solo espera, no. */
+.cf-home__pill--hot {
+  background-color: var(--cf-accent);
+}
+
+.cf-home__pill--hot:hover {
+  background-color: var(--cf-accent-dark);
+}
+
+.cf-home__pill b {
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-home__pill:focus-visible {
+  outline: 3px solid var(--cf-on-primary);
+  outline-offset: 2px;
+}
+
+/* ---------- LA CIFRA DEL MES, DENTRO DEL HERO ---------- */
+
+.cf-home__money {
+  padding: 20px 22px;
+  border-radius: var(--cf-radius-md);
+  background-color: rgba(247, 243, 232, 0.1);
+}
+
+.cf-home__tag {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: var(--cf-accent);
+  color: var(--cf-on-primary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cf-home__fig {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-home__what {
+  margin: 8px 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cf-home__where {
+  margin: 3px 0 0;
+  color: rgba(247, 243, 232, 0.7);
+  font-size: 0.8125rem;
+}
+
+/* En estrecho el hero se apila y se le quita aire, que si no ocupa
+   media pantalla antes de enseñar nada. */
+@media (max-width: 860px) {
+  .cf-home__hero {
+    padding: 26px 22px;
+  }
+
+  .cf-home__in {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cf-space-6);
+  }
+}
+
+/* ======================================================================
+   15. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
