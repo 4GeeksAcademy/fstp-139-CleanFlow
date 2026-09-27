@@ -13,7 +13,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus, public_name
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from flask_cors import CORS
@@ -808,17 +808,6 @@ def get_tasks():
 
     Sin minutos: dependen del servicio (Service.minutes_per_task).
     """
-    now = madrid_now()
-
-    last_service_day = max(
-        (day.starts_at.date() for day in booking.days),
-        default=booking.scheduled_start.date(),
-    )
-
-    if last_service_day > now.date():
-        return jsonify({
-            "message": "No puedes completar la reserva antes de su último día de servicio."
-        }), 409
     tasks = db.session.execute(
         db.select(Task).filter_by(is_active=True).order_by(Task.task_id)
     ).scalars().all()
@@ -872,10 +861,12 @@ IMAGE_ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
 PHOTO_MAX_BYTES = 5 * 1024 * 1024
 AVATAR_FOLDER = "cleanflow/avatars"
-# Estas dos aún no las usa nadie: las estrenan las fotos de tarea (#82)
-# y las de incidencia (#18), que ya solo tienen que llamar a upload_image().
+# Una carpeta por tipo de foto: el antes y el después de las tareas (#82),
+# las pruebas de las incidencias (#18, #83) y lo que el cliente enseña al
+# valorar (#20).
 BOOKING_FOLDER = "cleanflow/bookings"
 INCIDENT_FOLDER = "cleanflow/incidents"
+REVIEW_FOLDER = "cleanflow/reviews"
 
 # Números, espacios y un + inicial. Entre 9 y 15 dígitos: 9 son los de un
 # teléfono español y 15 el máximo internacional.
@@ -2452,9 +2443,9 @@ def cancel_booking(booking_id):
     return jsonify({"booking": booking.serialize_detail()}), 200
 
 
-def serialize_booking_with_cancellation(booking):
+def serialize_booking_with_cancellation(booking, with_review=False):
     """Incluye el límite de cancelación con zona horaria explícita."""
-    data = booking.serialize_detail()
+    data = booking.serialize_detail(with_review=with_review)
     first_start = min(
         (day.starts_at for day in booking.days),
         default=booking.scheduled_start,
@@ -2522,19 +2513,29 @@ def my_bookings():
                 "message": "Solo puedes consultar tus propias reservas."
             }), 403
 
+    # Solo el cliente se lleva su valoración; al trabajador no le viaja.
+    is_client = user.role == "client"
+
+    options = [
+        selectinload(Booking.worker).selectinload(Worker.user),
+        selectinload(Booking.client),
+        selectinload(Booking.days),
+        selectinload(Booking.service),
+        selectinload(Booking.address),
+        # Las tareas con sus fotos y las incidencias con las suyas: el
+        # detalle las pinta todas, y sin precargarlas sería una consulta
+        # por cada tarea y otra por cada incidencia.
+        selectinload(Booking.tasks).selectinload(BookingTask.photos),
+        selectinload(Booking.incidents).selectinload(Incident.media),
+    ]
+
+    # Lo mismo con la valoración y sus fotos: sin esto serían dos consultas
+    # más por cada reserva del listado.
+    if is_client:
+        options.append(selectinload(Booking.review).selectinload(Review.media))
+
     bookings = db.session.execute(
-        db.select(Booking).options(
-            selectinload(Booking.worker).selectinload(Worker.user),
-            selectinload(Booking.client),
-            selectinload(Booking.days),
-            selectinload(Booking.service),
-            selectinload(Booking.address),
-            # Las tareas con sus fotos y las incidencias con las suyas: el
-            # detalle las pinta todas, y sin precargarlas sería una consulta
-            # por cada tarea y otra por cada incidencia.
-            selectinload(Booking.tasks).selectinload(BookingTask.photos),
-            selectinload(Booking.incidents).selectinload(Incident.media),
-        ).where(
+        db.select(Booking).options(*options).where(
             booking_filter
         ).order_by(
             Booking.scheduled_start.desc(),
@@ -2543,7 +2544,10 @@ def my_bookings():
     ).scalars().all()
 
     return jsonify({
-        "bookings": [serialize_booking_with_cancellation(booking) for booking in bookings]
+        "bookings": [
+            serialize_booking_with_cancellation(booking, with_review=is_client)
+            for booking in bookings
+        ]
     })
 
 
@@ -3384,6 +3388,215 @@ def resolve_incident(incident_id):
     db.session.commit()
 
     return jsonify({"incident": incident.serialize_managed()}), 200
+
+
+# ----------------------------------------------------------------------
+# VALORAR EL SERVICIO (#20)
+# ----------------------------------------------------------------------
+#   POST  /api/bookings/<id>/reviews   cliente, multipart con hasta 3 fotos
+#
+# El último paso del recorrido del cliente. Hasta aquí daba el servicio
+# por bueno y ahí se acababa: no podía decir cuánto le gustó ni enseñar
+# cómo quedó su casa.
+#
+# Una valoración por reserva y no se edita: una media que se puede
+# reescribir no mide nada.
+
+# Tres fotos y no cinco como en una reclamación: allí se documenta un
+# problema y hace falta sitio; aquí se enseña un resultado.
+REVIEW_COMMENT_MAX_LENGTH = 500
+REVIEW_MAX_PHOTOS = 3
+
+
+@api.route("/bookings/<int:booking_id>/reviews", methods=["POST"])
+@role_required("client")
+@booking_transaction
+def create_review(booking_id):
+    """El cliente valora el servicio. Multipart: nota, comentario y fotos.
+
+    Solo cuando el servicio ya se dio por bueno, a mano o solo. En
+    revisión no se puede: pedir nota con algo sin resolver es pedirla
+    enfadado.
+    """
+    booking, error = client_booking(booking_id)
+
+    if error:
+        return error
+
+    # Quién puede valorar lo decide confirmation, igual que en la #83: no
+    # se vuelven a contar los días aquí.
+    state = booking.confirmation
+
+    if state == "in_review":
+        return jsonify({
+            "message": "Primero tenemos que resolver lo que nos contaste."
+        }), 409
+
+    if state not in ("confirmed", "auto_confirmed"):
+        return jsonify({
+            "message": "Podrás valorar cuando des el servicio por bueno."
+        }), 409
+
+    # Review.booking_id es único, así que como mucho hay una.
+    if db.session.execute(
+        db.select(Review).where(Review.booking_id == booking.booking_id)
+    ).scalar_one_or_none():
+        return jsonify({"message": "Ya valoraste este servicio."}), 409
+
+    rating = (request.form.get("rating") or "").strip()
+
+    # isdigit descarta el vacío, los decimales y los negativos de una vez.
+    if not rating.isdigit() or not 1 <= int(rating) <= 5:
+        return jsonify({
+            "message": "La nota tiene que ser de 1 a 5 estrellas."
+        }), 400
+
+    rating = int(rating)
+
+    comment = (request.form.get("comment") or "").strip()
+
+    if len(comment) > REVIEW_COMMENT_MAX_LENGTH:
+        return jsonify({
+            "message": f"El comentario no puede pasar de {REVIEW_COMMENT_MAX_LENGTH} caracteres."
+        }), 400
+
+    # getlist y no get: el formulario puede repetir el campo "photo". Las
+    # que pasen del máximo se ignoran en vez de tirar el envío: quien
+    # escribió un comentario no debería perderlo por una foto de más.
+    photos = [
+        photo for photo in request.files.getlist("photo")[:REVIEW_MAX_PHOTOS]
+        if photo and photo.filename
+    ]
+
+    urls = []
+
+    for photo in photos:
+        url, error = upload_image(photo, REVIEW_FOLDER)
+
+        if error:
+            message, status = error
+            return jsonify({"message": message}), status
+
+        urls.append(url)
+
+    now = madrid_now()
+
+    review = Review(
+        booking_id=booking.booking_id,
+        client_id=int(get_jwt_identity()),
+        rating=rating,
+        # Sin comentario se guarda vacío y no una cadena en blanco: así
+        # "no dijo nada" y "dijo algo" se distinguen al leer.
+        comment=comment or None,
+        created_at=now,
+    )
+
+    db.session.add(review)
+
+    # flush: hace falta el id de la reseña para colgarle las fotos.
+    db.session.flush()
+
+    for url in urls:
+        db.session.add(Media(
+            review_id=review.review_id,
+            kind=MediaKind.REVIEW,
+            media_url=url,
+            media_type=MediaType.IMAGE,
+            uploaded_by=review.client_id,
+            uploaded_at=now,
+        ))
+
+    booking.updated_at = now
+
+    db.session.commit()
+
+    # Con la valoración: es de quien acaba de dejarla, y la pantalla la
+    # pinta al momento sin volver a pedir la reserva.
+    return jsonify({"booking": booking.serialize_detail(with_review=True)}), 201
+
+
+# ----------------------------------------------------------------------
+# LEER LAS VALORACIONES (#20)
+# ----------------------------------------------------------------------
+#   GET  /api/reviews/public       público, sin sesión
+#   GET  /api/workers/me/rating    el trabajador, su propia nota
+#
+# La misma nota que deja el cliente se cuenta de dos maneras: la media de
+# la empresa para la web (#41) y la de cada trabajador (#75).
+
+# Cuántas opiniones viajan a la landing. Las justas para llenar la
+# sección: traerlas todas sería mandar cientos para enseñar seis.
+PUBLIC_REVIEWS_LIMIT = 6
+
+
+@api.route("/reviews/public", methods=["GET"])
+def public_reviews():
+    """La media de CleanFlow y las últimas opiniones, para la web.
+
+    Sin sesión: lo llama cualquiera que entre en la landing. Por eso se
+    arma el diccionario a mano en vez de usar Review.serialize(), que
+    lleva client_id y las fotos: ni el id de un cliente ni el interior de
+    su casa tienen por qué salir de la aplicación.
+    """
+    average, total = db.session.execute(
+        db.select(func.avg(Review.rating), func.count(Review.review_id))
+    ).one()
+
+    # Sin valoraciones se devuelve null y no un cero: la web no puede
+    # enseñar "0 sobre 5" cuando lo que pasa es que aún no hay ninguna.
+    media = round(float(average), 1) if total else None
+
+    # Solo las que traen comentario: una cita vacía no se puede enseñar.
+    reviews = db.session.execute(
+        db.select(Review)
+        .where(Review.comment.is_not(None))
+        .order_by(Review.created_at.desc())
+        .limit(PUBLIC_REVIEWS_LIMIT)
+        .options(selectinload(Review.client))
+    ).scalars().all()
+
+    return jsonify({
+        "average": media,
+        "total": total,
+        "reviews": [
+            {
+                "review_id": review.review_id,
+                "client_name": public_name(review.client),
+                "rating": review.rating,
+                "comment": review.comment,
+            }
+            for review in reviews
+        ],
+    }), 200
+
+
+@api.route("/workers/me/rating", methods=["GET"])
+@role_required("worker")
+def my_rating():
+    """La nota del propio trabajador: la media de los servicios que hizo.
+
+    Solo el número y cuántas son. Quién puso cada nota no se devuelve: el
+    cliente valora el servicio, no habla con quien fue a su casa.
+    """
+    user_id = int(get_jwt_identity())
+
+    worker = db.session.execute(
+        db.select(Worker).where(Worker.user_id == user_id)
+    ).scalar_one_or_none()
+
+    if worker is None:
+        return jsonify({"message": "No tienes un perfil de trabajador."}), 403
+
+    average, total = db.session.execute(
+        db.select(func.avg(Review.rating), func.count(Review.review_id))
+        .join(Booking, Review.booking_id == Booking.booking_id)
+        .where(Booking.worker_id == worker.worker_id)
+    ).one()
+
+    return jsonify({
+        "average": round(float(average), 1) if total else None,
+        "total": total,
+    }), 200
 
 
 # ----------------------------------------------------------------------
