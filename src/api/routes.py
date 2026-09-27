@@ -3657,14 +3657,17 @@ def update_contact_message_status(contact_message_id):
 
 
 # ----------------------------------------------------------------------
-# MÉTRICAS DEL ENCARGADO (#24)
+# EL INICIO DEL ENCARGADO (#24)
 # ----------------------------------------------------------------------
-#   GET    /api/stats    encargado
+#   GET    /api/stats                              encargado
+#   GET    /api/manage/bookings?date=YYYY-MM-DD    encargado
 #
-# Todas las cifras de su pantalla de inicio en una sola llamada: las que
-# se pintan y las cuatro bandejas que piden atención. Van juntas porque
-# nadie necesita una sin las otras, y cuatro viajes al entrar serían
-# cuatro esperas.
+# Las dos piezas de su pantalla de inicio, y son distintas a propósito:
+# stats resume el negocio y se pide una vez; manage/bookings cuenta cómo
+# va un día concreto y se vuelve a pedir cada minuto.
+#
+# En stats van juntas todas las cifras porque nadie necesita una sin las
+# otras, y cuatro viajes al entrar serían cuatro esperas.
 #
 # Todo se cuenta en la base de datos. Traerse las filas y contarlas en
 # Python aguanta con treinta reservas y no con tres mil.
@@ -3803,11 +3806,6 @@ def stats():
         # la misma consulta que public_reviews(), que todavía está en el
         # PR de valoraciones y no ha llegado a develop.
     }), 200
-
-
-# ----------------------------------------------------------------------
-#   GET    /api/manage/bookings?date=YYYY-MM-DD    encargado
-# ----------------------------------------------------------------------
 
 
 def day_state(booking, day):

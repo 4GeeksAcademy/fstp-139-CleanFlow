@@ -13,7 +13,7 @@
  * aquí a quien entra donde no le toca, así que un Navigate en esta
  * pantalla sería un bucle.
  *
- * Estilos: dashboard.css, sección 2 (cf-dash-state).
+ * Estilos: dashboard.css, sección 1 (cf-dash-state).
  */
 
 import "../../../dashboard.css"

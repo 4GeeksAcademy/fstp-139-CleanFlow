@@ -7,7 +7,8 @@
  *
  * Dos llamadas con vidas distintas: las métricas se piden al entrar y
  * se quedan, y el día se vuelve a pedir al cambiar de fecha y cada
- * minuto (paso 8). Por eso llevan su propio estado cada una.
+ * minuto. Por eso llevan su propio estado y su propio error cada una:
+ * con uno compartido, un refresco fallido borraría toda la pantalla.
  *
  * Estilos: dashboard.css, sección 14 (cf-home).
  */
