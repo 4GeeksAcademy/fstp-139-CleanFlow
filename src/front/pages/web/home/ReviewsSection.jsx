@@ -13,8 +13,8 @@
  * Estilos: web.css, bloque cf-reviews.
  */
 
-import { useEffect, useState } from "react";
-import { getReviewsSummary } from "../../../services/reviewService";
+import { useState } from "react";
+import useGlobalReducer from "../../../hooks/useGlobalReducer";
 import { Stars } from "../../../components/dashboard/bookings/Stars";
 
 /**
@@ -82,32 +82,14 @@ const Face = ({ review }) => {
 };
 
 export const ReviewsSection = () => {
-    // Los tres juntos: vienen en la misma respuesta y se pintan a la vez.
-    const [summary, setSummary] = useState({ average: null, total: 0, reviews: [] });
+    // Del store, que lo pide ReviewsLoader una sola vez al arrancar: el
+    // hero de esta misma pantalla enseña la misma media, y sin esto
+    // serían dos viajes para el mismo dato.
+    const { store } = useGlobalReducer();
 
-    useEffect(() => {
-        let isMounted = true;
-
-        const loadReviews = async () => {
-            const result = await getReviewsSummary();
-
-            if (isMounted && result.ok) {
-                setSummary({
-                    average: result.data.average,
-                    total: result.data.total ?? 0,
-                    reviews: result.data.reviews || [],
-                });
-            }
-        };
-
-        loadReviews();
-
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    const { average, total, reviews } = summary;
+    const average = store.reviewsAverage;
+    const total = store.reviewsTotal;
+    const reviews = store.reviews;
 
     // Sin opiniones la sección no aparece: mejor que no exista a que
     // salga vacía o con un "0 sobre 5" que no significa nada.

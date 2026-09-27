@@ -56,6 +56,14 @@ export const initialStore = () => {
     services: [],
     servicesLoading: true,
     servicesError: false,
+
+    // La nota de CleanFlow y sus últimas opiniones. La piden el hero y la
+    // sección de opiniones, las dos en la misma pantalla: sin esto serían
+    // dos viajes para el mismo dato. La rellena ReviewsLoader al arrancar.
+    // average en null hasta que se sepa, y también si no hay ninguna.
+    reviews: [],
+    reviewsAverage: null,
+    reviewsTotal: 0,
   };
 };
 
@@ -147,6 +155,18 @@ export default function storeReducer(store, action = {}) {
         ...store,
         servicesLoading: false,
         servicesError: true,
+      };
+
+    // Sin caso de error a propósito: si falla, la landing se queda sin la
+    // banda del hero y sin la sección, que es justo lo que ya hace cuando
+    // todavía no hay ninguna valoración. Un aviso de error ahí no le dice
+    // nada útil a quien está mirando la web.
+    case "SET_REVIEWS":
+      return {
+        ...store,
+        reviews: action.payload.reviews,
+        reviewsAverage: action.payload.average,
+        reviewsTotal: action.payload.total,
       };
 
     // Acción desconocida: se avisa por consola para cazar erratas, pero NO

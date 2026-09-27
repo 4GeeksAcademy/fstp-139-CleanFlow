@@ -7,9 +7,8 @@
  * Aquí va el único <h1> de la página; las ocho secciones usan <h2>.
  */
 
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getReviewsSummary } from "../../../services/reviewService";
+import useGlobalReducer from "../../../hooks/useGlobalReducer";
 import heroImage from "../../../assets/img/hero-salon.jpg";
 
 
@@ -26,24 +25,12 @@ export const Hero = () => {
 
     // La nota real, la misma que enseña la sección de opiniones más abajo:
     // dos números distintos para lo mismo en la misma página no se
-    // sostienen. null mientras llega o si todavía no hay ninguna.
-    const [rating, setRating] = useState(null)
+    // sostienen. Del store y no con su propia llamada, que las dos están
+    // en esta pantalla y sería pedir lo mismo dos veces. En null mientras
+    // llega, y también si todavía no hay ninguna valoración.
+    const { store } = useGlobalReducer()
 
-    useEffect(() => {
-        let alive = true
-
-        const load = async () => {
-            const result = await getReviewsSummary()
-
-            if (alive && result.ok && result.data.average !== null) {
-                setRating({ average: result.data.average, total: result.data.total })
-            }
-        }
-
-        load()
-
-        return () => { alive = false }
-    }, [])
+    const average = store.reviewsAverage
 
     return (
         <section id="hero" className="cf-hero">
@@ -96,14 +83,14 @@ export const Hero = () => {
             {/* ---------- VALORACIONES ----------
                 Sin ninguna todavía, la banda no se pinta: una nota inventada
                 vende más, pero deja de ser verdad en cuanto alguien la mira. */}
-            {rating && (
+            {average !== null && (
                 <div className="cf-hero__rating">
                     <div className="cf-container">
                         <div className="cf-hero__rating-in">
 
                             {/* toLocaleString: 4.5 se escribe "4,5" en español. */}
                             <span className="cf-hero__score">
-                                {rating.average.toLocaleString("es-ES", {
+                                {average.toLocaleString("es-ES", {
                                     minimumFractionDigits: 1,
                                 })}
                             </span>
@@ -111,15 +98,15 @@ export const Hero = () => {
                             {/* aria-hidden: la nota ya se lee en el número de al
                                 lado; si no, se cantarían cinco iconos sin sentido. */}
                             <span className="cf-hero__stars" aria-hidden="true">
-                                {starIcons(rating.average).map((icon, index) => (
+                                {starIcons(average).map((icon, index) => (
                                     <i key={index} className={icon}></i>
                                 ))}
                             </span>
 
                             <span className="cf-hero__reviews">
                                 <b>Valoración media</b>
-                                sobre {rating.total}{" "}
-                                {rating.total === 1 ? "opinión" : "opiniones"} de clientes
+                                sobre {store.reviewsTotal}{" "}
+                                {store.reviewsTotal === 1 ? "opinión" : "opiniones"} de clientes
                             </span>
 
                         </div>
