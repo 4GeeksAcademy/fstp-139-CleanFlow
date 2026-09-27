@@ -4,7 +4,8 @@ import useGlobalReducer from "../../../hooks/useGlobalReducer";
 import { getMyBookings } from "../../../services/bookingService";
 import { NextBooking } from "../../../components/dashboard/home/NextBooking";
 import { ClientPendingActions } from "../../../components/dashboard/home/ClientPendingActions";
-
+import { RebookServices } from "../../../components/dashboard/home/RebookServices";
+import { EmptyClientHome } from "../../../components/dashboard/home/EmptyClientHome";
 const nextConfirmedBooking = (bookings) =>
     bookings
         .filter(
@@ -88,6 +89,15 @@ export const ClientHome = () => {
     const nextBooking = nextConfirmedBooking(bookings);
     const firstName = store.user?.name || "Hola";
 
+    if (bookings.length === 0) {
+        return (
+            <EmptyClientHome
+                firstName={firstName}
+                services={store.services}
+            />
+        );
+    }
+
     return (
         <div className="cf-client-home">
             <header className="cf-client-home__header">
@@ -103,6 +113,10 @@ export const ClientHome = () => {
             <NextBooking booking={nextBooking} />
 
             <ClientPendingActions bookings={bookings} />
+            <RebookServices
+                bookings={bookings}
+                services={store.services}
+            />
         </div>
     );
 };

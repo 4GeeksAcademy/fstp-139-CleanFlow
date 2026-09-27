@@ -298,7 +298,12 @@ textarea.cf-dash-input {
   display: block;
   height: 12px;
   border-radius: 6px;
-  background: linear-gradient(90deg, var(--cf-bg) 0%, var(--cf-border) 50%, var(--cf-bg) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--cf-bg) 0%,
+    var(--cf-border) 50%,
+    var(--cf-bg) 100%
+  );
   background-size: 200% 100%;
   animation: cf-dash-skel 1.2s ease-in-out infinite;
 }
@@ -835,7 +840,8 @@ textarea.cf-dash-input {
 .cf-tasks__tab .cf-dash-count--attention,
 .cf-services__tab .cf-dash-count--attention,
 .cf-tasks__tab[aria-pressed="true"] .cf-tasks__count.cf-dash-count--attention,
-.cf-services__tab[aria-pressed="true"] .cf-services__count.cf-dash-count--attention {
+.cf-services__tab[aria-pressed="true"]
+  .cf-services__count.cf-dash-count--attention {
   border-color: var(--cf-accent-soft);
   background-color: var(--cf-accent-soft);
   color: var(--cf-accent-dark);
@@ -3510,7 +3516,11 @@ textarea.cf-dash-input {
    apaga. El color va en el fondo, no pegado a los botones. */
 .cf-shifts__row--inactive,
 .cf-shifts__row--inactive:hover {
-  background-color: color-mix(in srgb, var(--cf-accent-soft) 55%, var(--cf-surface));
+  background-color: color-mix(
+    in srgb,
+    var(--cf-accent-soft) 55%,
+    var(--cf-surface)
+  );
 }
 
 .cf-shifts__row--inactive .cf-shifts__name,
@@ -3665,7 +3675,9 @@ textarea.cf-dash-input {
 
 /* ---------- CABECERA ---------- */
 
-.cf-booking__header { margin-bottom: var(--cf-space-6); }
+.cf-booking__header {
+  margin-bottom: var(--cf-space-6);
+}
 
 .cf-booking__title {
   margin: 0;
@@ -3751,7 +3763,9 @@ textarea.cf-dash-input {
   font-size: 0.8125rem;
 }
 
-.cf-booking__facts i { color: var(--cf-accent-dark); }
+.cf-booking__facts i {
+  color: var(--cf-accent-dark);
+}
 
 /* ---------- TAREAS ---------- */
 
@@ -3774,7 +3788,9 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-sm);
 }
 
-.cf-booking__task-name { flex: 1; }
+.cf-booking__task-name {
+  flex: 1;
+}
 
 .cf-booking__task-time {
   color: var(--cf-muted);
@@ -3793,7 +3809,9 @@ textarea.cf-dash-input {
   background: none;
   color: var(--cf-muted);
   cursor: pointer;
-  transition: color var(--cf-transition), background-color var(--cf-transition);
+  transition:
+    color var(--cf-transition),
+    background-color var(--cf-transition);
 }
 
 /* ⚠️ Rojos a mano: ver .cf-dash-alert. */
@@ -3807,7 +3825,9 @@ textarea.cf-dash-input {
   gap: var(--cf-space-2);
 }
 
-.cf-booking__add .cf-dash-input { flex: 1; }
+.cf-booking__add .cf-dash-input {
+  flex: 1;
+}
 
 /* Aviso de tareas que sobran o que no caben. */
 .cf-booking__hint {
@@ -3836,7 +3856,9 @@ textarea.cf-dash-input {
   gap: var(--cf-space-4);
 }
 
-.cf-booking__hours .cf-dash-field { width: 150px; }
+.cf-booking__hours .cf-dash-field {
+  width: 150px;
+}
 
 .cf-booking__price-line {
   color: var(--cf-muted);
@@ -3856,7 +3878,9 @@ textarea.cf-dash-input {
   gap: var(--cf-space-3);
 }
 
-.cf-booking__worker { cursor: pointer; }
+.cf-booking__worker {
+  cursor: pointer;
+}
 
 /* El radio no se ve, pero sigue ahí: con él funcionan el teclado y el
    lector de pantalla. Lo que se pinta es la tarjeta de al lado. */
@@ -3876,10 +3900,14 @@ textarea.cf-dash-input {
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-md);
   background-color: var(--cf-surface);
-  transition: border-color var(--cf-transition), background-color var(--cf-transition);
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
 }
 
-.cf-booking__worker:hover .cf-booking__worker-card { border-color: var(--cf-primary); }
+.cf-booking__worker:hover .cf-booking__worker-card {
+  border-color: var(--cf-primary);
+}
 
 .cf-booking__worker input:checked + .cf-booking__worker-card {
   border-color: var(--cf-primary);
@@ -3944,8 +3972,14 @@ textarea.cf-dash-input {
   cursor: pointer;
 }
 
-.cf-booking__arrow:hover { border-color: var(--cf-primary); color: var(--cf-primary); }
-.cf-booking__arrow:disabled { opacity: 0.4; cursor: not-allowed; }
+.cf-booking__arrow:hover {
+  border-color: var(--cf-primary);
+  color: var(--cf-primary);
+}
+.cf-booking__arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .cf-booking__weekdays,
 .cf-booking__days {
@@ -3973,7 +4007,9 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-sm);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: border-color var(--cf-transition), background-color var(--cf-transition);
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
 }
 
 .cf-booking__day:hover:not(:disabled) {
@@ -3990,7 +4026,11 @@ textarea.cf-dash-input {
   cursor: not-allowed;
 }
 
-.cf-booking__day--empty { border: 0; background: none; cursor: default; }
+.cf-booking__day--empty {
+  border: 0;
+  background: none;
+  cursor: default;
+}
 
 .cf-booking__day--chosen,
 .cf-booking__day--chosen:hover {
@@ -4027,10 +4067,15 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-sm);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: border-color var(--cf-transition), background-color var(--cf-transition);
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
 }
 
-.cf-booking__slot:hover { border-color: var(--cf-primary); background-color: var(--cf-primary-soft); }
+.cf-booking__slot:hover {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+}
 
 .cf-booking__slot--chosen {
   border-color: var(--cf-primary);
@@ -4106,10 +4151,17 @@ textarea.cf-dash-input {
   margin: 0;
 }
 
-.cf-booking__row dt { color: var(--cf-muted); }
-.cf-booking__row dd { margin: 0; }
+.cf-booking__row dt {
+  color: var(--cf-muted);
+}
+.cf-booking__row dd {
+  margin: 0;
+}
 
-.cf-booking__row--days dd { display: grid; gap: 2px; }
+.cf-booking__row--days dd {
+  display: grid;
+  gap: 2px;
+}
 
 .cf-booking__total {
   display: flex;
@@ -4118,14 +4170,19 @@ textarea.cf-dash-input {
   margin-bottom: var(--cf-space-4);
 }
 
-.cf-booking__total span { color: var(--cf-muted); font-size: var(--cf-text-sm); }
+.cf-booking__total span {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
 
 .cf-booking__total strong {
   font-family: var(--cf-font-heading);
   font-size: var(--cf-text-xl);
 }
 
-.cf-booking__summary .cf-dash-btn { width: 100%; }
+.cf-booking__summary .cf-dash-btn {
+  width: 100%;
+}
 
 .cf-booking__cancel-note {
   margin: var(--cf-space-3) 0 0;
@@ -4165,9 +4222,16 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-xl);
 }
 
-.cf-booking__done-text { margin: 0 auto var(--cf-space-6); max-width: 46ch; color: var(--cf-muted); font-size: var(--cf-text-sm); }
+.cf-booking__done-text {
+  margin: 0 auto var(--cf-space-6);
+  max-width: 46ch;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
 
-.cf-booking__done .cf-booking__rows { text-align: left; }
+.cf-booking__done .cf-booking__rows {
+  text-align: left;
+}
 
 .cf-booking__done-actions {
   display: flex;
@@ -4181,21 +4245,32 @@ textarea.cf-dash-input {
    y tarjetas más compactas. */
 
 @container (max-width: 900px) {
-  .cf-booking__layout { grid-template-columns: minmax(0, 1fr); }
+  .cf-booking__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-  .cf-booking__summary { position: static; }
+  .cf-booking__summary {
+    position: static;
+  }
 }
 
 @container (max-width: 560px) {
-  .cf-booking__block { padding: var(--cf-space-4); }
+  .cf-booking__block {
+    padding: var(--cf-space-4);
+  }
 
-  .cf-booking__hours .cf-dash-field { width: 100%; }
+  .cf-booking__hours .cf-dash-field {
+    width: 100%;
+  }
 
-  .cf-booking__workers { grid-template-columns: minmax(0, 1fr); }
+  .cf-booking__workers {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-  .cf-booking__row { grid-template-columns: 76px 1fr; }
+  .cf-booking__row {
+    grid-template-columns: 76px 1fr;
+  }
 }
-
 
 /* ======================================================================
    8. PÁGINAS: TRABAJADORES, AUSENCIAS Y RESERVAS AFECTADAS
@@ -4284,7 +4359,10 @@ textarea.cf-dash-input {
 .cf-workers__head,
 .cf-workers__row {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.5fr) minmax(0, 1fr) 140px 224px;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.5fr) minmax(
+      0,
+      1fr
+    ) 140px 224px;
   align-items: center;
   gap: var(--cf-space-4);
   padding: var(--cf-space-3) var(--cf-space-6);
@@ -4311,7 +4389,9 @@ textarea.cf-dash-input {
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-md);
   background-color: var(--cf-surface);
-  transition: border-color var(--cf-transition), box-shadow var(--cf-transition);
+  transition:
+    border-color var(--cf-transition),
+    box-shadow var(--cf-transition);
 }
 
 .cf-workers__row:hover {
@@ -4837,7 +4917,9 @@ textarea.cf-dash-input {
   border-radius: var(--cf-radius-sm);
   background-color: var(--cf-surface);
   cursor: pointer;
-  transition: border-color var(--cf-transition), background-color var(--cf-transition);
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
 }
 
 .cf-worker-form__shift input {
@@ -5201,7 +5283,6 @@ textarea.cf-dash-input {
   }
 }
 
-
 /* ======================================================================
    9. PÁGINAS: MIS SERVICIOS DEL CLIENTE Y EL DETALLE DE UNA RESERVA
       (MyBookings.jsx, BookingDetail.jsx y los componentes de
@@ -5486,7 +5567,9 @@ textarea.cf-dash-input {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--cf-transition), box-shadow var(--cf-transition),
+  transition:
+    border-color var(--cf-transition),
+    box-shadow var(--cf-transition),
     transform var(--cf-transition);
 }
 
@@ -6488,7 +6571,6 @@ textarea.cf-dash-input {
   }
 }
 
-
 /* ======================================================================
    10. PÁGINA: MIS TAREAS DEL TRABAJADOR
        (MisReservasTrabajador.jsx y los componentes de
@@ -6560,7 +6642,9 @@ textarea.cf-dash-input {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--cf-transition), box-shadow var(--cf-transition);
+  transition:
+    border-color var(--cf-transition),
+    box-shadow var(--cf-transition);
 }
 
 .cf-wcard:hover {
@@ -7258,8 +7342,12 @@ textarea.cf-dash-input {
 }
 
 @keyframes cf-wshot-load {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(350%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
 }
 
 /* El motivo por el que la tarea todavía no se puede cerrar. */
@@ -7316,7 +7404,6 @@ textarea.cf-dash-input {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-
 
 /* ======================================================================
    11. INCIDENCIAS (components/dashboard/incidents)
@@ -7468,7 +7555,9 @@ textarea.cf-dash-input {
   font-family: var(--cf-font-body);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--cf-transition), background-color var(--cf-transition);
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
 }
 
 .cf-inc-type:hover {
@@ -7673,7 +7762,6 @@ textarea.cf-dash-input {
   font-size: 0.7813rem;
 }
 
-
 /* ---------- PANTALLA DEL ENCARGADO ----------
    Todo lo que ha salido mal, venga del trabajador (#18) o del cliente
    (#83). Es la pantalla que cierra el círculo: hasta la #19, se
@@ -7750,8 +7838,12 @@ textarea.cf-dash-input {
   background-image:
     linear-gradient(45deg, transparent 50%, var(--cf-muted) 50%),
     linear-gradient(135deg, var(--cf-muted) 50%, transparent 50%);
-  background-position: calc(100% - 18px) 17px, calc(100% - 13px) 17px;
-  background-size: 5px 5px, 5px 5px;
+  background-position:
+    calc(100% - 18px) 17px,
+    calc(100% - 13px) 17px;
+  background-size:
+    5px 5px,
+    5px 5px;
   background-repeat: no-repeat;
 }
 
@@ -8585,7 +8677,6 @@ textarea.cf-dash-input {
   }
 }
 
-
 .cf-resched {
   width: min(460px, 92vw);
   max-height: 88vh;
@@ -8755,8 +8846,12 @@ textarea.cf-dash-input {
   text-align: center;
 }
 
-.cf-resched__none p { margin: 0; }
-.cf-resched__none strong { color: var(--cf-text); }
+.cf-resched__none p {
+  margin: 0;
+}
+.cf-resched__none strong {
+  color: var(--cf-text);
+}
 
 .cf-resched__switch {
   padding: 0;
@@ -8816,7 +8911,9 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-sm);
 }
 
-.cf-resched__swap strong { font-weight: 600; }
+.cf-resched__swap strong {
+  font-weight: 600;
+}
 
 /* ======================================================================
    15. INICIO DEL ENCARGADO (pages/dashboard/home/ManagerHome.jsx)
@@ -8860,7 +8957,11 @@ textarea.cf-dash-input {
   height: 420px;
   top: -220px;
   right: -90px;
-  background: radial-gradient(circle, rgba(201, 123, 74, 0.26), transparent 68%);
+  background: radial-gradient(
+    circle,
+    rgba(201, 123, 74, 0.26),
+    transparent 68%
+  );
 }
 
 .cf-home__hero::after {
@@ -8868,7 +8969,11 @@ textarea.cf-dash-input {
   height: 320px;
   bottom: -200px;
   left: 18%;
-  background: radial-gradient(circle, rgba(231, 237, 223, 0.14), transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(231, 237, 223, 0.14),
+    transparent 70%
+  );
 }
 
 /* position: relative para que quede por encima de las manchas. */
@@ -9240,9 +9345,15 @@ textarea.cf-dash-input {
   background-color: var(--cf-border);
 }
 
-.cf-home__dot--doing { background-color: var(--cf-accent); }
-.cf-home__dot--done { background-color: var(--cf-primary); }
-.cf-home__dot--not_done { background-color: var(--cf-accent-dark); }
+.cf-home__dot--doing {
+  background-color: var(--cf-accent);
+}
+.cf-home__dot--done {
+  background-color: var(--cf-primary);
+}
+.cf-home__dot--not_done {
+  background-color: var(--cf-accent-dark);
+}
 
 .cf-home__hour {
   font-weight: 600;
@@ -9418,7 +9529,410 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   16. MOVIMIENTO REDUCIDO
+   16. INICIO DEL CLIENTE
+   ====================================================================== */
+
+.cf-client-home,
+.cf-client-empty {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  display: grid;
+  gap: 32px;
+}
+
+.cf-client-home__header h1,
+.cf-client-empty__hero h1 {
+  margin: 4px 0 8px;
+  color: var(--cf-text);
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.05;
+}
+
+.cf-client-home__header > p:last-child,
+.cf-client-empty__hero > p {
+  max-width: 650px;
+  margin: 0;
+  color: var(--cf-muted);
+  line-height: 1.7;
+}
+
+.cf-client-home__skel-title {
+  width: min(360px, 80%);
+  height: 48px;
+}
+
+.cf-client-home__skel-card {
+  width: 100%;
+  height: 240px;
+  border-radius: 24px;
+}
+
+/* ---------- LO SIGUIENTE ---------- */
+
+.cf-client-next {
+  display: grid;
+  gap: 20px;
+  padding: clamp(24px, 4vw, 42px);
+  border: 1px solid var(--cf-border);
+  border-radius: 28px;
+  background-color: var(--cf-primary-soft);
+  overflow: hidden;
+}
+
+.cf-client-next__intro h2,
+.cf-client-pending__header h2,
+.cf-client-rebook__header h2,
+.cf-client-empty__heading h2 {
+  margin: 4px 0 8px;
+  color: var(--cf-text);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.cf-client-next__intro > p:last-child {
+  margin: 0;
+  color: var(--cf-muted);
+}
+
+.cf-client-next__card {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(240px, 2fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid var(--cf-border);
+  border-radius: 20px;
+  background-color: var(--cf-surface);
+}
+
+.cf-client-next__date {
+  display: grid;
+  gap: 5px;
+  padding-right: 24px;
+  border-right: 1px solid var(--cf-border);
+}
+
+.cf-client-next__date strong {
+  color: var(--cf-primary);
+  font-size: 1.25rem;
+}
+
+.cf-client-next__date span {
+  color: var(--cf-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-client-next__details h3 {
+  margin: 0 0 10px;
+  color: var(--cf-text);
+  font-size: 1.2rem;
+}
+
+.cf-client-next__details p {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 5px 0;
+  color: var(--cf-muted);
+}
+
+.cf-client-next__details i {
+  width: 16px;
+  color: var(--cf-primary);
+  text-align: center;
+}
+
+/* ---------- LO QUE TE TOCA ---------- */
+
+.cf-client-pending {
+  display: grid;
+  gap: 18px;
+}
+
+.cf-client-pending__list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-client-action {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid var(--cf-border);
+  border-radius: 18px;
+  background-color: var(--cf-surface);
+}
+
+.cf-client-action--urgent {
+  border-color: var(--cf-accent);
+  background-color: var(--cf-accent-soft);
+}
+
+.cf-client-action__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-client-action--urgent .cf-client-action__icon {
+  background-color: var(--cf-surface);
+  color: var(--cf-accent-dark);
+}
+
+.cf-client-action__content h3 {
+  margin: 0 0 5px;
+  color: var(--cf-text);
+  font-size: 1rem;
+}
+
+.cf-client-action__content p {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ---------- VOLVER A CONTRATAR ---------- */
+
+.cf-client-rebook {
+  display: grid;
+  gap: 20px;
+}
+
+.cf-client-rebook__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.cf-client-rebook__catalog {
+  color: var(--cf-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.cf-client-rebook__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.cf-client-rebook__card {
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 20px;
+  background-color: var(--cf-surface);
+}
+
+.cf-client-rebook__card > img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.cf-client-rebook__body {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+}
+
+.cf-client-rebook__times {
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cf-client-rebook__body h3 {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 1.2rem;
+}
+
+.cf-client-rebook__price {
+  margin: 0 0 6px;
+  color: var(--cf-muted);
+}
+
+/* ---------- CLIENTE SIN RESERVAS ---------- */
+
+.cf-client-empty__hero {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  padding: clamp(32px, 6vw, 72px);
+  border-radius: 28px;
+  background: linear-gradient(
+    115deg,
+    var(--cf-primary-soft),
+    var(--cf-surface)
+  );
+}
+
+.cf-client-empty__hero .cf-dash-btn {
+  margin-top: 8px;
+}
+
+.cf-client-empty__services {
+  display: grid;
+  gap: 22px;
+}
+
+.cf-client-empty__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.cf-client-empty__card {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) 1fr;
+  min-height: 240px;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 20px;
+  background-color: var(--cf-surface);
+}
+
+.cf-client-empty__card > img {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  object-fit: cover;
+}
+
+.cf-client-empty__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 24px;
+}
+
+.cf-client-empty__body h3 {
+  margin: 0 0 8px;
+  color: var(--cf-text);
+  font-size: 1.25rem;
+}
+
+.cf-client-empty__body p {
+  margin: 0 0 14px;
+  color: var(--cf-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.cf-client-empty__body span {
+  margin-bottom: 18px;
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+.cf-client-empty__body a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  color: var(--cf-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .cf-client-next__card {
+    grid-template-columns: 1fr 2fr;
+  }
+
+  .cf-client-next__card > .cf-dash-btn {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .cf-client-rebook__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cf-client-empty__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .cf-client-home,
+  .cf-client-empty {
+    gap: 24px;
+  }
+
+  .cf-client-next {
+    padding: 22px;
+    border-radius: 20px;
+  }
+
+  .cf-client-next__card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .cf-client-next__date {
+    padding: 0 0 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--cf-border);
+  }
+
+  .cf-client-next__card > .cf-dash-btn {
+    grid-column: auto;
+    width: 100%;
+  }
+
+  .cf-client-action {
+    grid-template-columns: auto 1fr;
+  }
+
+  .cf-client-action > .cf-dash-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .cf-client-rebook__header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .cf-client-rebook__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-client-empty__hero {
+    padding: 28px 22px;
+    border-radius: 20px;
+  }
+
+  .cf-client-empty__card {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-client-empty__card > img {
+    height: 190px;
+    min-height: 0;
+  }
+}
+
+/* ======================================================================
+   17. MOVIMIENTO REDUCIDO
    ====================================================================== */
 
 /* Sin animaciones ni transiciones para quien lo pide en su sistema. */
