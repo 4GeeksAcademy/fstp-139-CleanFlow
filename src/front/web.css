@@ -782,8 +782,15 @@ main > section:nth-of-type(even) {
 }
 
 /* ======================================================================
-   OPINIONES DE CLIENTES
-   ====================================================================== */
+   OPINIONES DE CLIENTES (home/ReviewsSection.jsx)
+   ======================================================================
+
+   Las notas reales que dejan los clientes al terminar un servicio, con
+   la media que forman. De cada uno salen su nombre de pila con la
+   inicial del apellido, su cara si la tiene, el servicio y cuándo fue.
+
+   Las fotos que sube al valorar no salen nunca: son el interior de su
+   casa y las hizo para nosotros. */
 
 .cf-reviews {
   padding: var(--cf-space-16) 0;
