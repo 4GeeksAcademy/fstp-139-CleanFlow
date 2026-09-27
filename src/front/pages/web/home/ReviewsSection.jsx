@@ -17,6 +17,70 @@ import { useEffect, useState } from "react";
 import { getReviewsSummary } from "../../../services/reviewService";
 import { Stars } from "../../../components/dashboard/bookings/Stars";
 
+/**
+ * "hace 2 semanas".
+ *
+ * En relativo y nunca el día exacto: eso diría qué tarde concreta hubo
+ * alguien en casa de un cliente. Además envejece mejor, que es de lo que
+ * se trata en una sección de opiniones.
+ */
+const timeAgo = (iso) => {
+    if (!iso) return "";
+
+    const days = Math.floor((Date.now() - Date.parse(iso)) / 86400000);
+
+    if (days < 1) return "hoy";
+    if (days === 1) return "ayer";
+    if (days < 7) return `hace ${days} días`;
+    if (days < 14) return "hace una semana";
+    if (days < 31) return `hace ${Math.floor(days / 7)} semanas`;
+    if (days < 62) return "hace un mes";
+    if (days < 365) return `hace ${Math.floor(days / 30)} meses`;
+
+    return "hace más de un año";
+};
+
+/** "Pablo V." -> "PV", para cuando el cliente no tiene foto. */
+const initialsOf = (name) => (name || "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0].toUpperCase())
+    .join("");
+
+/**
+ * Su foto de perfil, o sus iniciales.
+ *
+ * La cara la eligió él y por eso puede salir; si no tiene, van sus
+ * iniciales. Nunca una foto de archivo: poner al lado de su nombre una
+ * cara que no es la suya sería mentir.
+ *
+ * El onError cubre una URL que ya no responde: antes de un icono roto,
+ * las iniciales.
+ */
+const Face = ({ review }) => {
+    const [failed, setFailed] = useState(false);
+
+    if (!review.client_avatar_url || failed) {
+        return (
+            <span className="cf-review-card__face" aria-hidden="true">
+                {initialsOf(review.client_name)}
+            </span>
+        );
+    }
+
+    return (
+        <span className="cf-review-card__face">
+            <img
+                src={review.client_avatar_url}
+                alt={`Foto de ${review.client_name}`}
+                loading="lazy"
+                onError={() => setFailed(true)}
+            />
+        </span>
+    );
+};
+
 export const ReviewsSection = () => {
     // Los tres juntos: vienen en la misma respuesta y se pintan a la vez.
     const [summary, setSummary] = useState({ average: null, total: 0, reviews: [] });
@@ -89,46 +153,27 @@ export const ReviewsSection = () => {
 
                 <div className="cf-reviews__grid">
                     {reviews.map((review) => (
-                        <article
-                            className="cf-review-card"
-                            key={review.review_id}
-                        >
-                            <span
-                                className="cf-review-card__quote"
-                                aria-hidden="true"
-                            >
-                                “
-                            </span>
-
-                            <div
-                                className="cf-review-card__stars"
-                                aria-hidden="true"
-                            >
-                                {Array.from({ length: 5 }, (_, index) => (
-                                    <span
-                                        key={index}
-                                        className={
-                                            index < review.rating
-                                                ? "cf-review-card__star cf-review-card__star--active"
-                                                : "cf-review-card__star"
-                                        }
-                                    >
-                                        ★
-                                    </span>
-                                ))}
+                        <article className="cf-review-card" key={review.review_id}>
+                            <div className="cf-review-card__stars">
+                                <Stars value={review.rating} size={15} />
                             </div>
-
-                            <span className="sr-only">
-                                {review.rating} de 5 estrellas
-                            </span>
 
                             <p className="cf-review-card__comment">
                                 {review.comment}
                             </p>
 
-                            <p className="cf-review-card__client">
-                                {review.client_name}
-                            </p>
+                            <div className="cf-review-card__who">
+                                <Face review={review} />
+
+                                <div>
+                                    <p className="cf-review-card__name">
+                                        {review.client_name}
+                                    </p>
+                                    <p className="cf-review-card__meta">
+                                        {review.service_name} · {timeAgo(review.created_at)}
+                                    </p>
+                                </div>
+                            </div>
                         </article>
                     ))}
                 </div>
