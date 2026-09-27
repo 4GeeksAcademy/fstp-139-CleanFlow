@@ -73,17 +73,25 @@ export const ProtectedRoutes = () => {
     // LA DECISIÓN
     // ------------------------------------------------------------------
 
-    // Sin token, a la puerta que le toca (WEB-10). El rol sale de la
-    // sesión que acaba de cerrarse (lastRole), porque para cuando se llega
-    // aquí el usuario ya está borrado; quien nunca entró no tiene ninguno
-    // de los dos y acaba en la de clientes, que es la pública.
+    // Sin token, a la puerta que le toca (WEB-10).
+    //
+    // lastRole solo cuenta si la sesión CADUCÓ: entonces el usuario estaba
+    // trabajando y hay que devolverlo a la suya. Al salir a propósito, el
+    // sidebar ya navega él mismo antes de limpiar la sesión.
+    //
+    // Fuera de ese caso se manda a la de clientes, que es la pública y la
+    // única que ofrece crear una cuenta. Si no, "Reservar ahora" acababa en
+    // la puerta del equipo cuando en esa pestaña había entrado antes un
+    // encargado, y al visitante se le pedía una cuenta que no puede crear.
     //
     // `replace`: evita el bucle al pulsar "Atrás".
     // `state`: la ruta previa y si la sesión caducó, sin enseñarlo en la URL.
     if (!store.token) {
+        const rolePrevio = store.sessionExpired ? store.lastRole : null
+
         return (
             <Navigate
-                to={loginPathForRole(store.user?.role || store.lastRole)}
+                to={loginPathForRole(store.user?.role || rolePrevio)}
                 replace
                 state={{ from: location, expired: store.sessionExpired }}
             />

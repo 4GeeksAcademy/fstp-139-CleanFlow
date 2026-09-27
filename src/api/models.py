@@ -31,6 +31,11 @@ MADRID = ZoneInfo("Europe/Madrid")
 # el plazo; quien manda es este.
 CONFIRM_DAYS = 3
 
+# Horas de antelación con las que el cliente puede cancelar su reserva o
+# cambiarle la fecha (#17). Pasado el plazo solo puede el encargado, y a
+# él se le dice a quién acudir.
+CHANGE_HOURS = 24
+
 
 # ==================================================================
 # ENUMS
@@ -742,6 +747,16 @@ class Booking(db.Model):
     client_confirmed_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True)
 
+    # Cuántas veces el cliente le ha cambiado la fecha (#17). No hay tope
+    # de cambios: uno se saltaría cancelando y reservando otra vez, y lo
+    # que protege la agenda es el plazo de 24 h. Se cuenta para poder
+    # mirar los datos si algún día hace falta decidir.
+    rescheduled_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="0",
+    )
+
     # ---- RELACIONES ----
     # No añaden columnas: le dicen a SQLAlchemy cómo cruzar las claves.
     # Así se lee booking.service en vez de buscarlo.
@@ -791,6 +806,32 @@ class Booking(db.Model):
         """
         seconds = sum((day.ends_at - day.starts_at).total_seconds() for day in self.days)
         return int(seconds // 3600)
+
+    @property
+    def change_deadline(self):
+        """Hasta cuándo puede el cliente cancelarla o cambiarle la fecha.
+
+        Veinticuatro horas antes de que empiece. Pasado el plazo solo
+        puede el encargado, así que el cliente ve a quién acudir en lugar
+        de los botones (#17).
+
+        Se cuenta con timestamps y no restando fechas: las dos son de
+        Madrid sin zona, y en el cambio de horario de octubre una resta
+        directa se comería una hora del plazo.
+        """
+        first_start = min(
+            (day.starts_at for day in self.days),
+            default=self.scheduled_start,
+        )
+
+        if first_start is None:
+            return None
+
+        madrid_start = first_start.replace(tzinfo=MADRID)
+
+        return datetime.fromtimestamp(
+            madrid_start.timestamp() - CHANGE_HOURS * 3600, tz=MADRID
+        )
 
     @property
     def worker_name(self):
@@ -923,6 +964,12 @@ class Booking(db.Model):
                 if with_review
                 else {}
             ),
+            "change_deadline": (
+                self.change_deadline.isoformat()
+                if self.change_deadline
+                else None
+            ),
+            "rescheduled_count": self.rescheduled_count,
             # Los datos del cliente, para quien va a su casa. El nombre
             # siempre, con la inicial del apellido como el del trabajador.
             "client_name": (

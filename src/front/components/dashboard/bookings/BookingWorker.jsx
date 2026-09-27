@@ -14,7 +14,7 @@ import { initialsOf } from "./bookingFormat";
 
 export const BookingWorker = ({ booking }) => (
     <section className="cf-bookblock">
-        <h2 className="cf-bookblock__title">Quién lo hizo</h2>
+        <h2 className="cf-bookblock__title">Información del trabajador</h2>
 
         <div className="cf-bookworker">
             {booking.worker_avatar_url ? (
