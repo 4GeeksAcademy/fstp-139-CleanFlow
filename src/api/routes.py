@@ -3711,6 +3711,22 @@ def create_review(booking_id):
 PUBLIC_REVIEWS_LIMIT = 6
 
 
+def global_rating():
+    """La media de CleanFlow y cuántas valoraciones la forman.
+
+    La comparten la web (#41) y el panel del encargado (#24), así que la
+    consulta vive aquí y no duplicada en los dos.
+
+    Sin valoraciones devuelve None y no un cero: "0 sobre 5" no es que
+    sea malo, es que todavía no hay ninguna.
+    """
+    average, total = db.session.execute(
+        db.select(func.avg(Review.rating), func.count(Review.review_id))
+    ).one()
+
+    return (round(float(average), 1) if total else None), total
+
+
 @api.route("/reviews/public", methods=["GET"])
 def public_reviews():
     """La media de CleanFlow y las últimas opiniones, para la web.
@@ -3720,13 +3736,7 @@ def public_reviews():
     lleva client_id y las fotos: ni el id de un cliente ni el interior de
     su casa tienen por qué salir de la aplicación.
     """
-    average, total = db.session.execute(
-        db.select(func.avg(Review.rating), func.count(Review.review_id))
-    ).one()
-
-    # Sin valoraciones se devuelve null y no un cero: la web no puede
-    # enseñar "0 sobre 5" cuando lo que pasa es que aún no hay ninguna.
-    media = round(float(average), 1) if total else None
+    media, total = global_rating()
 
     # Solo las que traen comentario: una cita vacía no se puede enseñar.
     reviews = db.session.execute(
@@ -4164,7 +4174,12 @@ def stats():
 
     affected = sum(1 for booking in candidates if affected_reasons(booking, now))
 
+    # La nota de CleanFlow, con la misma consulta que la web: una media
+    # que dependiera de dónde se mira no sería una media.
+    rating, ratings_total = global_rating()
+
     return jsonify({
+        "rating": {"average": rating, "total": ratings_total},
         "bookings": {
             "active": pending + confirmed + in_progress,
             "pending": pending,
@@ -4196,9 +4211,6 @@ def stats():
                 .where(ContactMessage.status == ApplicationStatus.NEW)
             ),
         },
-        # TODO (#96): "rating" con la media global de CleanFlow. Sale de
-        # la misma consulta que public_reviews(), que todavía está en el
-        # PR de valoraciones y no ha llegado a develop.
     }), 200
 
 

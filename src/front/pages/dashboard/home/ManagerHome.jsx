@@ -11,7 +11,7 @@
  * su propio error: con uno compartido, un refresco fallido borraría la
  * pantalla entera.
  *
- * Estilos: dashboard.css, sección 14 (cf-home).
+ * Estilos: dashboard.css, sección 15 (cf-home).
  */
 
 import "../../../dashboard.css";
@@ -23,6 +23,7 @@ import { BookingTimeline } from "../../../components/dashboard/bookings/BookingT
 import { BookingPhotos } from "../../../components/dashboard/bookings/BookingPhotos";
 import { BookingIncidents } from "../../../components/dashboard/bookings/BookingIncidents";
 import { BookingZoom } from "../../../components/dashboard/bookings/BookingZoom";
+import { Stars } from "../../../components/dashboard/bookings/Stars";
 import { cancelCompany } from "../../../services/absenceService";
 
 /**
@@ -381,8 +382,24 @@ export const ManagerHome = () => {
                     )}
                 </section>
 
-                {/* TODO (#96): la nota global de CleanFlow, cuando el PR de
-                    valoraciones llegue a develop. El hueco es este. */}
+                <section className="cf-home__kpi">
+                    <p className="cf-home__kpi-label">La nota de CleanFlow</p>
+                    {stats.rating.total > 0 ? (
+                        <>
+                            <span className="cf-home__num">
+                                {/* La coma es lo que se escribe en español. */}
+                                {String(stats.rating.average).replace(".", ",")}
+                            </span>
+                            <Stars value={stats.rating.average} size={16} />
+                            <p className="cf-home__note">
+                                Sobre {stats.rating.total}{" "}
+                                {stats.rating.total === 1 ? "valoración" : "valoraciones"}
+                            </p>
+                        </>
+                    ) : (
+                        <p className="cf-home__note">Todavía no hay ninguna valoración.</p>
+                    )}
+                </section>
 
             </div>
 
