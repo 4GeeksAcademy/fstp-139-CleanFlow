@@ -8469,6 +8469,177 @@ textarea.cf-dash-input {
   }
 }
 
+/* ---------- CÓMO VA EL DÍA ----------
+   El seguimiento: qué hay hoy, quién ha empezado y qué se ha torcido.
+   Es lo único de esta pantalla que cambia solo, cada minuto. */
+
+.cf-home__day {
+  padding: 24px 26px;
+  border-radius: var(--cf-radius-lg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-home__dayhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-home__t {
+  margin: 0;
+  font-family: var(--cf-font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.cf-home__picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+.cf-home__chip {
+  padding: 7px 15px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cf-home__chip:hover {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+}
+
+/* aria-pressed y no una clase: el estado ya se lo dice al lector de
+   pantalla, así que pintarlo desde ahí evita que se descuadren. */
+.cf-home__chip[aria-pressed="true"] {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+/* El calendario nativo: no se puede maquetar por dentro, así que se le
+   da la misma forma de pastilla por fuera. */
+.cf-home__pick-date {
+  padding: 6px 12px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  font-family: var(--cf-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cf-home__sum {
+  margin: 0 0 var(--cf-space-4);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-home__sum b {
+  color: var(--cf-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- CADA SERVICIO ---------- */
+
+.cf-home__svc {
+  display: grid;
+  grid-template-columns: 8px 104px minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cf-space-3);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--cf-border);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-home__svc:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.cf-home__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--cf-border);
+}
+
+.cf-home__dot--doing { background-color: var(--cf-accent); }
+.cf-home__dot--done { background-color: var(--cf-primary); }
+.cf-home__dot--not_done { background-color: var(--cf-accent-dark); }
+
+.cf-home__hour {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-home__who {
+  color: var(--cf-muted);
+}
+
+.cf-home__who b {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+/* El estado arriba y el botón debajo, alineados a la derecha. En
+   columna y no en fila: en la última columna no hay sitio para los dos
+   seguidos sin estrujar el resto. */
+.cf-home__end {
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cf-home__warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: var(--cf-accent-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cf-home__empty {
+  margin: 0;
+  padding: var(--cf-space-8) 0;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  text-align: center;
+}
+
+/* En estrecho la fila se parte: el punto y la hora arriba, y el resto
+   debajo alineado con el servicio. */
+@media (max-width: 880px) {
+  .cf-home__svc {
+    grid-template-columns: 8px minmax(0, 1fr);
+  }
+
+  .cf-home__who,
+  .cf-home__end {
+    grid-column: 2;
+    justify-items: start;
+    text-align: left;
+  }
+}
+
 /* ======================================================================
    15. MOVIMIENTO REDUCIDO
    ====================================================================== */

@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import useGlobalReducer from "../../../hooks/useGlobalReducer";
 import { getStats, getDayBookings } from "../../../services/statsService";
+import { cancelCompany } from "../../../services/absenceService";
 
 /**
  * Hoy en Madrid, como "2026-09-30".
@@ -55,6 +56,55 @@ const EUROS = new Intl.NumberFormat("es-ES", {
 // los tres reparten el total sin que importe cuánto mide.
 const share = (part, total) => `${total ? (part / total) * 100 : 0}%`;
 
+/**
+ * Suma días a un "2026-09-30".
+ *
+ * Con los números sueltos y no con Date.parse: una cadena de solo fecha
+ * se interpreta como UTC, y en Madrid eso adelanta el día.
+ */
+const shiftDay = (iso, days) => {
+    const [year, month, day] = iso.split("-").map(Number);
+    const moved = new Date(year, month - 1, day + days);
+
+    return [
+        moved.getFullYear(),
+        String(moved.getMonth() + 1).padStart(2, "0"),
+        String(moved.getDate()).padStart(2, "0"),
+    ].join("-");
+};
+
+// "08:00". Se recorta la cadena en vez de pasarla por Date: las horas
+// llegan en hora de Madrid y sin zona, y un Date las movería al huso del
+// navegador.
+const hourOf = (iso) => iso.slice(11, 16);
+
+/** "martes 30 de septiembre", para el título del día que se está viendo. */
+const longDay = (iso) => {
+    const [year, month, day] = iso.split("-").map(Number);
+
+    return new Intl.DateTimeFormat("es-ES", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+    }).format(new Date(year, month - 1, day));
+};
+
+// Los cuatro estados de un día de servicio, en el orden en que pasan.
+// El texto va aquí y no en el JSX para que se lean juntos: `label` es
+// el de la fila, y `count` el del resumen, en singular y en plural.
+const STATES = {
+    todo: { label: "Por empezar", count: ["por empezar", "por empezar"] },
+    doing: { label: "En curso", count: ["en curso", "en curso"] },
+    done: { label: "Finalizado", count: ["finalizado", "finalizados"] },
+    not_done: { label: "No realizado", count: ["no realizado", "no realizados"] },
+};
+
+/** "1 finalizado · 2 en curso", saltándose los que están a cero. */
+const dayLine = (summary) => Object.entries(STATES)
+    .filter(([key]) => summary[key] > 0)
+    .map(([key, state]) => `${summary[key]} ${state.count[summary[key] === 1 ? 0 : 1]}`)
+    .join(" · ");
+
 /** La frase del hero: el titular, no los números. Esos van en el bento. */
 const summaryLine = ({ bookings }) => {
     if (bookings.active === 0) return "No hay ninguna reserva viva ahora mismo.";
@@ -71,8 +121,16 @@ export const ManagerHome = () => {
     const [day, setDay] = useState(null);
     const [date, setDate] = useState(madridToday);
 
+    // Hoy, para saber si lo elegido es ayer, hoy o mañana.
+    const today = madridToday();
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    // La reserva que se está cancelando, con su motivo. null = cerrado.
+    const [dropping, setDropping] = useState(null);
+    const [reason, setReason] = useState("");
+    const [busy, setBusy] = useState(false);
 
     // Las métricas, una sola vez. No cambian de un minuto para otro y
     // son la consulta cara de las dos.
@@ -106,6 +164,27 @@ export const ManagerHome = () => {
     }, [date, store.token]);
 
     useEffect(() => { loadDay(); }, [loadDay]);
+
+    /** Cancela como empresa. El cliente lo verá en Mis servicios. */
+    const confirmDrop = async () => {
+        setBusy(true);
+
+        const result = await cancelCompany(dropping.booking_id, reason.trim(), store.token);
+
+        setBusy(false);
+
+        if (!result.ok) {
+            setError(result.data.message);
+            return;
+        }
+
+        setDropping(null);
+        setReason("");
+
+        // El día se vuelve a pedir: la reserva cancelada desaparece de
+        // la lista y el resumen baja solo.
+        loadDay();
+    };
 
     // ---------- LO QUE SE PINTA ----------
 
@@ -232,16 +311,159 @@ export const ManagerHome = () => {
 
             </div>
 
-            {/* PROVISIONAL (pasos 6 y 7): el selector de verdad, con ayer,
-                hoy, mañana y el calendario, llega en el paso 7. */}
-            <p>
-                <button type="button" onClick={() => setDate(madridToday())}>Hoy</button>{" "}
-                <button type="button" onClick={() => setDate("2026-09-30")}>30 sep</button>{" "}
-                <button type="button" onClick={() => setDate("2026-10-05")}>5 oct</button>
-            </p>
-            <pre style={{ fontSize: "0.75rem", overflow: "auto" }}>
-                {JSON.stringify(day, null, 2)}
-            </pre>
+            <section className="cf-home__day">
+
+                <div className="cf-home__dayhead">
+                    <h2 className="cf-home__t">Cómo va el {longDay(date)}</h2>
+
+                    <div className="cf-home__picks">
+                        <button
+                            type="button"
+                            className="cf-home__chip"
+                            aria-pressed={date === shiftDay(today, -1)}
+                            onClick={() => setDate(shiftDay(today, -1))}
+                        >
+                            Ayer
+                        </button>
+                        <button
+                            type="button"
+                            className="cf-home__chip"
+                            aria-pressed={date === today}
+                            onClick={() => setDate(today)}
+                        >
+                            Hoy
+                        </button>
+                        <button
+                            type="button"
+                            className="cf-home__chip"
+                            aria-pressed={date === shiftDay(today, 1)}
+                            onClick={() => setDate(shiftDay(today, 1))}
+                        >
+                            Mañana
+                        </button>
+
+                        <input
+                            type="date"
+                            className="cf-home__pick-date"
+                            aria-label="Elegir otro día"
+                            value={date}
+                            onChange={(event) => event.target.value && setDate(event.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {day?.bookings.length > 0 ? (
+                    <>
+                        <p className="cf-home__sum">{dayLine(day.summary)}</p>
+
+                        {day.bookings.map((service) => (
+                            <div className="cf-home__svc" key={service.booking_day_id}>
+                                <span className={`cf-home__dot cf-home__dot--${service.state}`} />
+
+                                <span className="cf-home__hour">
+                                    {hourOf(service.starts_at)} – {hourOf(service.ends_at)}
+                                </span>
+
+                                <span>
+                                    {service.service_name}
+                                    {service.open_incidents > 0 && (
+                                        <span className="cf-home__warn">
+                                            <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                                            {service.open_incidents === 1
+                                                ? "Una incidencia abierta"
+                                                : `${service.open_incidents} incidencias abiertas`}
+                                        </span>
+                                    )}
+                                </span>
+
+                                <span className="cf-home__who">
+                                    <b>{service.worker_name}</b> · {service.client_name}
+                                </span>
+
+                                {/* El estado siempre, y debajo el botón si aún
+                                    se puede parar: el punto de color solo no
+                                    dice lo suficiente. */}
+                                <span className="cf-home__end">
+                                    <span>
+                                        {STATES[service.state].label}
+                                        {service.tasks.total > 0
+                                            && ` · ${service.tasks.done} de ${service.tasks.total} tareas`}
+                                    </span>
+
+                                    {service.can_cancel && (
+                                        <button
+                                            type="button"
+                                            className="cf-dash-btn cf-dash-btn--sm cf-dash-btn--ghost"
+                                            onClick={() => { setReason(""); setDropping(service); }}
+                                        >
+                                            Cancelar
+                                        </button>
+                                    )}
+                                </span>
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <p className="cf-home__empty">Ese día no hay ningún servicio.</p>
+                )}
+            </section>
+
+            {/* Cancelar como empresa: el cliente lo verá en Mis servicios,
+                así que el motivo importa. */}
+            {dropping && (
+                <dialog className="cf-dash-modal" open>
+                    <div className="cf-dash-modal__body">
+                        <span className="cf-dash-modal__icon">
+                            <i className="fa-solid fa-ban" aria-hidden="true" />
+                        </span>
+
+                        <h2 className="cf-dash-modal__title">
+                            ¿Cancelar la reserva n.º {dropping.booking_id}?
+                        </h2>
+
+                        <p className="cf-dash-modal__text">
+                            {dropping.service_name} de {dropping.client_name}, el{" "}
+                            {longDay(date)} a las {hourOf(dropping.starts_at)}. Se liberará
+                            el horario y no se puede deshacer.
+                        </p>
+
+                        <div className="cf-inc-field">
+                            <label className="cf-inc-field__label" htmlFor="drop-reason">
+                                Motivo (lo verá el cliente)
+                            </label>
+                            <textarea
+                                id="drop-reason"
+                                className="cf-dash-input"
+                                rows={3}
+                                value={reason}
+                                onChange={(event) => setReason(event.target.value)}
+                                disabled={busy}
+                            ></textarea>
+                        </div>
+
+                        <div className="cf-dash-modal__actions">
+                            <button
+                                type="button"
+                                className="cf-dash-btn cf-dash-btn--ghost"
+                                onClick={() => setDropping(null)}
+                                disabled={busy}
+                                autoFocus
+                            >
+                                Volver
+                            </button>
+
+                            <button
+                                type="button"
+                                className="cf-dash-btn cf-dash-btn--danger"
+                                onClick={confirmDrop}
+                                disabled={busy}
+                            >
+                                {busy ? "Cancelando…" : "Confirmar cancelación"}
+                            </button>
+                        </div>
+                    </div>
+                </dialog>
+            )}
 
         </div>
     );
