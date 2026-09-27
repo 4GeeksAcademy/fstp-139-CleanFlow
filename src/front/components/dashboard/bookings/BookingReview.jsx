@@ -10,6 +10,10 @@
  * No se ve mientras el servicio esté en plazo o en revisión: pedir nota
  * con algo sin resolver es pedirla enfadado.
  *
+ * Antes de enviar se le dice que su comentario puede acabar en la web
+ * pública (#41) y exactamente qué se enseña de él. Las fotos que sube
+ * aquí no salen nunca: son el interior de su casa.
+ *
  * Solo pinta y avisa; quien llama a la API es la página.
  *
  * Estilos: dashboard.css, sección 13 (cf-rate).
@@ -215,6 +219,19 @@ export const BookingReview = ({ booking, saving, error, onSubmit }) => {
                     hidden
                     onChange={handlePick}
                 />
+
+                {/* Antes del botón, que es mientras todavía puede decidir.
+                    Y con los tres campos por su nombre: "podremos usar tus
+                    datos" no es avisar, es taparse. */}
+                <p className="cf-rate__public">
+                    <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    <span>
+                        <strong>Tu comentario puede salir en nuestra web.</strong> Con
+                        tu nombre de pila, la inicial del apellido y tu foto de perfil
+                        si la tienes. Las fotos que subas aquí no salen nunca: son
+                        solo para nosotros.
+                    </span>
+                </p>
 
                 {error && <p className="cf-dash-alert" role="alert">{error}</p>}
 

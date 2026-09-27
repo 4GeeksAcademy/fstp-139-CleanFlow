@@ -8375,6 +8375,32 @@ textarea.cf-dash-input {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- QUE PUEDE PUBLICARSE ----------
+   En verde suave y no en terracota: es información, no una advertencia.
+   Va antes del botón porque después ya no sirve de nada. */
+
+.cf-rate__public {
+  display: flex;
+  gap: var(--cf-space-3);
+  margin: var(--cf-space-4) 0 0;
+  padding: 13px 15px;
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-text);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.cf-rate__public i {
+  flex: none;
+  margin-top: 3px;
+  color: var(--cf-primary);
+}
+
+.cf-rate__public strong {
+  font-weight: 600;
+}
+
 .cf-rate__foot {
   display: flex;
   flex-wrap: wrap;
