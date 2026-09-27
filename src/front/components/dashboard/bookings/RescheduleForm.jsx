@@ -51,7 +51,10 @@ export const RescheduleForm = ({ booking, open, saving, error, onSubmit, onClose
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState("");
 
-    const workerId = booking?.worker?.worker_id ?? null;
+    // worker_id y no worker.worker_id: el listado manda el id suelto, y
+    // el objeto `worker` solo viaja al contratar. Leyéndolo de ahí salía
+    // siempre null, y entonces nunca se conservaba a quien ya venía.
+    const workerId = booking?.worker_id ?? null;
     const workerName = booking?.worker_name || "quien vino";
     const hours = booking?.hours ?? 0;
 
@@ -117,16 +120,26 @@ export const RescheduleForm = ({ booking, open, saving, error, onSubmit, onClose
         today.getFullYear(), today.getMonth(), today.getDate() + HORIZON_DAYS,
     ));
 
-    // Los tramos que ocuparía la hora elegida: con varios días, el resto
-    // se marcan en el calendario.
     const chosenSlot = slots[day]?.find((slot) => slot.start === start);
-    const bookedDays = chosenSlot ? chosenSlot.options[0].days : [];
 
     // Quién iría. Con el trabajador propio la respuesta es él; buscando
     // con todo el equipo, el backend reparte, así que solo se puede
     // asegurar cuando queda una única opción.
     const free = chosenSlot ? chosenSlot.options.map((option) => option.worker_id) : [];
     const keepsWorker = workerId !== null && free.includes(workerId);
+
+    // La opción de quien va a ir de verdad, no la primera de la lista:
+    // en una reserva de varios días cada trabajador ocupa los suyos
+    // según sus turnos, y el calendario marcaría los de otra persona.
+    const chosenOption = chosenSlot
+        ? (keepsWorker
+            ? chosenSlot.options.find((option) => option.worker_id === workerId)
+            : chosenSlot.options[0])
+        : null;
+
+    // Los tramos que ocuparía la hora elegida: con varios días, el resto
+    // se marcan en el calendario.
+    const bookedDays = chosenOption ? chosenOption.days : [];
 
     const ready = Boolean(day && start) && !saving;
 

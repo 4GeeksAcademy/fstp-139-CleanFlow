@@ -2411,7 +2411,6 @@ def cancel_booking(booking_id):
             "message": "El estado actual no permite cancelar la reserva."
         }), 409
 
-    now = madrid_now()
     deadline = booking.change_deadline
 
     if deadline is None:
@@ -2419,8 +2418,11 @@ def cancel_booking(booking_id):
             "message": "La reserva no tiene una fecha de inicio válida."
         }), 409
 
-    # El plazo lo calcula el modelo: aquí solo se mira si ya pasó.
-    fuera_de_plazo = now.replace(tzinfo=MADRID) > deadline
+    # El plazo lo calcula el modelo: aquí solo se mira si ya pasó. Con
+    # datetime.now(MADRID) y no poniéndole la zona a una hora sin ella,
+    # que perdería el `fold` de la madrugada en que se atrasan los
+    # relojes: ese día las 02:30 existen dos veces.
+    fuera_de_plazo = datetime.now(MADRID) > deadline
 
     if booking.started_at is not None:
         return jsonify({
@@ -2534,12 +2536,15 @@ def reschedule_booking(booking_id):
             "message": "No se puede mover una reserva que ya ha comenzado."
         }), 409
 
-    now = madrid_now()
     deadline = booking.change_deadline
 
     # El plazo es el mismo que el de cancelar, y lo calcula el modelo.
+    # datetime.now(MADRID) y no madrid_now().replace(tzinfo=...): ponerle
+    # la zona a una hora sin zona pierde el `fold`, y en la madrugada en
+    # que se atrasan los relojes las 02:30 existen dos veces. Así se
+    # compara el instante real contra el instante real.
     if user.role == "client" and (deadline is None
-                                  or now.replace(tzinfo=MADRID) > deadline):
+                                  or datetime.now(MADRID) > deadline):
         return jsonify({
             "message": "Para cambiar la fecha, contacta con CleanFlow"
         }), 409
