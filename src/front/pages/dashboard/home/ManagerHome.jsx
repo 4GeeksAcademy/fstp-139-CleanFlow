@@ -52,6 +52,10 @@ const EUROS = new Intl.NumberFormat("es-ES", {
     maximumFractionDigits: 0,
 });
 
+// Cada cuánto se vuelve a pedir el día. Un minuto: lo que tarda en
+// notarse que alguien ha empezado o cerrado un servicio.
+const REFRESH_MS = 60000;
+
 // El ancho de cada trozo de la barra. En porcentaje y no en píxeles:
 // los tres reparten el total sin que importe cuánto mide.
 const share = (part, total) => `${total ? (part / total) * 100 : 0}%`;
@@ -114,6 +118,28 @@ const summaryLine = ({ bookings }) => {
         : `Hay ${bookings.active} reservas vivas en la agenda.`;
 };
 
+/**
+ * Lo que se ve mientras llegan los datos.
+ *
+ * Con la forma de la pantalla y no un "Cargando...": así no da el salto
+ * de una línea de texto a tres bloques cuando responde el servidor.
+ */
+const Skeleton = () => (
+    <div className="cf-home" aria-busy="true">
+        <p className="sr-only">Cargando el panel…</p>
+
+        <span className="cf-dash-skel cf-home__skel--hero" aria-hidden="true" />
+
+        <div className="cf-home__bento" aria-hidden="true">
+            <span className="cf-dash-skel cf-home__skel--kpi cf-home__kpi--wide" />
+            <span className="cf-dash-skel cf-home__skel--kpi" />
+            <span className="cf-dash-skel cf-home__skel--kpi" />
+        </div>
+
+        <span className="cf-dash-skel cf-home__skel--day" aria-hidden="true" />
+    </div>
+);
+
 export const ManagerHome = () => {
     const { store } = useGlobalReducer();
 
@@ -125,7 +151,12 @@ export const ManagerHome = () => {
     const today = madridToday();
 
     const [loading, setLoading] = useState(true);
+
+    // Dos errores y no uno: si fallan las métricas no hay pantalla que
+    // pintar, pero si falla el día solo se queda sin esa parte. Con uno
+    // compartido, un refresco fallido borraría todo lo demás.
     const [error, setError] = useState("");
+    const [dayError, setDayError] = useState("");
 
     // La reserva que se está cancelando, con su motivo. null = cerrado.
     const [dropping, setDropping] = useState(null);
@@ -154,16 +185,33 @@ export const ManagerHome = () => {
         return () => { alive = false; };
     }, [store.token]);
 
-    // El día, cada vez que se cambia de fecha. En useCallback porque en
-    // el paso 8 lo llamará también el temporizador.
+    // El día, cada vez que se cambia de fecha y cada minuto. En
+    // useCallback para que el temporizador no se recree en cada pintado.
     const loadDay = useCallback(async () => {
         const result = await getDayBookings(date, store.token);
 
-        if (result.ok) setDay(result.data);
-        else setError(result.data.message);
+        if (result.ok) {
+            setDay(result.data);
+            setDayError("");
+        } else {
+            setDayError(result.data.message);
+        }
     }, [date, store.token]);
 
     useEffect(() => { loadDay(); }, [loadDay]);
+
+    // Solo se refresca solo si se está mirando HOY: un día pasado ya no
+    // cambia, y pedirlo cada minuto sería gastar por gastar. Y se para
+    // con el diálogo abierto, para que la lista no se mueva por debajo
+    // de lo que estás a punto de cancelar.
+    useEffect(() => {
+        if (date !== today || dropping) return;
+
+        const timer = window.setInterval(loadDay, REFRESH_MS);
+
+        // Sin esto seguiría pidiendo al salir de la pantalla.
+        return () => window.clearInterval(timer);
+    }, [date, today, dropping, loadDay]);
 
     /** Cancela como empresa. El cliente lo verá en Mis servicios. */
     const confirmDrop = async () => {
@@ -174,7 +222,7 @@ export const ManagerHome = () => {
         setBusy(false);
 
         if (!result.ok) {
-            setError(result.data.message);
+            setDayError(result.data.message);
             return;
         }
 
@@ -188,7 +236,7 @@ export const ManagerHome = () => {
 
     // ---------- LO QUE SE PINTA ----------
 
-    if (loading) return <div className="cf-dash-skel" style={{ height: 180 }} />;
+    if (loading) return <Skeleton />;
 
     if (error) return <p className="cf-dash-alert" role="alert">{error}</p>;
 
@@ -351,6 +399,8 @@ export const ManagerHome = () => {
                         />
                     </div>
                 </div>
+
+                {dayError && <p className="cf-dash-alert" role="alert">{dayError}</p>}
 
                 {day?.bookings.length > 0 ? (
                     <>

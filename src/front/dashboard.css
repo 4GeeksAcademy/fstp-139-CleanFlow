@@ -8335,9 +8335,13 @@ textarea.cf-dash-input {
   font-size: 0.8125rem;
 }
 
-/* En estrecho el hero se apila y se le quita aire, que si no ocupa
-   media pantalla antes de enseñar nada. */
-@media (max-width: 860px) {
+/* Los cortes van sobre la VENTANA, pero el contenido tiene 268 px menos
+   por el menú lateral: a 1280 de ventana quedan unos 964. Por eso los
+   números parecen altos.
+
+   Aquí el hero se apila: con menos de ~700 px de contenido, el panel de
+   la derecha y el saludo se estrujan los dos. */
+@media (max-width: 1020px) {
   .cf-home__hero {
     padding: 26px 22px;
   }
@@ -8451,9 +8455,10 @@ textarea.cf-dash-input {
   border-radius: 50%;
 }
 
-/* A dos columnas la ancha sigue ocupando el doble; por debajo, todas
-   iguales o los números no caben. */
-@media (max-width: 1080px) {
+/* Cuatro columnas piden unos 1.085 px de contenido, o sea ventana de
+   1.400. Por debajo, dos: la ancha ocupa la fila entera y las otras dos
+   se reparten la siguiente. */
+@media (max-width: 1400px) {
   .cf-home__bento {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -8625,9 +8630,10 @@ textarea.cf-dash-input {
   text-align: center;
 }
 
-/* En estrecho la fila se parte: el punto y la hora arriba, y el resto
-   debajo alineado con el servicio. */
-@media (max-width: 880px) {
+/* La fila se parte: el punto y la hora arriba, y el resto debajo
+   alineado con el servicio. Con cinco columnas en menos de ~700 px de
+   contenido, el nombre del servicio y el del cliente no caben. */
+@media (max-width: 1020px) {
   .cf-home__svc {
     grid-template-columns: 8px minmax(0, 1fr);
   }
@@ -8638,6 +8644,25 @@ textarea.cf-dash-input {
     justify-items: start;
     text-align: left;
   }
+}
+
+/* ---------- MIENTRAS CARGA ----------
+   Tres barras con la altura de lo que van a ser. La animación la pone
+   cf-dash-skel; aquí solo se les da la forma. */
+
+.cf-home__skel--hero {
+  height: 208px;
+  border-radius: var(--cf-radius-lg);
+}
+
+.cf-home__skel--kpi {
+  height: 116px;
+  border-radius: var(--cf-radius-lg);
+}
+
+.cf-home__skel--day {
+  height: 280px;
+  border-radius: var(--cf-radius-lg);
 }
 
 /* ======================================================================
