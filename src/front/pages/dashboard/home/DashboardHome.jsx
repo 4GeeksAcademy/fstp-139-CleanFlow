@@ -18,12 +18,13 @@
 
 import "../../../dashboard.css"
 import useGlobalReducer from "../../../hooks/useGlobalReducer"
+import { ManagerHome } from "./ManagerHome"
 
 // El inicio de cada rol. null = todavía no existe.
 const HOMES = {
     client: null,   // #23
     worker: null,   // #21
-    manager: null,  // #24
+    manager: ManagerHome,  // #24
 }
 
 export const DashboardHome = () => {
