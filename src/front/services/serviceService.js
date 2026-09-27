@@ -23,9 +23,19 @@ export const getServices = async () => {
   if (!result.ok) return result;
 
   // Si la respuesta no trae una lista, [] para no romper el navbar ni el pie.
-  return { ...result, data: Array.isArray(result.data.services) ? result.data.services : [] };
+  return { ...result, data: Array.isArray(result.data.services) ? result.data.services : [],};
 };
+/**
+ * Devuelve un servicio activo por su slug.
+ * data: el servicio encontrado.
+ */
+export const getServiceBySlug = async (slug) => {
+  const result = await apiRequest(`/api/services/${slug}`);
 
+  if (!result.ok) return result;
+
+  return { ...result, data: result.data.service };
+};
 
 // ----------------------------------------------------------------------
 // GESTIÓN DEL CATÁLOGO (ENCARGADO)
@@ -39,19 +49,30 @@ export const getAllServices = async (token) => {
 
   if (!result.ok) return result;
 
-  return { ...result, data: Array.isArray(result.data.services) ? result.data.services : [] };
+  return {
+    ...result,
+    data: Array.isArray(result.data.services) ? result.data.services : [],
+  };
 };
 
 /** Crea un servicio. El slug lo genera el backend. data: el servicio creado. */
 export const createService = async (serviceData, token) => {
-  const result = await apiRequest("/api/services", { method: "POST", token, body: serviceData });
+  const result = await apiRequest("/api/services", {
+    method: "POST",
+    token,
+    body: serviceData,
+  });
 
   return result.ok ? { ...result, data: result.data.service } : result;
 };
 
 /** Edita solo lo enviado; ni slug ni estado (eso va por toggleServiceStatus). data: el servicio actualizado. */
 export const updateService = async (serviceId, serviceData, token) => {
-  const result = await apiRequest(`/api/services/${serviceId}`, { method: "PUT", token, body: serviceData });
+  const result = await apiRequest(`/api/services/${serviceId}`, {
+    method: "PUT",
+    token,
+    body: serviceData,
+  });
 
   return result.ok ? { ...result, data: result.data.service } : result;
 };

@@ -70,11 +70,11 @@ export const ServiceCard = ({ service }) => {
                     </p>
 
                     <Link
-                        to={`/dashboard/book?servicio=${service.slug}`}
+                        to={`/services/${service.slug}`}
                         className="cf-btn"
-                        aria-label={`Contratar ${service.name}`}
+                        aria-label={`Ver detalles de ${service.name}`}
                     >
-                        Contratar
+                        Ver servicio
                     </Link>
                 </div>
             </div>
