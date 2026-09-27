@@ -3803,3 +3803,130 @@ def stats():
         # la misma consulta que public_reviews(), que todavía está en el
         # PR de valoraciones y no ha llegado a develop.
     }), 200
+
+
+# ----------------------------------------------------------------------
+#   GET    /api/manage/bookings?date=YYYY-MM-DD    encargado
+# ----------------------------------------------------------------------
+
+
+def day_state(booking, day):
+    """En qué punto está ese día concreto del servicio.
+
+    El estado va por día y no por reserva: en una de varias jornadas, el
+    lunes puede estar cerrado y el martes sin empezar.
+    """
+    if booking.status == BookingStatus.NOT_DONE:
+        return "not_done"
+
+    if day.finished_at:
+        return "done"
+
+    if day.started_at:
+        return "doing"
+
+    return "todo"
+
+
+@api.route("/manage/bookings", methods=["GET"])
+@role_required("manager")
+def bookings_of_day():
+    """Los servicios de un día, para el seguimiento del encargado.
+
+    Sin `date`, hoy. Una reserva de varias jornadas sale en todas, cada
+    una con su horario y su propio estado: por eso se filtra por los
+    tramos y no por scheduled_start, que solo es el primero.
+    """
+    raw = request.args.get("date")
+
+    try:
+        start = (
+            datetime.strptime(raw, "%Y-%m-%d")
+            if raw
+            else madrid_now().replace(hour=0, minute=0, second=0, microsecond=0)
+        )
+    except ValueError:
+        return jsonify({"message": "La fecha debe ser AAAA-MM-DD."}), 400
+
+    end = start + timedelta(days=1)
+
+    # Las canceladas no aparecen: ese día ya no va nadie, y en una lista
+    # de "cómo va el día" solo serían ruido.
+    bookings = db.session.execute(
+        db.select(Booking)
+        .join(BookingDay, BookingDay.booking_id == Booking.booking_id)
+        .where(
+            BookingDay.starts_at >= start,
+            BookingDay.starts_at < end,
+            Booking.status != BookingStatus.CANCELLED,
+        )
+        .options(
+            selectinload(Booking.days),
+            selectinload(Booking.service),
+            selectinload(Booking.client),
+            selectinload(Booking.worker).selectinload(Worker.user),
+            # Las tareas y las incidencias solo se cuentan, pero sin
+            # precargarlas serían dos consultas por cada reserva.
+            selectinload(Booking.tasks),
+            selectinload(Booking.incidents),
+        )
+        .distinct()
+    ).scalars().all()
+
+    services = []
+
+    for booking in bookings:
+        # El tramo de ESTE día. El join ya garantiza que hay uno.
+        day = next(
+            (one for one in booking.days if start <= one.starts_at < end),
+            None,
+        )
+
+        if day is None:
+            continue
+
+        services.append({
+            "booking_id": booking.booking_id,
+            "booking_day_id": day.booking_day_id,
+            "state": day_state(booking, day),
+            "starts_at": day.starts_at.isoformat(),
+            "ends_at": day.ends_at.isoformat(),
+            "started_at": day.started_at.isoformat() if day.started_at else None,
+            "finished_at": day.finished_at.isoformat() if day.finished_at else None,
+            "service_name": booking.service.name if booking.service else None,
+            "worker_name": booking.worker_name,
+            "client_name": (
+                f"{booking.client.name} {booking.client.last_name}"
+                if booking.client
+                else "Cliente"
+            ),
+            "tasks": {
+                "done": sum(
+                    1 for task in booking.tasks
+                    if task.status == BookingTaskStatus.COMPLETED
+                ),
+                "total": len(booking.tasks),
+            },
+            "open_incidents": sum(
+                1 for incident in booking.incidents if not incident.resolved
+            ),
+            # Cancelar solo tiene sentido si nadie ha llegado todavía.
+            "can_cancel": (
+                booking.status in (BookingStatus.PENDING, BookingStatus.CONFIRMED)
+                and day.started_at is None
+            ),
+        })
+
+    # Por hora de entrada: es el orden en que pasan las cosas.
+    services.sort(key=lambda service: service["starts_at"])
+
+    summary = {key: 0 for key in ("todo", "doing", "done", "not_done")}
+
+    for service in services:
+        summary[service["state"]] += 1
+
+    return jsonify({
+        "date": start.strftime("%Y-%m-%d"),
+        "summary": summary,
+        "bookings": services,
+    }), 200
