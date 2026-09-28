@@ -782,8 +782,15 @@ main > section:nth-of-type(even) {
 }
 
 /* ======================================================================
-   OPINIONES DE CLIENTES
-   ====================================================================== */
+   OPINIONES DE CLIENTES (home/ReviewsSection.jsx)
+   ======================================================================
+
+   Las notas reales que dejan los clientes al terminar un servicio, con
+   la media que forman. De cada uno salen su nombre de pila con la
+   inicial del apellido, su cara si la tiene, el servicio y cuándo fue.
+
+   Las fotos que sube al valorar no salen nunca: son el interior de su
+   casa y las hizo para nosotros. */
 
 .cf-reviews {
   padding: var(--cf-space-16) 0;
@@ -813,14 +820,42 @@ main > section:nth-of-type(even) {
   font-size: var(--cf-text-2xl);
 }
 
-.cf-reviews__example-label {
+/* ---------- LA MEDIA ----------
+   El dato que más convence, y hasta ahora se calculaba y se tiraba. Va
+   pegado al título y en una píldora blanca: sobre el verde suave de la
+   sección, el blanco es lo que más salta. */
+
+.cf-reviews__score {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-4);
   flex-shrink: 0;
-  padding: var(--cf-space-2) var(--cf-space-4);
-  border: 1px solid var(--cf-border);
+  padding: 14px 22px;
   border-radius: 999px;
-  background-color: var(--cf-bg);
+  background-color: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+.cf-reviews__avg {
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-reviews__of {
+  display: block;
   color: var(--cf-muted);
-  font-size: var(--cf-text-sm);
+  font-size: 0.75rem;
+}
+
+.cf-reviews__count {
+  margin: 3px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
 }
 
 .cf-reviews__grid {
@@ -829,14 +864,18 @@ main > section:nth-of-type(even) {
   gap: var(--cf-space-6);
 }
 
+/* ---------- CADA OPINIÓN ----------
+   Primero lo que dijo y después quién lo dijo: se lee la frase y luego
+   se le pone cara, que es como funciona un testimonio.
+
+   Sin borde: van sobre el verde suave y la sombra ya las separa. Y sin
+   alto mínimo: con el pie en margin-top auto se alinean por abajo
+   aunque un comentario ocupe una línea y otro cuatro. */
+
 .cf-review-card {
-  position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 260px;
-  padding: var(--cf-space-8);
-  overflow: hidden;
-  border: 1px solid var(--cf-border);
+  padding: 26px 28px;
   border-radius: var(--cf-radius-lg);
   background-color: var(--cf-surface);
   box-shadow: var(--cf-shadow-sm);
@@ -846,49 +885,64 @@ main > section:nth-of-type(even) {
 }
 
 .cf-review-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   box-shadow: var(--cf-shadow-md);
 }
 
-.cf-review-card__quote {
-  position: absolute;
-  top: var(--cf-space-2);
-  right: var(--cf-space-6);
-  color: var(--cf-primary-soft);
-  font-family: var(--cf-font-heading);
-  font-size: 6rem;
-  line-height: 1;
-}
-
 .cf-review-card__stars {
-  position: relative;
-  display: flex;
-  gap: var(--cf-space-1);
-  margin-bottom: var(--cf-space-6);
+  margin-bottom: var(--cf-space-4);
 }
 
-.cf-review-card__star {
-  color: var(--cf-border);
-  font-size: var(--cf-text-lg);
-}
-
-.cf-review-card__star--active {
-  color: var(--cf-accent);
-}
-
+/* En la tipografía de titulares: es una voz, no texto de interfaz, y la
+   serif se lo dice al ojo sin necesidad de comillas decorativas. */
 .cf-review-card__comment {
-  position: relative;
-  flex-grow: 1;
   margin: 0 0 var(--cf-space-6);
   color: var(--cf-text);
-  font-size: var(--cf-text-lg);
-  line-height: 1.7;
+  font-family: var(--cf-font-heading);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.55;
 }
 
-.cf-review-card__client {
-  margin: 0;
+.cf-review-card__who {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  margin-top: auto;
+  padding-top: var(--cf-space-4);
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-review-card__face {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  overflow: hidden;
+  border-radius: 50%;
+  background-color: var(--cf-primary-soft);
   color: var(--cf-primary);
+  font-size: 0.8125rem;
   font-weight: 700;
+}
+
+.cf-review-card__face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cf-review-card__name {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cf-review-card__meta {
+  margin: 2px 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
 }
 
 @media (max-width: 900px) {

@@ -3727,6 +3727,36 @@ def global_rating():
     return (round(float(average), 1) if total else None), total
 
 
+def review_age(created_at):
+    """Cuánto hace que se escribió una opinión, sin decir cuándo.
+
+    Devuelve {"value": 2, "unit": "week"}, nunca una fecha. La web lo
+    escribe con Intl.RelativeTimeFormat, así que aquí no hay ni un texto:
+    solo el número y la unidad.
+
+    El redondeo se hace en el servidor a propósito. Si mandáramos la
+    fecha para que la redondease el navegador, el día y la hora exactos
+    ya habrían salido de aquí, y con el nombre del cliente al lado eso
+    dice qué tarde concreta hubo alguien en su casa.
+    """
+    if created_at is None:
+        return None
+
+    # Con el max(), una opinión recién escrita nunca sale con días
+    # negativos si el reloj va un pelo por detrás.
+    days = max((madrid_now() - created_at).days, 0)
+
+    if days < 7:
+        return {"value": days, "unit": "day"}
+    if days < 31:
+        return {"value": days // 7, "unit": "week"}
+    if days < 365:
+        return {"value": days // 30, "unit": "month"}
+
+    # Siempre un año redondo: a partir de aquí dejamos de contar.
+    return {"value": 1, "unit": "year"}
+
+
 @api.route("/reviews/public", methods=["GET"])
 def public_reviews():
     """La media de CleanFlow y las últimas opiniones, para la web.
@@ -3735,17 +3765,27 @@ def public_reviews():
     arma el diccionario a mano en vez de usar Review.serialize(), que
     lleva client_id y las fotos: ni el id de un cliente ni el interior de
     su casa tienen por qué salir de la aplicación.
+
+    Sí sale su avatar, que es distinto: es la cara que el propio cliente
+    eligió como pública. Y el servicio y lo reciente que es la opinión,
+    que dan contexto sin decir de quién es la casa ni cuándo estuvimos.
     """
     media, total = global_rating()
 
+    # El nombre del servicio sale del join y no de la reserva de cada
+    # opinión: Review no tiene relación con Booking, solo el id suelto, y
+    # resolverlo dentro del bucle sería una consulta por cada una.
+    #
     # Solo las que traen comentario: una cita vacía no se puede enseñar.
-    reviews = db.session.execute(
-        db.select(Review)
+    rows = db.session.execute(
+        db.select(Review, Service.name)
+        .join(Booking, Booking.booking_id == Review.booking_id)
+        .join(Service, Service.service_id == Booking.service_id)
         .where(Review.comment.is_not(None))
         .order_by(Review.created_at.desc())
         .limit(PUBLIC_REVIEWS_LIMIT)
         .options(selectinload(Review.client))
-    ).scalars().all()
+    ).all()
 
     return jsonify({
         "average": media,
@@ -3754,10 +3794,19 @@ def public_reviews():
             {
                 "review_id": review.review_id,
                 "client_name": public_name(review.client),
+                # Si no tiene foto, la web pinta sus iniciales. Ponerle
+                # una cara de archivo que no es la suya sería mentir.
+                "client_avatar_url": (
+                    review.client.avatar_url if review.client else None
+                ),
+                "service_name": service_name,
+                # Cuánto hace, no cuándo. Es lo que ya enseñaba la web, y
+                # ahora es también lo único que sale de la API.
+                "age": review_age(review.created_at),
                 "rating": review.rating,
                 "comment": review.comment,
             }
-            for review in reviews
+            for review, service_name in rows
         ],
     }), 200
 
