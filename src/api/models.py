@@ -136,7 +136,11 @@ class User(db.Model):
     user_id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Nulable desde que se puede entrar con Google, que no lo da: la
+    # cuenta nace sin teléfono y se pide en el paso siguiente. Vacío en
+    # lugar de null sería un teléfono que no existe disfrazado de dato, y
+    # nadie sabría distinguir "no lo ha puesto" de "lo dejó en blanco".
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     email: Mapped[str] = mapped_column(
         String(120), unique=True, nullable=False)
 
@@ -232,13 +236,16 @@ class User(db.Model):
         y acaba en localStorage, así que solo lleva lo imprescindible.
 
         last_name está por el bloque de usuario del sidebar, que enseña el
-        nombre completo. El teléfono NO: no hace falta para la sesión."""
+        nombre completo. El teléfono NO: no hace falta para la sesión, y
+        va en needs_phone si falta, que es lo único que la pantalla
+        necesita saber para mandarlo al paso que lo pide."""
         return {
             "user_id": self.user_id,
             "name": self.name,
             "last_name": self.last_name,
             "email": self.email,
             "role": self.role,
+            "needs_phone": not self.phone,
             "avatar_url": self.avatar_url
         }
 

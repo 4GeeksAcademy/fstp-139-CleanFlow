@@ -8,6 +8,7 @@ ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py)
 @role_required ya comprueba el token: no se le añade @jwt_required() encima.
 """
 
+import os
 import re
 import math
 import cloudinary
@@ -21,6 +22,8 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -759,6 +762,133 @@ def login():
         }), 200
     else:
         return jsonify({"error": "Invalid email or password"}), 401
+
+
+# ----------------------------------------------------------------------
+# ENTRAR CON GOOGLE
+# ----------------------------------------------------------------------
+#   POST   /api/auth/google    público, sin sesión
+#
+# La idea que gobierna todo esto: la cuenta es EL CORREO, no la forma de
+# entrar. Nadie tiene "cuenta de Google" y "cuenta normal": tiene una
+# cuenta y una o dos llaves para abrirla.
+#
+# Devuelve exactamente lo mismo que /login, para que al frontend le dé
+# igual por dónde haya entrado el usuario.
+# ----------------------------------------------------------------------
+
+
+def google_claims(credential):
+    """Comprueba el token de Google y devuelve lo que dice, o (None, error).
+
+    Verificar la firma es lo único que sostiene esta puerta: sin ella,
+    cualquiera enviaría el correo del encargado y entraría como él. El
+    correo que llegue del navegador NUNCA se usa tal cual.
+    """
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+
+    if not client_id:
+        return None, "Falta configurar el acceso con Google."
+
+    if not isinstance(credential, str) or not credential:
+        return None, "No se ha recibido el identificador de Google."
+
+    try:
+        # Comprueba la firma contra las claves públicas de Google, que
+        # caduque y que el token sea para NUESTRA aplicación y no para otra.
+        return id_token.verify_oauth2_token(
+            credential, google_requests.Request(), client_id
+        ), None
+    except ValueError:
+        return None, "No hemos podido validar tu cuenta de Google."
+
+
+@api.route("/auth/google", methods=["POST"])
+def auth_google():
+    """Entra o se registra con Google.
+
+    Cuatro caminos, y el orden importa:
+
+      1. El google_id ya existe          -> entra
+      2. El correo existe sin Google     -> se vincula y entra
+      3. No existe                       -> se crea, siempre como cliente
+      4. Está desactivada                -> 403, igual que en /login
+    """
+    data = get_json_body() or {}
+
+    claims, error = google_claims(data.get("credential"))
+
+    if error:
+        return jsonify({"message": error}), 401
+
+    # Sin correo verificado no se toca nada. Sin esta comprobación,
+    # cualquiera se crea una cuenta de Google con el correo de otro, la
+    # deja sin verificar y entra en la cuenta ajena de CleanFlow.
+    if not claims.get("email_verified"):
+        return jsonify({
+            "message": "Tu correo de Google no está verificado. "
+                       "Verifícalo o entra con tu contraseña."
+        }), 403
+
+    google_id = claims.get("sub")
+    email = (claims.get("email") or "").strip().lower()
+
+    if not google_id or not email:
+        return jsonify({"message": "Google no ha devuelto tu correo."}), 401
+
+    # Por el sub primero: es lo que no cambia. Si alguien cambió el correo
+    # de su cuenta de Google, así sigue entrando en la suya de siempre.
+    user = db.session.execute(
+        db.select(User).where(User.google_id == google_id)
+    ).scalar_one_or_none()
+
+    if user is None:
+        user = db.session.execute(
+            db.select(User).where(User.email == email)
+        ).scalar_one_or_none()
+
+        if user is not None:
+            # Ya tenía cuenta con contraseña: se le añade la segunda llave
+            # en vez de crearle una cuenta duplicada con el mismo correo.
+            user.google_id = google_id
+        else:
+            user = User(
+                name=claims.get("given_name") or claims.get("name") or "",
+                # Google no siempre manda el apellido aparte. Si falta, se
+                # parte el nombre completo; y si tampoco, se queda vacío:
+                # no puede fallar un registro por eso.
+                last_name=(
+                    claims.get("family_name")
+                    or " ".join((claims.get("name") or "").split()[1:])
+                ),
+                email=email,
+                # Sin teléfono: Google no lo da y se pide en el paso
+                # siguiente, antes de dejarle entrar al panel.
+                phone=None,
+                role="client",
+                is_active=True,
+                google_id=google_id,
+                # Su foto de Google, y solo al crear la cuenta: la que
+                # suba luego a mano en Ajustes manda siempre.
+                avatar_url=claims.get("picture"),
+            )
+            db.session.add(user)
+
+    user.email_verified = True
+
+    db.session.commit()
+
+    # Se mira DESPUÉS de vincular: si el encargado la reactiva, la cuenta
+    # ya tiene su google_id puesto y entra sin repetir nada.
+    if not user.is_active:
+        return jsonify({
+            "message": "Tu cuenta está desactivada. Contacta con CleanFlow."
+        }), 403
+
+    return jsonify({
+        "token": create_access_token(identity=str(user.user_id)),
+        "user": user.serialize_session(),
+    }), 200
 
 
 # ----------------------------------------------------------------------
