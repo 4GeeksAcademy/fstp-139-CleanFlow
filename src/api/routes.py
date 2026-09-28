@@ -701,6 +701,17 @@ def register():
 
     # 409 y no 400: los datos son correctos, pero chocan con algo que ya existe.
     if existing_user:
+        # Si la creó con Google, no es que el correo esté "pillado": es
+        # que la cuenta ya es suya. Decirle eso y no que se busque otro
+        # correo, que es lo que entendería con el mensaje de siempre.
+        if not existing_user.password_hash:
+            return jsonify({
+                "message": "Ya tienes una cuenta con este correo, creada con Google. "
+                           "Entra con el botón de Google: es la misma cuenta, "
+                           "con tus reservas.",
+                "use_google": True,
+            }), 409
+
         return jsonify({"message": "El correo electrónico ya está registrado"}), 409
 
     if len(password) < 6:
@@ -748,6 +759,20 @@ def login():
     # averiguar qué correos están registrados.
     if existing_user is None:
         return jsonify({"error": "Invalid email or password"}), 401
+
+    # Cuenta creada con Google: no hay contraseña que comprobar, así que
+    # decirle "contraseña incorrecta" sería mandarlo a intentarlo otra vez
+    # con algo que no existe. Hay que nombrar la puerta que sí es la suya.
+    #
+    # Sí, esto confirma que el correo está registrado, y arriba se evita a
+    # propósito. Es un intercambio consciente: solo se dice cuando la
+    # cuenta NO tiene contraseña, nunca cuando la tiene y falla, que es el
+    # caso que de verdad usaría alguien para ir probando correos.
+    if not existing_user.password_hash:
+        return jsonify({
+            "error": "Esta cuenta se creó con Google. Entra con el botón de Google.",
+            "use_google": True,
+        }), 409
 
     if existing_user.check_password(password):
         if not existing_user.is_active:
