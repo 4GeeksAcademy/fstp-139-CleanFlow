@@ -73,6 +73,13 @@ const plusDays = (isoDate, days) => {
 export const deadlineOf = (isoDate, days = CONFIRM_DAYS) =>
     plusDays(isoDate, days)?.toLocaleDateString("es-ES", { day: "numeric", month: "long" }) || "";
 
+// "30 de septiembre a las 08:00": hasta cuándo se puede mover o cancelar
+// una reserva. Llega con la zona de Madrid puesta, así que se recorta en
+// vez de pasarlo por Date, igual que el resto.
+export const dayAndTime = (isoDate) =>
+    `${Number(isoDate.slice(8, 10))} de ${MONTHS[Number(isoDate.slice(5, 7)) - 1]}`
+    + ` a las ${timeOf(isoDate)}`;
+
 // Cuántos días enteros quedan para ese plazo. Nunca menos de cero.
 export const daysLeft = (isoDate, days = CONFIRM_DAYS) => {
     const limit = plusDays(isoDate, days);

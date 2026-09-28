@@ -5,6 +5,9 @@
  * trabajado. Con un solo día apenas se mira; con varios es la referencia
  * para organizarse.
  *
+ * Si el cliente le cambió la fecha (#17), se dice aquí: es el sitio donde
+ * el trabajador mira cuándo le toca.
+ *
  * Estilos: dashboard.css, sección 10 (cf-wday).
  */
 
@@ -39,5 +42,15 @@ export const WorkerDays = ({ booking, today }) => (
                 </div>
             );
         })}
+
+        {/* Que la reserva se movió: si no, el trabajador ve aparecer un
+            servicio en su día sin saber de dónde sale (#17). */}
+        {booking.rescheduled_count > 0 && (
+            <p className="cf-wday__moved">
+                <i className="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i>
+                El cliente cambió la fecha
+                {booking.rescheduled_count > 1 && ` ${booking.rescheduled_count} veces`}.
+            </p>
+        )}
     </section>
 );

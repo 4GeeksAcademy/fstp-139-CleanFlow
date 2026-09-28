@@ -8,7 +8,8 @@
  *   workers   los de GET /api/availability/workers
  *   value     "any" o el id elegido, siempre como texto
  *
- * Con la #20, `rating` traerá la nota media en vez de null.
+ * `rating` llega siempre vacío: la media de cada trabajador existe
+ * desde la #20, pero solo la devuelve GET /api/workers.
  *
  * Estilos: dashboard.css (cf-booking__*).
  */

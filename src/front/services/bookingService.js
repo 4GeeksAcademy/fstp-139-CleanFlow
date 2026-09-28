@@ -139,9 +139,37 @@ export const formatInterval = (day) => {
     const date = day.starts_at.slice(0, 10).split("-").reverse().join("/");
     return `${date} · ${day.starts_at.slice(11, 16)}–${day.ends_at.slice(11, 16)}`;
 };
+
+// ----------------------------------------------------------------------
+// CANCELAR Y CAMBIAR LA FECHA (#17)
+// ----------------------------------------------------------------------
+// Las dos salidas de una reserva que aún no ha empezado. El cliente
+// hasta 24 h antes, el encargado siempre.
+
+/** Cancela la reserva. El motivo es opcional para el cliente. */
 export const cancelBooking = (bookingId, token, reason = "") =>
   apiRequest(`/api/bookings/${bookingId}/cancel`, {
     method: "PATCH",
     token,
     body: { reason },
+  });
+
+
+/**
+ * Mueve la reserva a otro día y hora.
+ *
+ * data: { startsAt, workerId } · startsAt: "2026-10-07T09:00", hora de
+ * Madrid y sin zona, tal como la da el calendario.
+ *
+ * workerId es opcional: sin él se reparte como al contratar, con quien
+ * menos horas tenga ese día. La respuesta trae quién irá al final, que
+ * puede no ser el de antes.
+ *
+ * Un 409 significa que el hueco acaba de ocuparse: hay que recargarlos.
+ */
+export const rescheduleBooking = (bookingId, { startsAt, workerId }, token) =>
+  apiRequest(`/api/bookings/${bookingId}/reschedule`, {
+    method: "PATCH",
+    token,
+    body: workerId ? { starts_at: startsAt, worker_id: workerId } : { starts_at: startsAt },
   });

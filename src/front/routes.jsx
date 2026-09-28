@@ -40,6 +40,7 @@ import { Applications } from "./pages/dashboard/Applications";
 import { Messages } from "./pages/dashboard/Messages";
 import { BookingDetail } from "./pages/dashboard/BookingDetail";
 import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
+import { DashboardHome } from "./pages/dashboard/home/DashboardHome";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
@@ -67,7 +68,7 @@ export const router = createBrowserRouter(
 
           {/* ---- COMUNES A TODOS LOS ROLES ----
               Sin RoleRoute a propósito: son la entrada de todo el mundo. */}
-          <Route index element={<h1>Inicio</h1>} />
+          <Route index element={<DashboardHome />} />
 
           {/* Ajustes de la cuenta: un marco con pestañas y una ruta por
               apartado, para poder enlazar cada uno por separado.
