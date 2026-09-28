@@ -1191,6 +1191,51 @@ def update_account():
     }), 200
 
 
+@api.route("/account/password", methods=["POST"])
+@jwt_required()
+def create_account_password():
+    """Crea una contraseña donde no había ninguna.
+
+    Para quien entró con Google: así puede entrar también por su cuenta
+    el día que no tenga acceso a su Google.
+
+    POST y no PUT porque no es lo mismo que cambiarla: aquí no hay
+    anterior que pedir. Y por eso mismo NO puede servir para cambiarla:
+    con una sesión abierta en un ordenador ajeno, cualquiera se pondría
+    una contraseña nueva sin saber la que había.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    if user.password_hash:
+        return jsonify({
+            "message": "Ya tienes una contraseña. Puedes cambiarla desde aquí mismo."
+        }), 409
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    new_password = data.get("new_password")
+
+    if not isinstance(new_password, str) or not new_password:
+        return jsonify({"message": "La contraseña es obligatoria"}), 400
+
+    if len(new_password) < PASSWORD_MIN_LENGTH:
+        return jsonify({
+            "message": f"La contraseña debe tener mínimo {PASSWORD_MIN_LENGTH} caracteres"
+        }), 400
+
+    # set_password hashea; nunca se asigna password_hash a mano.
+    user.set_password(new_password)
+    db.session.commit()
+
+    return jsonify({"account": user.serialize_account()}), 200
+
+
 @api.route("/account/password", methods=["PUT"])
 @jwt_required()
 def update_account_password():

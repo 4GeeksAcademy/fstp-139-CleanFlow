@@ -4,14 +4,18 @@
  * Cambiar la contraseña, para cualquier rol. Se pide la actual: con una
  * sesión abierta en un ordenador ajeno, nadie puede cambiarla sin saberla.
  *
+ * Quien entró con Google todavía no tiene ninguna, así que a ese se le
+ * ofrece CREARLA y no cambiarla: no hay anterior que pedir. Arriba se
+ * ven las dos formas de entrar y cuáles tiene puestas.
+ *
  * La sesión NO se corta al cambiarla: el token sigue siendo válido.
  *
  * API: services/accountService.js · Estilos: dashboard.css (cf-dash-*, cf-account__*).
  */
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import useGlobalReducer from "../../../hooks/useGlobalReducer"
-import { changePassword } from "../../../services/accountService"
+import { getAccount, changePassword, createPassword } from "../../../services/accountService"
 
 // El mismo mínimo que pide el backend en /register y en /account/password.
 const PASSWORD_MIN_LENGTH = 6
@@ -19,15 +23,17 @@ const PASSWORD_MIN_LENGTH = 6
 const EMPTY_FORM = { current_password: "", new_password: "", repeat_password: "" }
 
 /** Mismos mensajes que routes.py, salvo el de repetir, que es solo de aquí. */
-const validate = (form) => {
+const validate = (form, hasPassword) => {
     const errors = {}
 
-    if (!form.current_password) errors.current_password = "La contraseña actual es obligatoria"
+    // Sin contraseña anterior no hay nada que pedir ni con qué comparar.
+    if (hasPassword && !form.current_password)
+        errors.current_password = "La contraseña actual es obligatoria"
 
     if (!form.new_password) errors.new_password = "La contraseña nueva es obligatoria"
     else if (form.new_password.length < PASSWORD_MIN_LENGTH)
         errors.new_password = `La contraseña nueva debe tener mínimo ${PASSWORD_MIN_LENGTH} caracteres`
-    else if (form.new_password === form.current_password)
+    else if (hasPassword && form.new_password === form.current_password)
         errors.new_password = "La contraseña nueva tiene que ser distinta de la actual"
 
     // Repetirla no viaja al backend: es solo para cazar erratas al escribir.
@@ -49,6 +55,32 @@ export const AccountSecurity = () => {
     // Qué campos se están viendo en claro. Empieza vacío y se olvida al
     // salir de la pantalla: nadie quiere volver y ver su contraseña.
     const [shown, setShown] = useState({})
+
+    // Qué formas de entrar tiene puestas. null mientras se sabe: hasta
+    // entonces no se pinta el formulario, porque no sabemos si es el de
+    // crear o el de cambiar.
+    const [keys, setKeys] = useState(null)
+
+    useEffect(() => {
+        let alive = true
+
+        const load = async () => {
+            const result = await getAccount(store.token)
+
+            if (alive && result.ok) {
+                setKeys({
+                    hasPassword: result.data.account.has_password,
+                    hasGoogle: result.data.account.has_google,
+                })
+            }
+        }
+
+        load()
+
+        return () => { alive = false }
+    }, [store.token])
+
+    const hasPassword = keys?.hasPassword
 
     const toggleShown = (field) => setShown((current) => ({ ...current, [field]: !current[field] }))
 
@@ -76,7 +108,7 @@ export const AccountSecurity = () => {
     const handleSubmit = async (event) => {
         event.preventDefault()
 
-        const found = validate(form)
+        const found = validate(form, hasPassword)
         setErrors(found)
 
         if (Object.keys(found).length > 0) return
@@ -84,7 +116,12 @@ export const AccountSecurity = () => {
         setSaving(true)
         setSaveError("")
 
-        const result = await changePassword(form.current_password, form.new_password, store.token)
+        // Crear y cambiar son dos endpoints distintos a propósito: el de
+        // crear no puede pedir la anterior porque no existe, y por eso
+        // mismo no puede servir para cambiarla.
+        const result = hasPassword
+            ? await changePassword(form.current_password, form.new_password, store.token)
+            : await createPassword(form.new_password, store.token)
 
         if (sessionExpired(result)) return
 
@@ -106,6 +143,9 @@ export const AccountSecurity = () => {
         setForm(EMPTY_FORM)
         setShown({})
         setSaved(true)
+
+        // Al crearla, la pantalla pasa a ser la de cambiarla.
+        if (!hasPassword) setKeys((current) => ({ ...current, hasPassword: true }))
     }
 
     // Los tres campos son iguales: mismo marcado con el ojo dentro. Es una
@@ -166,22 +206,53 @@ export const AccountSecurity = () => {
 
     return (
         <div className="cf-account__card">
-            <h2 className="cf-account__subtitle">Seguridad</h2>
+            <h2 className="cf-account__subtitle">Cómo entras en tu cuenta</h2>
             <p className="cf-account__lede">
-                Cambia tu contraseña. Tendrás que usar la nueva la próxima vez que entres.
+                Puedes tener las dos formas a la vez. Con una contraseña propia
+                podrás entrar aunque algún día no tengas acceso a tu Google.
+            </p>
+
+            {keys && (
+                <div className="cf-account__keys">
+                    <div className="cf-account__key">
+                        <i className="fa-brands fa-google" aria-hidden="true" />
+                        <span>Google</span>
+                        <span className={keys.hasGoogle ? "cf-account__key-on" : "cf-account__key-off"}>
+                            {keys.hasGoogle ? "Conectado" : "Sin conectar"}
+                        </span>
+                    </div>
+
+                    <div className="cf-account__key">
+                        <i className="fa-solid fa-lock" aria-hidden="true" />
+                        <span>Contraseña</span>
+                        <span className={keys.hasPassword ? "cf-account__key-on" : "cf-account__key-off"}>
+                            {keys.hasPassword ? "Configurada" : "Sin configurar"}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            <p className="cf-account__lede">
+                {hasPassword
+                    ? "Cambia tu contraseña. Tendrás que usar la nueva la próxima vez que entres."
+                    : "Crea una contraseña para poder entrar también sin Google."}
             </p>
 
             {/* noValidate: los avisos los damos nosotros, en español.
                 autoComplete: así el gestor de contraseñas sabe cuál es cuál. */}
             <form className="cf-account__grid cf-account__grid--one" onSubmit={handleSubmit} noValidate>
-                {passwordField("current_password", "Contraseña actual", "current-password")}
+                {hasPassword && passwordField("current_password", "Contraseña actual", "current-password")}
                 {passwordField(
                     "new_password",
-                    "Contraseña nueva",
+                    hasPassword ? "Contraseña nueva" : "Contraseña",
                     "new-password",
                     `Mínimo ${PASSWORD_MIN_LENGTH} caracteres.`
                 )}
-                {passwordField("repeat_password", "Repite la contraseña nueva", "new-password")}
+                {passwordField(
+                    "repeat_password",
+                    hasPassword ? "Repite la contraseña nueva" : "Repite la contraseña",
+                    "new-password"
+                )}
 
                 <div className="cf-account__actions">
                     {saveError && (
@@ -192,12 +263,14 @@ export const AccountSecurity = () => {
                     {saved && (
                         <p className="cf-account__saved" role="status">
                             <i className="fa-solid fa-check" aria-hidden="true" />
-                            Contraseña actualizada
+                            {hasPassword ? "Contraseña actualizada" : "Contraseña creada"}
                         </p>
                     )}
 
                     <button type="submit" className="cf-dash-btn" disabled={saving}>
-                        {saving ? "Guardando..." : "Cambiar contraseña"}
+                        {saving
+                            ? "Guardando..."
+                            : hasPassword ? "Cambiar contraseña" : "Crear contraseña"}
                     </button>
                 </div>
             </form>

@@ -251,13 +251,19 @@ class User(db.Model):
 
     def serialize_account(self):
         """Vista para la pantalla de ajustes (#13). Añade el teléfono, que
-        solo se usa ahí. El correo viaja, pero no se puede cambiar."""
+        solo se usa ahí. El correo viaja, pero no se puede cambiar.
+
+        Las dos formas de entrar van como sí o no, nunca el hash ni el
+        identificador de Google: la pantalla solo necesita saber cuáles
+        tiene puestas para ofrecerle la que le falte."""
         return {
             "name": self.name,
             "last_name": self.last_name,
             "phone": self.phone,
             "email": self.email,
             "role": self.role,
+            "has_password": bool(self.password_hash),
+            "has_google": bool(self.google_id),
             "avatar_url": self.avatar_url
         }
 
