@@ -20,24 +20,21 @@ import { Stars } from "../../../components/dashboard/bookings/Stars";
 /**
  * "hace 2 semanas".
  *
- * En relativo y nunca el día exacto: eso diría qué tarde concreta hubo
- * alguien en casa de un cliente. Además envejece mejor, que es de lo que
- * se trata en una sección de opiniones.
+ * El backend manda el número y la unidad ya redondeados y nunca la
+ * fecha, para que el día exacto en que hubo alguien en casa de un
+ * cliente no salga del servidor. Aquí solo se escribe, y lo escribe el
+ * propio navegador, que ya sabe hacerlo en cualquier idioma.
  */
-const timeAgo = (iso) => {
-    if (!iso) return "";
+const RELATIVE = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
 
-    const days = Math.floor((Date.now() - Date.parse(iso)) / 86400000);
+const ageText = (age) => {
+    if (!age) return "";
 
-    if (days < 1) return "hoy";
-    if (days === 1) return "ayer";
-    if (days < 7) return `hace ${days} días`;
-    if (days < 14) return "hace una semana";
-    if (days < 31) return `hace ${Math.floor(days / 7)} semanas`;
-    if (days < 62) return "hace un mes";
-    if (days < 365) return `hace ${Math.floor(days / 30)} meses`;
+    // Lo único que Intl no sabe hacer es un tope: con un año escribiría
+    // "hace 1 año", y a partir de ahí queremos dejar de contar.
+    if (age.unit === "year") return "hace más de un año";
 
-    return "hace más de un año";
+    return RELATIVE.format(-age.value, age.unit);
 };
 
 /** "Pablo V." -> "PV", para cuando el cliente no tiene foto. */
@@ -152,7 +149,7 @@ export const ReviewsSection = () => {
                                         {review.client_name}
                                     </p>
                                     <p className="cf-review-card__meta">
-                                        {review.service_name} · {timeAgo(review.created_at)}
+                                        {review.service_name} · {ageText(review.age)}
                                     </p>
                                 </div>
                             </div>
