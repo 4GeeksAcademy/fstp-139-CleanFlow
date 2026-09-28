@@ -269,6 +269,46 @@ class User(db.Model):
 
 
 # ==================================================================
+# INTENTO DE AUTENTICACIÓN
+# ==================================================================
+
+
+class AuthAttempt(db.Model):
+    """Una llamada a una puerta de entrada, para poder poner un tope.
+
+    Se cuenta en la base de datos y no en memoria a propósito: en
+    producción corren varios procesos de gunicorn, y con la cuenta en
+    memoria cada uno llevaría la suya. El tope real sería el que pusimos
+    multiplicado por el número de procesos, y nadie sabría cuál es.
+
+    Se cuenta por IP y NO por correo. Por correo, cualquiera podría
+    dejarte fuera de tu cuenta fallando tu contraseña a propósito, que es
+    peor que el problema que resuelve.
+    """
+
+    __tablename__ = "auth_attempts"
+
+    auth_attempt_id: Mapped[int] = mapped_column(primary_key=True)
+
+    # 45 caracteres: lo que ocupa una IPv6 escrita del todo.
+    ip: Mapped[str] = mapped_column(String(45), nullable=False)
+
+    # Qué puerta: login, register o google. Cada una lleva su cuenta, para
+    # que fallar al entrar no gaste los intentos de registrarse.
+    scope: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    # Las consultas siempre preguntan lo mismo: cuántos de esta IP, en
+    # esta puerta, desde tal hora. El índice va en ese orden.
+    __table_args__ = (
+        db.Index("ix_auth_attempts_lookup", "ip", "scope", "created_at"),
+    )
+
+
+# ==================================================================
 # SHIFT
 # ==================================================================
 # Turno de trabajo (mañana, tarde...) con su hora de inicio y fin.

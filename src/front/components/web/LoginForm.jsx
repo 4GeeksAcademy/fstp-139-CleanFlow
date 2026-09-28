@@ -51,10 +51,6 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
     // Mensaje de error del backend (credenciales incorrectas, etc.).
     const [error, setError] = useState("");
 
-    // Cuando la cuenta se creó con Google no hay contraseña que fallar,
-    // así que no es un error: es que llamó a la puerta de al lado. Por
-    // eso va en su propio aviso y no en el rojo.
-    const [useGoogle, setUseGoogle] = useState("");
 
     // Aviso de sesión caducada. Se inicializa con lo que venga en el
     // state de la navegación y se guarda en estado propio para poder
@@ -73,7 +69,6 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
         // Limpia el error anterior: si no, al reintentar se quedaría el
         // mensaje viejo en pantalla mientras llega la nueva respuesta.
         setError("");
-        setUseGoogle("");
 
         // El usuario ya ha reaccionado a los avisos (sesión caducada o
         // cuenta creada): se retiran para que no compitan con el error
@@ -85,8 +80,7 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
         // correcta, data trae el cuerpo.
         const { ok, data } = await login(email, password)
         if (!ok) {
-            if (data.use_google) setUseGoogle(data.error)
-            else setError(data.error)
+            setError(data.error)
             return
         }
 
@@ -133,22 +127,31 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
                 </div>
             )}
 
-            {/* No es un error: se ha equivocado de puerta y le decimos
-                cuál es la suya. Por eso en verde y no en rojo. */}
-            {useGoogle && (
-                <div className="auth-note" role="status">
-                    <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
-                    <span>
-                        <b>Esta cuenta se creó con Google.</b> Entra con el botón de
-                        arriba. Si prefieres una contraseña, puedes crearla después
-                        desde Ajustes.
-                    </span>
-                </div>
-            )}
-
             {/* Solo se pinta si hay error. role="alert" hace que los
                 lectores de pantalla lo anuncien al aparecer. */}
-            {error && <div className="auth-alert" role="alert">{error}</div>}
+            {error && (
+                <>
+                    <div className="auth-alert" role="alert">{error}</div>
+
+                    {/* La pista va en CUALQUIER fallo, no solo cuando la
+                        cuenta es de Google. Quien se registró con Google
+                        no tiene contraseña y aquí se quedaría probando
+                        una que no existe; con esto sale solo.
+
+                        Y al ser siempre la misma, no dice si el correo
+                        está registrado: quien fuera probando correos para
+                        averiguarlo vería exactamente lo mismo. */}
+                    {google && (
+                        <div className="auth-note" role="status">
+                            <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
+                            <span>
+                                <b>¿Te registraste con Google?</b> Entonces no tienes
+                                contraseña: entra con el botón de arriba.
+                            </span>
+                        </div>
+                    )}
+                </>
+            )}
 
             {/* Arriba del formulario a propósito: abajo, la gente escribe
                 el correo y la contraseña y solo entonces ve el atajo. */}

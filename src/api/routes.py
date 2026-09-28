@@ -14,7 +14,7 @@ import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus, public_name
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus, AuthAttempt, public_name
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from api.absence_routes import affected_reasons, booking_query
@@ -668,12 +668,96 @@ def update_worker_status(worker_id):
 #   POST   /api/register   alta de cliente
 #   POST   /api/login      devuelve token + usuario
 
+# ----------------------------------------------------------------------
+# TOPE DE INTENTOS EN LAS PUERTAS DE ENTRADA
+# ----------------------------------------------------------------------
+# Sin esto, cualquiera puede probar contraseñas o sondear qué correos
+# están registrados tantas veces como quiera. Un tope no lo impide, pero
+# convierte un ataque de segundos en uno de días.
+#
+# Por IP y no por correo: por correo, cualquiera podría dejarte fuera de
+# tu cuenta fallando tu contraseña a propósito.
+# ----------------------------------------------------------------------
+
+# Cuántos intentos se permiten por minuto en cada puerta. Entrar da más
+# margen que registrarse: equivocarse escribiendo la contraseña es
+# normal, y registrarse dos veces seguidas no lo es.
+AUTH_LIMITS = {
+    "login": 10,
+    "register": 5,
+    "google": 10,
+}
+
+AUTH_WINDOW_MINUTES = 1
+
+
+def client_ip():
+    """La IP de quien llama, no la del proxy.
+
+    En Render la aplicación va detrás de un proxy, así que remote_addr
+    devuelve siempre la misma dirección. Sin mirar X-Forwarded-For, todo
+    el mundo contaría como un solo visitante y el primero que fallara
+    diez veces dejaría fuera a los demás.
+
+    De la cabecera se coge el PRIMER valor, que es el cliente original;
+    los siguientes son los proxies por los que ha pasado.
+    """
+    forwarded = request.headers.get("X-Forwarded-For", "")
+
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:45]
+
+    return (request.remote_addr or "desconocida")[:45]
+
+
+def too_many_attempts(scope):
+    """True si esta IP ya ha gastado sus intentos en esta puerta.
+
+    Apunta el intento de paso, y aprovecha para borrar los que ya han
+    salido de la ventana: así la tabla no crece sin fin y no hace falta
+    ninguna tarea programada que la limpie.
+    """
+    ip = client_ip()
+    now = madrid_now()
+    since = now - timedelta(minutes=AUTH_WINDOW_MINUTES)
+
+    db.session.execute(
+        db.delete(AuthAttempt).where(AuthAttempt.created_at < since)
+    )
+
+    used = db.session.execute(
+        db.select(func.count(AuthAttempt.auth_attempt_id)).where(
+            AuthAttempt.ip == ip,
+            AuthAttempt.scope == scope,
+            AuthAttempt.created_at >= since,
+        )
+    ).scalar_one()
+
+    db.session.add(AuthAttempt(ip=ip, scope=scope, created_at=now))
+    db.session.commit()
+
+    return used >= AUTH_LIMITS[scope]
+
+
+def slow_down():
+    """La respuesta cuando se han gastado los intentos."""
+    return jsonify({
+        "message": "Demasiados intentos. Espera un minuto y vuelve a probar.",
+        "error": "Demasiados intentos. Espera un minuto y vuelve a probar.",
+    }), 429
+
+
 @api.route('/register', methods=['POST'])
 def register():
     """Da de alta un usuario nuevo (siempre como client).
 
     Todo se valida ANTES de tocar la BD, y cada fallo tiene su código HTTP.
     """
+    # Lo primero de todo: sin tope, esta puerta sirve para averiguar qué
+    # correos están registrados probándolos uno a uno.
+    if too_many_attempts("register"):
+        return slow_down()
+
     data = request.get_json()
 
     if not data:
@@ -745,6 +829,9 @@ def login():
 
     El usuario va incluido para que el frontend sepa el rol sin otra petición.
     """
+    if too_many_attempts("login"):
+        return slow_down()
+
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
@@ -760,20 +847,13 @@ def login():
     if existing_user is None:
         return jsonify({"error": "Invalid email or password"}), 401
 
-    # Cuenta creada con Google: no hay contraseña que comprobar, así que
-    # decirle "contraseña incorrecta" sería mandarlo a intentarlo otra vez
-    # con algo que no existe. Hay que nombrar la puerta que sí es la suya.
+    # Cuenta creada con Google: no hay contraseña que comprobar, y
+    # check_password devuelve False, así que cae en el 401 de abajo con
+    # el mismo mensaje que todos.
     #
-    # Sí, esto confirma que el correo está registrado, y arriba se evita a
-    # propósito. Es un intercambio consciente: solo se dice cuando la
-    # cuenta NO tiene contraseña, nunca cuando la tiene y falla, que es el
-    # caso que de verdad usaría alguien para ir probando correos.
-    if not existing_user.password_hash:
-        return jsonify({
-            "error": "Esta cuenta se creó con Google. Entra con el botón de Google.",
-            "use_google": True,
-        }), 409
-
+    # Se le ayuda SIN decir nada: la pantalla enseña "¿te registraste con
+    # Google?" en cualquier fallo, sea cual sea el motivo. El que está
+    # atascado lo lee, y el que va probando correos no aprende nada.
     if existing_user.check_password(password):
         if not existing_user.is_active:
             return jsonify({"error": "Your account is deactivated. Contact the administrator."}), 403
@@ -839,6 +919,9 @@ def auth_google():
       3. No existe                       -> se crea, siempre como cliente
       4. Está desactivada                -> 403, igual que en /login
     """
+    if too_many_attempts("google"):
+        return slow_down()
+
     data = get_json_body() or {}
 
     claims, error = google_claims(data.get("credential"))
