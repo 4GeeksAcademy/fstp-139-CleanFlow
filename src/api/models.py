@@ -119,6 +119,16 @@ class User(db.Model):
     # no la encontrarían.
     __tablename__ = "users"
 
+    # Una cuenta tiene contraseña, Google, o las dos. Nunca ninguna: sin
+    # esto, un fallo al crearla dejaría a alguien sin forma de entrar y
+    # sin manera de arreglarlo desde la aplicación.
+    __table_args__ = (
+        db.CheckConstraint(
+            "password_hash IS NOT NULL OR google_id IS NOT NULL",
+            name="user_has_a_way_in",
+        ),
+    )
+
     # ------------------------------------------------------------------
     # COLUMNAS
     # ------------------------------------------------------------------
@@ -126,12 +136,18 @@ class User(db.Model):
     user_id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Nulable desde que se puede entrar con Google, que no lo da: la
+    # cuenta nace sin teléfono y se pide en el paso siguiente. Vacío en
+    # lugar de null sería un teléfono que no existe disfrazado de dato, y
+    # nadie sabría distinguir "no lo ha puesto" de "lo dejó en blanco".
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     email: Mapped[str] = mapped_column(
         String(120), unique=True, nullable=False)
 
-    # El hash, nunca la contraseña en claro (ver set_password).
-    password_hash: Mapped[str] = mapped_column(nullable=False)
+    # El hash, nunca la contraseña en claro (ver set_password). Nulable
+    # desde que se puede entrar con Google: quien lo haga no tiene
+    # ninguna hasta que se la cree en Ajustes.
+    password_hash: Mapped[str | None] = mapped_column(nullable=True)
 
     # La BD solo acepta estos tres roles. `name` es el nombre del tipo en
     # PostgreSQL, y es obligatorio.
@@ -143,6 +159,22 @@ class User(db.Model):
     # Desactivar en vez de borrar conserva el historial de la cuenta.
     is_active: Mapped[bool] = mapped_column(Boolean(), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # ---- ENTRAR CON GOOGLE ----
+
+    # El "sub" que da Google, no el correo: una persona puede cambiar el
+    # correo de su cuenta de Google y el sub no cambia nunca. Es lo que
+    # identifica de verdad a quien entra.
+    google_id: Mapped[str | None] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
+
+    # Lo dice Google en su token. Sin correo verificado NO se vincula una
+    # cuenta que ya existe: si no, cualquiera se crea un Google con el
+    # correo de otro y se mete en su cuenta.
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, server_default="false"
+    )
 
     # server_default: la fecha la pone la BD al insertar, no Python.
     created_at: Mapped[DateTime] = mapped_column(
@@ -163,7 +195,15 @@ class User(db.Model):
         self.password_hash = generate_password_hash(password).decode('utf-8')
 
     def check_password(self, password):
-        """True si la contraseña recibida coincide con el hash guardado."""
+        """True si la contraseña recibida coincide con el hash guardado.
+
+        Sin hash no hay nada que comparar: la cuenta se creó con Google y
+        todavía no se ha puesto contraseña. Se devuelve False y es quien
+        llama el que decide qué contarle al usuario.
+        """
+        if not self.password_hash:
+            return False
+
         try:
             return check_password_hash(self.password_hash, password)
         except ValueError:
@@ -196,27 +236,76 @@ class User(db.Model):
         y acaba en localStorage, así que solo lleva lo imprescindible.
 
         last_name está por el bloque de usuario del sidebar, que enseña el
-        nombre completo. El teléfono NO: no hace falta para la sesión."""
+        nombre completo. El teléfono NO: no hace falta para la sesión, y
+        va en needs_phone si falta, que es lo único que la pantalla
+        necesita saber para mandarlo al paso que lo pide."""
         return {
             "user_id": self.user_id,
             "name": self.name,
             "last_name": self.last_name,
             "email": self.email,
             "role": self.role,
+            "needs_phone": not self.phone,
             "avatar_url": self.avatar_url
         }
 
     def serialize_account(self):
         """Vista para la pantalla de ajustes (#13). Añade el teléfono, que
-        solo se usa ahí. El correo viaja, pero no se puede cambiar."""
+        solo se usa ahí. El correo viaja, pero no se puede cambiar.
+
+        Las dos formas de entrar van como sí o no, nunca el hash ni el
+        identificador de Google: la pantalla solo necesita saber cuáles
+        tiene puestas para ofrecerle la que le falte."""
         return {
             "name": self.name,
             "last_name": self.last_name,
             "phone": self.phone,
             "email": self.email,
             "role": self.role,
+            "has_password": bool(self.password_hash),
+            "has_google": bool(self.google_id),
             "avatar_url": self.avatar_url
         }
+
+
+# ==================================================================
+# INTENTO DE AUTENTICACIÓN
+# ==================================================================
+
+
+class AuthAttempt(db.Model):
+    """Una llamada a una puerta de entrada, para poder poner un tope.
+
+    Se cuenta en la base de datos y no en memoria a propósito: en
+    producción corren varios procesos de gunicorn, y con la cuenta en
+    memoria cada uno llevaría la suya. El tope real sería el que pusimos
+    multiplicado por el número de procesos, y nadie sabría cuál es.
+
+    Se cuenta por IP y NO por correo. Por correo, cualquiera podría
+    dejarte fuera de tu cuenta fallando tu contraseña a propósito, que es
+    peor que el problema que resuelve.
+    """
+
+    __tablename__ = "auth_attempts"
+
+    auth_attempt_id: Mapped[int] = mapped_column(primary_key=True)
+
+    # 45 caracteres: lo que ocupa una IPv6 escrita del todo.
+    ip: Mapped[str] = mapped_column(String(45), nullable=False)
+
+    # Qué puerta: login, register o google. Cada una lleva su cuenta, para
+    # que fallar al entrar no gaste los intentos de registrarse.
+    scope: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    # Las consultas siempre preguntan lo mismo: cuántos de esta IP, en
+    # esta puerta, desde tal hora. El índice va en ese orden.
+    __table_args__ = (
+        db.Index("ix_auth_attempts_lookup", "ip", "scope", "created_at"),
+    )
 
 
 # ==================================================================

@@ -8,6 +8,9 @@
  *   title / subtitle: la cabecera de la tarjeta
  *   foot(state):      el pie, al que se le pasa el state de la navegación
  *                     para que el enlace conserve el destino (WEB-15)
+ *   google:           si se ofrece entrar con Google. Solo la puerta del
+ *                     cliente: el equipo entra con la cuenta que le dio
+ *                     la empresa, y su correo puede no ser de Google
  *
  * El marco (fondo, logo, centrado y "Volver al inicio") lo pone
  * AuthLayout. Estilos: las clases auth-* de auth.css.
@@ -17,9 +20,10 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../services/authService.js";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
+import { GoogleButton } from "./GoogleButton.jsx";
 
 
-export const LoginForm = ({ title, subtitle, foot }) => {
+export const LoginForm = ({ title, subtitle, foot, google = false }) => {
 
     const { dispatch } = useGlobalReducer()
     const navigate = useNavigate();
@@ -46,6 +50,7 @@ export const LoginForm = ({ title, subtitle, foot }) => {
 
     // Mensaje de error del backend (credenciales incorrectas, etc.).
     const [error, setError] = useState("");
+
 
     // Aviso de sesión caducada. Se inicializa con lo que venga en el
     // state de la navegación y se guarda en estado propio para poder
@@ -124,7 +129,38 @@ export const LoginForm = ({ title, subtitle, foot }) => {
 
             {/* Solo se pinta si hay error. role="alert" hace que los
                 lectores de pantalla lo anuncien al aparecer. */}
-            {error && <div className="auth-alert" role="alert">{error}</div>}
+            {error && (
+                <>
+                    <div className="auth-alert" role="alert">{error}</div>
+
+                    {/* La pista va en CUALQUIER fallo, no solo cuando la
+                        cuenta es de Google. Quien se registró con Google
+                        no tiene contraseña y aquí se quedaría probando
+                        una que no existe; con esto sale solo.
+
+                        Y al ser siempre la misma, no dice si el correo
+                        está registrado: quien fuera probando correos para
+                        averiguarlo vería exactamente lo mismo. */}
+                    {google && (
+                        <div className="auth-note" role="status">
+                            <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
+                            <span>
+                                <b>¿Te registraste con Google?</b> Entonces no tienes
+                                contraseña: entra con el botón de arriba.
+                            </span>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Arriba del formulario a propósito: abajo, la gente escribe
+                el correo y la contraseña y solo entonces ve el atajo. */}
+            {google && (
+                <>
+                    <GoogleButton onError={setError} />
+                    <p className="auth-or">o con tu correo</p>
+                </>
+            )}
 
             <form onSubmit={handleSubmit}>
                 <div className="auth-field">
@@ -186,9 +222,6 @@ export const LoginForm = ({ title, subtitle, foot }) => {
                     así que también funciona pulsando Enter en un campo. */}
                 <button type="submit" className="auth-btn">Iniciar sesión</button>
             </form>
-
-            {/* Hueco para los accesos externos ("Entrar con Google"), que
-                van en su propia issue. Va aquí, entre el botón y el pie. */}
 
             {/* El pie lo pone cada puerta: no es lo mismo lo que se le
                 ofrece a un cliente que a alguien del equipo.

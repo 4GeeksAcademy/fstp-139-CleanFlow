@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { login, register } from "../../services/authService";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
+import { GoogleButton } from "../../components/web/GoogleButton.jsx";
 
 
 export const Register = () => {
@@ -35,6 +36,10 @@ export const Register = () => {
     // Error del backend (correo repetido, datos que faltan...) o de conexión.
     const [error, setError] = useState("");
 
+    // El correo ya tiene cuenta, pero creada con Google. No es que
+    // esté "pillado": es que la cuenta ya es suya.
+    const [useGoogle, setUseGoogle] = useState("");
+
     // Evita el doble envío y cambia el texto del botón mientras se guarda.
     const [loading, setLoading] = useState(false);
 
@@ -56,12 +61,19 @@ export const Register = () => {
         if (loading) return;
 
         setError("");
+        setUseGoogle("");
         setLoading(true);
 
         // register() y login() nunca lanzan: devuelven { ok, data }.
         const created = await register(formData);
 
         if (!created.ok) {
+            if (created.data.use_google) {
+                setUseGoogle(created.data.message);
+                setLoading(false);
+                return;
+            }
+
             // Los campos no se borran: así se puede corregir y reintentar.
             setError(
                 created.networkError
@@ -108,11 +120,29 @@ export const Register = () => {
                 Regístrate para solicitar y gestionar tus servicios
             </p>
 
+            {useGoogle && (
+                <div className="auth-note" role="status">
+                    <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    <span>
+                        <b>Ya tienes una cuenta con este correo.</b> La creaste con
+                        Google, así que entra con el botón de arriba. Es la misma
+                        cuenta, con tus reservas.
+                    </span>
+                </div>
+            )}
+
             {error && (
                 <div className="auth-alert" role="alert">
                     {error}
                 </div>
             )}
+
+            {/* Arriba del formulario: quien vaya a usarlo se ahorra
+                rellenar cinco campos. Y es el mismo botón que en el
+                login, porque entrar y registrarse con Google son lo
+                mismo: si el correo no existe, se crea la cuenta. */}
+            <GoogleButton onError={setError} />
+            <p className="auth-or">o rellena tus datos</p>
 
             <form onSubmit={handleSubmit}>
                 <div className="auth-field">

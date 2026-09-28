@@ -14,6 +14,7 @@ import { PublicLayout } from "./pages/web/PublicLayout";
 import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
+import { CompleteProfile } from "./pages/web/CompleteProfile";
 import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
 import { WorkerBookingDetail } from "./pages/dashboard/WorkerBookingDetail";
 import { LoginClients } from "./pages/web/LoginClients";
@@ -59,6 +60,10 @@ export const router = createBrowserRouter(
         <Route path="login-clients" element={<LoginClients />} />
         <Route path="login-workers" element={<LoginWorkers />} />
         <Route path="register" element={<Register />} />
+        {/* El paso que falta tras entrar con Google. Pide sesión, pero va
+            fuera de /dashboard porque todavía no puede pasar ahí, así que
+            ProtectedRoutes no la cubre: la pantalla se guarda ella sola. */}
+        <Route path="completar-perfil" element={<CompleteProfile />} />
       </Route>
 
       {/* ---------- ZONA PRIVADA ---------- */}

@@ -2865,6 +2865,61 @@ textarea.cf-dash-input {
   color: var(--cf-primary);
 }
 
+/* ---------- LAS FORMAS DE ENTRAR ----------
+   Las dos en una lista con su estado, para que se vea de un vistazo cuál
+   falta. Quien entró con Google no tiene contraseña, y sin ella queda
+   atado a Google para siempre. */
+
+.cf-account__keys {
+  display: grid;
+  margin-bottom: var(--cf-space-6);
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+}
+
+.cf-account__key {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  padding: 13px 16px;
+  font-size: var(--cf-text-sm);
+}
+
+.cf-account__key + .cf-account__key {
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-account__key i {
+  width: 18px;
+  color: var(--cf-muted);
+  text-align: center;
+}
+
+.cf-account__key-on,
+.cf-account__key-off {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cf-account__key-on { color: var(--cf-primary); }
+.cf-account__key-off { color: var(--cf-muted); font-weight: 500; }
+
+/* Conectar Google, solo si no lo tiene. Separado del formulario de la
+   contraseña por una línea: son dos llaves distintas y se hacen aparte. */
+.cf-account__connect {
+  margin-bottom: var(--cf-space-6);
+  padding-bottom: var(--cf-space-6);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+/* El hueco donde Google dibuja su botón: lo pinta él y no se puede
+   maquetar, así que aquí solo se reserva el sitio. */
+.cf-account__google {
+  display: flex;
+  min-height: 44px;
+}
+
 .cf-account__lede {
   margin: 0 0 var(--cf-space-4);
   max-width: 60ch;
