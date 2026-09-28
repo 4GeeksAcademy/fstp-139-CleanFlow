@@ -59,8 +59,9 @@ export const router = createBrowserRouter(
         <Route path="login-clients" element={<LoginClients />} />
         <Route path="login-workers" element={<LoginWorkers />} />
         <Route path="register" element={<Register />} />
-        {/* El paso que falta tras entrar con Google. Con sesión, pero
-            fuera de /dashboard: todavía no puede pasar ahí. */}
+        {/* El paso que falta tras entrar con Google. Pide sesión, pero va
+            fuera de /dashboard porque todavía no puede pasar ahí, así que
+            ProtectedRoutes no la cubre: la pantalla se guarda ella sola. */}
         <Route path="completar-perfil" element={<CompleteProfile />} />
       </Route>
 

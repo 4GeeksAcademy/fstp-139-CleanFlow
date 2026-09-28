@@ -16,9 +16,10 @@
  */
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
 import { setAccountPhone } from "../../services/authService.js";
+import { loginPathForRole } from "../../authPaths.js";
 
 export const CompleteProfile = () => {
     const { store, dispatch } = useGlobalReducer();
@@ -29,6 +30,27 @@ export const CompleteProfile = () => {
     const [saving, setSaving] = useState(false);
 
     const user = store.user;
+
+    // ------------------------------------------------------------------
+    // QUIÉN PUEDE VER ESTA PANTALLA
+    //
+    // Vive fuera de /dashboard, así que ProtectedRoutes no la vigila y
+    // hay que hacerlo aquí. La comprobación va al pintar y no en un
+    // useEffect: así no se llega a ver ni un fotograma de lo que no toca.
+    // ------------------------------------------------------------------
+
+    // Sin sesión, a la puerta que le corresponda. Antes se veía la
+    // tarjeta con el nombre en blanco y un formulario que solo sabía
+    // fallar, porque guardar el teléfono pide token.
+    if (!store.token) {
+        return <Navigate to={loginPathForRole(store.user?.role)} replace />;
+    }
+
+    // Con la cuenta ya completa no hay nada que completar. Aquí llega
+    // quien pulsa "Atrás" después de guardar, y quien escribe la URL.
+    if (!store.user?.needs_phone) {
+        return <Navigate to="/dashboard" replace />;
+    }
 
     const handleSubmit = async (event) => {
         event.preventDefault();
