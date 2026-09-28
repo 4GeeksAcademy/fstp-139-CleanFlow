@@ -62,3 +62,13 @@ export const createPassword = (newPassword, token) => apiRequest(
     "/api/account/password",
     { method: "POST", token, body: { new_password: newPassword } }
 );
+
+/**
+ * Conecta un Google a la cuenta de la sesión. `credential` es el token
+ * que devuelve el botón de Google; quien comprueba la firma es el
+ * backend. data: { account }.
+ */
+export const connectGoogle = (credential, token) => apiRequest(
+    "/api/account/google",
+    { method: "POST", token, body: { credential } }
+);

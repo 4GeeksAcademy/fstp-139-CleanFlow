@@ -12,7 +12,11 @@
  * Sirve para entrar y para registrarse a la vez, porque son lo mismo:
  * si el correo no existe se crea la cuenta, y si existe se entra en ella.
  *
- * Estilos: auth.css (auth-google).
+ * Con `onCredential` hace otra cosa: no entra ni navega, solo entrega el
+ * token de Google a quien lo pidió. Es lo que usa Ajustes → Seguridad
+ * para conectar un Google a una sesión que ya está abierta.
+ *
+ * Estilos: auth.css (auth-google) o los que le pase `className`.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -45,12 +49,20 @@ const loadGoogle = () => new Promise((resolve, reject) => {
     document.head.appendChild(script);
 });
 
-export const GoogleButton = ({ onError }) => {
+export const GoogleButton = ({ onError, onCredential, className = "auth-google" }) => {
     const { dispatch } = useGlobalReducer();
     const navigate = useNavigate();
     const location = useLocation();
 
     const box = useRef(null);
+
+    // Las funciones que llegan por props se guardan en una ref y no en
+    // las dependencias del efecto. Quien lo usa las escribe en línea, así
+    // que cambian de identidad en cada render, y Ajustes se repinta con
+    // cada tecla del formulario: con ellas en las dependencias, Google
+    // volvería a dibujar su botón una y otra vez.
+    const handlers = useRef({ onError, onCredential });
+    handlers.current = { onError, onCredential };
 
     // Mientras se carga el script no hay nada que enseñar. Y si no carga
     // —sin conexión, o un bloqueador— tampoco: mejor que no exista a que
@@ -70,12 +82,19 @@ export const GoogleButton = ({ onError }) => {
         let alive = true;
 
         const responder = async ({ credential }) => {
+            // Modo "solo entregar": la pantalla que lo pidió decide qué
+            // hacer con el token. Aquí no se entra ni se navega.
+            if (handlers.current.onCredential) {
+                handlers.current.onCredential(credential);
+                return;
+            }
+
             const { ok, data } = await loginWithGoogle(credential);
 
             if (!alive) return;
 
             if (!ok) {
-                onError?.(data.message || "No hemos podido entrar con Google.");
+                handlers.current.onError?.(data.message || "No hemos podido entrar con Google.");
                 return;
             }
 
@@ -110,9 +129,9 @@ export const GoogleButton = ({ onError }) => {
 
         return () => { alive = false; };
     // Solo al montar: volver a inicializar pintaría el botón dos veces.
-    }, [dispatch, navigate, from, onError]);
+    }, [dispatch, navigate, from]);
 
     if (failed) return null;
 
-    return <div className="auth-google" ref={box} />;
+    return <div className={className} ref={box} />;
 };

@@ -6,7 +6,11 @@
  *
  * Quien entró con Google todavía no tiene ninguna, así que a ese se le
  * ofrece CREARLA y no cambiarla: no hay anterior que pedir. Arriba se
- * ven las dos formas de entrar y cuáles tiene puestas.
+ * ven las dos formas de entrar y cuáles tiene puestas, y al que le falte
+ * Google se le ofrece conectarlo.
+ *
+ * Hasta saber cuáles tiene no se pinta nada de eso: enseñar el
+ * formulario equivocado hace que escriba tres campos para nada.
  *
  * La sesión NO se corta al cambiarla: el token sigue siendo válido.
  *
@@ -15,7 +19,8 @@
 
 import { useEffect, useState } from "react"
 import useGlobalReducer from "../../../hooks/useGlobalReducer"
-import { getAccount, changePassword, createPassword } from "../../../services/accountService"
+import { getAccount, changePassword, createPassword, connectGoogle } from "../../../services/accountService"
+import { GoogleButton } from "../../../components/web/GoogleButton"
 
 // El mismo mínimo que pide el backend en /register y en /account/password.
 const PASSWORD_MIN_LENGTH = 6
@@ -61,28 +66,17 @@ export const AccountSecurity = () => {
     // crear o el de cambiar.
     const [keys, setKeys] = useState(null)
 
-    useEffect(() => {
-        let alive = true
+    // Si la consulta falla, keys se quedaría en null para siempre y la
+    // pantalla enseñaría el formulario de crear a quien ya tiene
+    // contraseña. Con esto se dice qué pasó y se puede reintentar.
+    const [loadError, setLoadError] = useState("")
+    const [retryKey, setRetryKey] = useState(0)
 
-        const load = async () => {
-            const result = await getAccount(store.token)
-
-            if (alive && result.ok) {
-                setKeys({
-                    hasPassword: result.data.account.has_password,
-                    hasGoogle: result.data.account.has_google,
-                })
-            }
-        }
-
-        load()
-
-        return () => { alive = false }
-    }, [store.token])
-
-    const hasPassword = keys?.hasPassword
-
-    const toggleShown = (field) => setShown((current) => ({ ...current, [field]: !current[field] }))
+    // Conectar Google tiene su propio estado y su propio aviso: si
+    // compartiera el del formulario, un fallo al conectar saldría debajo
+    // de los campos de la contraseña, que no tienen nada que ver.
+    const [linking, setLinking] = useState(false)
+    const [linkError, setLinkError] = useState("")
 
     // Token caducado (401) o corrupto (422): se cierra la sesión y
     // ProtectedRoutes manda al login. OJO: la contraseña actual incorrecta
@@ -94,6 +88,38 @@ export const AccountSecurity = () => {
         }
         return false
     }
+
+    useEffect(() => {
+        let alive = true
+
+        const load = async () => {
+            const result = await getAccount(store.token)
+
+            if (!alive) return
+
+            if (result.ok) {
+                // result.data ya ES la cuenta: getAccount la desenvuelve.
+                setKeys({
+                    hasPassword: result.data.has_password,
+                    hasGoogle: result.data.has_google,
+                })
+                setLoadError("")
+                return
+            }
+
+            if (sessionExpired(result)) return
+
+            setLoadError("No hemos podido comprobar cómo entras en tu cuenta.")
+        }
+
+        load()
+
+        return () => { alive = false }
+    }, [store.token, retryKey])
+
+    const hasPassword = keys?.hasPassword
+
+    const toggleShown = (field) => setShown((current) => ({ ...current, [field]: !current[field] }))
 
     const handleChange = (event) => {
         const { name, value } = event.target
@@ -146,6 +172,27 @@ export const AccountSecurity = () => {
 
         // Al crearla, la pantalla pasa a ser la de cambiarla.
         if (!hasPassword) setKeys((current) => ({ ...current, hasPassword: true }))
+    }
+
+    // Conectar un Google a esta cuenta. Quien está aquí ya entró con su
+    // contraseña, así que la propiedad de la cuenta está probada y no
+    // hace falta comprobar de quién es el correo.
+    const handleGoogle = async (credential) => {
+        setLinkError("")
+        setLinking(true)
+
+        const result = await connectGoogle(credential, store.token)
+
+        if (sessionExpired(result)) return
+
+        setLinking(false)
+
+        if (!result.ok) {
+            setLinkError(result.data.message)
+            return
+        }
+
+        setKeys((current) => ({ ...current, hasGoogle: true }))
     }
 
     // Los tres campos son iguales: mismo marcado con el ojo dentro. Es una
@@ -204,31 +251,101 @@ export const AccountSecurity = () => {
         )
     }
 
-    return (
-        <div className="cf-account__card">
+    // El encabezado es el mismo en los tres estados: así al cargar no
+    // salta la pantalla entera, solo aparece lo de dentro.
+    const header = (
+        <>
             <h2 className="cf-account__subtitle">Cómo entras en tu cuenta</h2>
             <p className="cf-account__lede">
                 Puedes tener las dos formas a la vez. Con una contraseña propia
                 podrás entrar aunque algún día no tengas acceso a tu Google.
             </p>
+        </>
+    )
 
-            {keys && (
-                <div className="cf-account__keys">
-                    <div className="cf-account__key">
-                        <i className="fa-brands fa-google" aria-hidden="true" />
-                        <span>Google</span>
-                        <span className={keys.hasGoogle ? "cf-account__key-on" : "cf-account__key-off"}>
-                            {keys.hasGoogle ? "Conectado" : "Sin conectar"}
-                        </span>
-                    </div>
+    // ------------------------------------------------------------------
+    // 1 · NO SE PUDO SABER
+    //
+    // Sin esto la pantalla enseñaba el formulario de CREAR contraseña a
+    // quien ya tenía una: el botón mandaba el POST equivocado y el
+    // backend respondía 409 después de escribirla tres veces.
+    // ------------------------------------------------------------------
+    if (loadError) {
+        return (
+            <div className="cf-account__card">
+                {header}
 
-                    <div className="cf-account__key">
-                        <i className="fa-solid fa-lock" aria-hidden="true" />
-                        <span>Contraseña</span>
-                        <span className={keys.hasPassword ? "cf-account__key-on" : "cf-account__key-off"}>
-                            {keys.hasPassword ? "Configurada" : "Sin configurar"}
-                        </span>
-                    </div>
+                <p className="cf-dash-alert" role="alert">{loadError}</p>
+
+                <button
+                    type="button"
+                    className="cf-dash-btn cf-dash-btn--ghost"
+                    onClick={() => { setLoadError(""); setRetryKey((key) => key + 1) }}
+                >
+                    Reintentar
+                </button>
+            </div>
+        )
+    }
+
+    // ------------------------------------------------------------------
+    // 2 · TODAVÍA NO SE SABE
+    // ------------------------------------------------------------------
+    if (!keys) {
+        return (
+            <div className="cf-account__card">
+                {header}
+                <p className="cf-account__lede" role="status">Cargando…</p>
+            </div>
+        )
+    }
+
+    // ------------------------------------------------------------------
+    // 3 · YA SE SABE
+    // ------------------------------------------------------------------
+    return (
+        <div className="cf-account__card">
+            {header}
+
+            <div className="cf-account__keys">
+                <div className="cf-account__key">
+                    <i className="fa-brands fa-google" aria-hidden="true" />
+                    <span>Google</span>
+                    <span className={keys.hasGoogle ? "cf-account__key-on" : "cf-account__key-off"}>
+                        {keys.hasGoogle ? "Conectado" : "Sin conectar"}
+                    </span>
+                </div>
+
+                <div className="cf-account__key">
+                    <i className="fa-solid fa-lock" aria-hidden="true" />
+                    <span>Contraseña</span>
+                    <span className={keys.hasPassword ? "cf-account__key-on" : "cf-account__key-off"}>
+                        {keys.hasPassword ? "Configurada" : "Sin configurar"}
+                    </span>
+                </div>
+            </div>
+
+            {/* Sin Google conectado, la forma de añadirlo. Hasta ahora no
+                había ninguna: quien se registró con contraseña no podía
+                usar nunca el botón de Google. */}
+            {!keys.hasGoogle && (
+                <div className="cf-account__connect">
+                    <p className="cf-account__lede">
+                        Conecta tu Google y podrás entrar con un botón, sin escribir
+                        la contraseña.
+                    </p>
+
+                    {linkError && (
+                        <p className="cf-dash-alert" role="alert">{linkError}</p>
+                    )}
+
+                    {linking
+                        ? <p className="cf-account__lede" role="status">Conectando…</p>
+                        : <GoogleButton
+                            className="cf-account__google"
+                            onCredential={handleGoogle}
+                            onError={setLinkError}
+                        />}
                 </div>
             )}
 

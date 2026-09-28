@@ -908,6 +908,25 @@ def google_claims(credential):
         return None, "No hemos podido validar tu cuenta de Google."
 
 
+def google_owns_mailbox(claims, email):
+    """Si el buzón es de Google, email_verified prueba la propiedad HOY.
+
+    Una cuenta de Google puede crearse con un correo de otro proveedor:
+    Google lo comprueba UNA VEZ, el día del alta, y desde entonces
+    arrastra el "verificado" para siempre. Si esa dirección cambia de
+    manos —un dominio que caduca, un correo reciclado, alguien que deja
+    la empresa—, el nuevo dueño obtiene un token con verified=True para
+    un correo que no era suyo.
+
+    Con gmail.com o con un dominio de Workspace (hd) el buzón lo gestiona
+    Google, así que ahí la comprobación sí es de ahora mismo.
+
+    Solo decide si se puede VINCULAR una cuenta que ya existe. Crear una
+    nueva no roba nada a nadie y sigue abierto a cualquier correo.
+    """
+    return bool(claims.get("hd")) or email.endswith(("@gmail.com", "@googlemail.com"))
+
+
 @api.route("/auth/google", methods=["POST"])
 def auth_google():
     """Entra o se registra con Google.
@@ -956,6 +975,20 @@ def auth_google():
         ).scalar_one_or_none()
 
         if user is not None:
+            # Con un buzón que no es de Google, "verificado" puede ser de
+            # hace años y no prueba nada hoy. Entrar aquí sería abrirle la
+            # cuenta de otro a quien heredó esa dirección, así que se le
+            # pide lo único que solo sabe el dueño: su contraseña.
+            #
+            # El mensaje no dice que la cuenta exista. Sería decirle a
+            # quien prueba correos ajenos cuáles están dados de alta.
+            if not google_owns_mailbox(claims, email):
+                return jsonify({
+                    "message": "Con este correo hay que entrar con contraseña. "
+                               "Después puedes conectar Google desde "
+                               "Ajustes → Seguridad."
+                }), 409
+
             # Ya tenía cuenta con contraseña: se le añade la segunda llave
             # en vez de crearle una cuenta duplicada con el mismo correo.
             user.google_id = google_id
@@ -1167,13 +1200,23 @@ def set_account_phone():
 
     Aparte de PUT /account porque no es lo mismo: aquel edita una cuenta
     completa y este termina de crearla. Aquí no hay nombre ni apellidos
-    que validar, y el trabajador no está bloqueado porque esta puerta
-    solo la cruza quien acaba de entrar sin teléfono.
+    que validar, solo el dato que falta.
     """
     user = current_user()
 
     if not user:
         return jsonify({"message": "Usuario no encontrado"}), 404
+
+    # Solo termina una cuenta a medias; no edita una hecha. Sin esto, un
+    # trabajador se cambiaría el teléfono por aquí y se saltaría la regla
+    # de PUT /account, donde sus datos los gestiona el encargado.
+    #
+    # Va aquí y no en un rol: no hace falta saber quién llama, basta con
+    # que esta puerta solo sirva para lo que se abrió.
+    if user.phone:
+        return jsonify({
+            "message": "Tu cuenta ya tiene teléfono. Puedes cambiarlo desde Ajustes."
+        }), 409
 
     data = get_json_body()
 
@@ -1314,6 +1357,58 @@ def create_account_password():
 
     # set_password hashea; nunca se asigna password_hash a mano.
     user.set_password(new_password)
+    db.session.commit()
+
+    return jsonify({"account": user.serialize_account()}), 200
+
+
+@api.route("/account/google", methods=["POST"])
+@jwt_required()
+def connect_account_google():
+    """Conecta una cuenta de Google a la sesión abierta.
+
+    Es la salida de quien entró con contraseña: aquí no hay que adivinar
+    de quién es el correo, porque ya entró con su contraseña y eso es la
+    prueba. Por eso se vincula el Google que elija, sea del buzón que sea.
+
+    También es lo que se le ofrece a quien /auth/google rechazó por tener
+    el correo en otro proveedor.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    data = get_json_body() or {}
+
+    claims, error = google_claims(data.get("credential"))
+
+    if error:
+        return jsonify({"message": error}), 401
+
+    google_id = claims.get("sub")
+
+    if not google_id:
+        return jsonify({"message": "Google no ha devuelto tu cuenta."}), 401
+
+    if user.google_id:
+        return jsonify({
+            "message": "Tu cuenta ya tiene un Google conectado."
+        }), 409
+
+    # Un mismo Google no puede abrir dos cuentas de CleanFlow: si no, al
+    # entrar por el botón no sabríamos en cuál de las dos meterle.
+    taken = db.session.execute(
+        db.select(User).where(User.google_id == google_id)
+    ).scalar_one_or_none()
+
+    if taken is not None:
+        return jsonify({
+            "message": "Ese Google ya está conectado a otra cuenta."
+        }), 409
+
+    user.google_id = google_id
+
     db.session.commit()
 
     return jsonify({"account": user.serialize_account()}), 200

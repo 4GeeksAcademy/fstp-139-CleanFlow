@@ -2904,6 +2904,21 @@ textarea.cf-dash-input {
 .cf-account__key-on { color: var(--cf-primary); }
 .cf-account__key-off { color: var(--cf-muted); font-weight: 500; }
 
+/* Conectar Google, solo si no lo tiene. Separado del formulario de la
+   contraseña por una línea: son dos llaves distintas y se hacen aparte. */
+.cf-account__connect {
+  margin-bottom: var(--cf-space-6);
+  padding-bottom: var(--cf-space-6);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+/* El hueco donde Google dibuja su botón: lo pinta él y no se puede
+   maquetar, así que aquí solo se reserva el sitio. */
+.cf-account__google {
+  display: flex;
+  min-height: 44px;
+}
+
 .cf-account__lede {
   margin: 0 0 var(--cf-space-4);
   max-width: 60ch;
