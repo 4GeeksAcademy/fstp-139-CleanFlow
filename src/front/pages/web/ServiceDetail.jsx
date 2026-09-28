@@ -5,17 +5,7 @@ import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getServiceBySlug, getServices } from "../../services/serviceService";
 import { getTasks } from "../../services/taskService";
 import { ServiceCard } from "../../components/web/ServiceCard";
-import servicePlaceholder from "../../assets/img/service-placeholder.svg";
-import limpiezaEsencial from "../../assets/img/services/limpieza-esencial.webp";
-import limpiezaIntegral from "../../assets/img/services/limpieza-integral.webp";
-import limpiezaProfunda from "../../assets/img/services/limpieza-profunda.webp";
-import limpiezaFinDeObra from "../../assets/img/services/limpieza-fin-de-obra.webp";
-const serviceImages = {
-    "limpieza-esencial": limpiezaEsencial,
-    "limpieza-integral": limpiezaIntegral,
-    "limpieza-profunda": limpiezaProfunda,
-    "limpieza-fin-de-obra": limpiezaFinDeObra,
-};
+import { getServiceImage } from "../../data/serviceImages";
 
 const formatPrice = (price) => {
     const value = Number(price);
@@ -28,18 +18,6 @@ const formatPrice = (price) => {
     }).format(value);
 };
 
-const formatDuration = (service) => {
-    if (!service) return "";
-
-    const minHours = service.min_hours;
-    const maxHours = service.max_hours;
-
-    if (maxHours !== null && maxHours !== undefined) {
-        return `${minHours}–${maxHours} horas`;
-    }
-
-    return `Desde ${minHours} ${minHours === 1 ? "hora" : "horas"}`;
-};
 
 export const ServiceDetail = () => {
     const { slug } = useParams();
@@ -170,10 +148,7 @@ export const ServiceDetail = () => {
 
     if (!service) return null;
 
-    const imageSrc =
-        service.image_url ||
-        serviceImages[service.slug] ||
-        servicePlaceholder;
+    const imageSrc = getServiceImage(service);
 
     const contractPath = store.token
         ? `/dashboard/book?servicio=${service.slug}`
@@ -214,10 +189,41 @@ export const ServiceDetail = () => {
                         </div>
 
                         <div className="cf-service-detail__fact">
-                            <span>Duración</span>
-                            <strong>{formatDuration(service)}</strong>
+                            <span>Mínimo</span>
+                            <strong>
+                                {service.min_hours}{" "}
+                                {service.min_hours === 1 ? "hora" : "horas"}
+                            </strong>
+                        </div>
+
+                        <div className="cf-service-detail__fact">
+                            <span>Máximo</span>
+                            <strong>
+                                {service.max_hours
+                                    ? `${service.max_hours} horas`
+                                    : "Consultar disponibilidad"}
+                            </strong>
+                        </div>
+
+                        <div className="cf-service-detail__fact">
+                            <span>
+                                {service.minutes_per_task !== null
+                                    ? "En una hora caben"
+                                    : "Contratación"}
+                            </span>
+
+                            <strong>
+                                {service.minutes_per_task !== null
+                                    ? `${Math.floor(60 / service.minutes_per_task)} tareas`
+                                    : `Bloques de ${service.hour_step} horas`}
+                            </strong>
                         </div>
                     </div>
+
+                    <p className="cf-service-detail__availability">
+                        Las horas disponibles dependen de la agenda del trabajador y del
+                        horario que elijas.
+                    </p>
 
                     <Link
                         to={contractPath}
@@ -228,44 +234,58 @@ export const ServiceDetail = () => {
                 </div>
             </section>
 
-            {service.minutes_per_task !== null && (
-                <section className="cf-service-detail__tasks">
-                    <h2>Qué incluye este servicio</h2>
+            <section className="cf-service-detail__tasks">
+                {service.minutes_per_task !== null ? (
+                    <>
+                        <h2>Tareas que puedes añadir</h2>
 
-                    <p className="cf-service-detail__tasks-intro">
-                        Cada tarea dispone de aproximadamente{" "}
-                        {service.minutes_per_task} minutos dentro del tiempo contratado.
-                    </p>
-
-                    {tasks.length > 0 ? (
-                        <ul className="cf-service-detail__task-list">
-                            {tasks.map((task) => (
-                                <li
-                                    key={task.task_id}
-                                    className="cf-service-detail__task"
-                                >
-                                    <i
-                                        className="fa-solid fa-check"
-                                        aria-hidden="true"
-                                    />
-
-                                    <div>
-                                        <strong>{task.task_name}</strong>
-
-                                        {task.description && (
-                                            <p>{task.description}</p>
-                                        )}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>
-                            Consulta las tareas disponibles al contratar el servicio.
+                        <p className="cf-service-detail__tasks-intro">
+                            Puedes seleccionar estas tareas al contratar el servicio.
+                            Cada una dispone de aproximadamente{" "}
+                            {service.minutes_per_task} minutos dentro del tiempo contratado.
                         </p>
-                    )}
-                </section>
-            )}
+
+                        {tasks.length > 0 ? (
+                            <ul className="cf-service-detail__task-list">
+                                {tasks.map((task) => (
+                                    <li
+                                        key={task.task_id}
+                                        className="cf-service-detail__task"
+                                    >
+                                        <i
+                                            className="fa-solid fa-check"
+                                            aria-hidden="true"
+                                        />
+
+                                        <div>
+                                            <strong>{task.task_name}</strong>
+
+                                            {task.description && (
+                                                <p>{task.description}</p>
+                                            )}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p>
+                                Consulta las tareas disponibles al contratar el servicio.
+                            </p>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <h2>Cómo se contrata este servicio</h2>
+
+                        <p className="cf-service-detail__tasks-intro">
+                            Este servicio no se organiza por tareas individuales. Se
+                            contrata en bloques de {service.hour_step} horas, desde un
+                            mínimo de {service.min_hours} hasta un máximo de{" "}
+                            {service.max_hours} horas.
+                        </p>
+                    </>
+                )}
+            </section>
 
             {otherServices.length > 0 && (
                 <section className="cf-service-detail__others">
@@ -273,6 +293,7 @@ export const ServiceDetail = () => {
                         <p className="cf-service-detail__eyebrow">
                             También te puede interesar
                         </p>
+
                         <h2>Otros servicios</h2>
                     </div>
 
