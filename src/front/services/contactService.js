@@ -12,3 +12,14 @@ import { apiRequest } from "./apiClient";
 export const sendContactMessage = async (formData) => {
     return await apiRequest("/api/contact-messages", { method: "POST", body: formData });
 };
+
+// Lectura y gestión del encargado; el formulario público conserva su llamada.
+export const getContactMessages = (token) =>
+    apiRequest("/api/contact-messages", { token });
+
+export const updateMessageStatus = (id, status, token) =>
+    apiRequest(`/api/contact-messages/${id}/status`, {
+        method: "PATCH",
+        token,
+        body: { status },
+    });

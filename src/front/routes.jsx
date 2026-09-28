@@ -37,6 +37,7 @@ import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
 import { ListadoIncidencias } from "./pages/dashboard/ListadoIncidencias";
 import { MyBookings } from "./pages/dashboard/MyBookings";
 import { Applications } from "./pages/dashboard/Applications";
+import { Messages } from "./pages/dashboard/Messages";
 import { BookingDetail } from "./pages/dashboard/BookingDetail";
 import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
 import { DashboardHome } from "./pages/dashboard/home/DashboardHome";
@@ -108,6 +109,7 @@ export const router = createBrowserRouter(
               tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
             <Route path="applications" element={<Applications />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="incidents" element={<ListadoIncidencias />} />
             <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="affected-bookings" element={<AffectedBookings />} />

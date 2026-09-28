@@ -19,7 +19,7 @@
     10. Mis tareas del trabajador (cf-mytasks__*, cf-wcard__*)
     11. Incidencias: formulario y pantalla del encargado
         (cf-inc-sheet__*, cf-incidents__*, cf-incard__*)
-    12. Candidaturas del encargado (cf-applications__*)
+    12. Bandejas: candidaturas y mensajes (Inbox.jsx)
     13. Valoraciones: estrellas, bloque del cliente y nota del trabajador
         (cf-stars__*, cf-rate__*, cf-mine__*)
     14. Cambiar la fecha de una reserva (cf-resched__*)
@@ -7934,13 +7934,22 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-   12. PÁGINA: CANDIDATURAS (Applications.jsx)
+   12. BANDEJAS: CANDIDATURAS Y MENSAJES (Inbox.jsx)
    ====================================================================== */
 
 .cf-applications {
   max-width: 1180px;
   color: var(--cf-text);
   font-family: var(--cf-font-body);
+}
+
+.cf-applications__header-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cf-applications__subject {
+  overflow-wrap: anywhere;
 }
 
 /* ---------- CABECERA ---------- */
@@ -8119,6 +8128,7 @@ textarea.cf-dash-input {
   font-size: var(--cf-text-sm);
   line-height: 1.55;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- ACCIONES ---------- */
