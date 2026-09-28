@@ -37,9 +37,13 @@ import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
 import { ListadoIncidencias } from "./pages/dashboard/ListadoIncidencias";
 import { MyBookings } from "./pages/dashboard/MyBookings";
 import { Applications } from "./pages/dashboard/Applications";
+import { Messages } from "./pages/dashboard/Messages";
 import { BookingDetail } from "./pages/dashboard/BookingDetail";
 import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
+
 import { ServiceDetail } from "./pages/web/ServiceDetail";
+import { DashboardHome } from "./pages/dashboard/home/DashboardHome";
+
 export const router = createBrowserRouter(
   createRoutesFromElements(
     <>
@@ -67,7 +71,7 @@ export const router = createBrowserRouter(
 
           {/* ---- COMUNES A TODOS LOS ROLES ----
               Sin RoleRoute a propósito: son la entrada de todo el mundo. */}
-          <Route index element={<h1>Inicio</h1>} />
+          <Route index element={<DashboardHome />} />
 
           {/* Ajustes de la cuenta: un marco con pestañas y una ruta por
               apartado, para poder enlazar cada uno por separado.
@@ -108,6 +112,7 @@ export const router = createBrowserRouter(
               tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
             <Route path="applications" element={<Applications />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="incidents" element={<ListadoIncidencias />} />
             <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="affected-bookings" element={<AffectedBookings />} />

@@ -59,6 +59,7 @@ const LINKS = [
     // --- Solo MANAGER ---
     { to: "/dashboard/affected-bookings", label: "Reservas afectadas", icon: "fa-triangle-exclamation", group: "Operativa", roles: ["manager"], affected: true },
     { to: "/dashboard/incidents", label: "Incidencias", icon: "fa-circle-exclamation", group: "Operativa", roles: ["manager"], incidents: true },
+    { to: "/dashboard/messages", label: "Mensajes", icon: "fa-envelope", group: "Operativa", roles: ["manager"] },
     { to: "/dashboard/workers", label: "Trabajadores", icon: "fa-users", group: "Equipo", roles: ["manager"] },
     { to: "/dashboard/shifts", label: "Turnos", icon: "fa-clock", group: "Equipo", roles: ["manager"] },
     { to: "/dashboard/applications", label: "Candidaturas", icon: "fa-envelope-open-text", group: "Equipo", roles: ["manager"] },
@@ -73,6 +74,7 @@ const LINKS = [
         ],
     },
 ]
+
 // Mismo corte que el bloque "SIDEBAR EN MÓVIL" de dashboard.css.
 const MOBILE_QUERY = "(max-width: 767.98px)"
 

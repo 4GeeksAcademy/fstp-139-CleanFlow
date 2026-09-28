@@ -15,10 +15,12 @@
 
 import { longDate, shortMoment, timeOf } from "../bookings/bookingFormat";
 
-// De dónde viene el problema, dicho como lo diría el encargado.
+// El motivo, dicho como en el formulario del trabajador: al lado sale
+// quién la abrió, y con "Del cliente" en los dos sitios no se sabía si
+// hablaba de la culpa o de quién la escribió.
 const TYPES = {
-    client: "Del cliente",
-    company: "De la empresa",
+    client: "Por algo del cliente",
+    company: "Por algo nuestro",
 };
 
 export const IncidentCard = ({ incident, busy, onResolve, onZoom }) => {

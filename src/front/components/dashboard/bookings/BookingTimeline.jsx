@@ -5,6 +5,9 @@
  *
  *   confirmada -> en curso -> finalizada -> confirmada por el cliente
  *
+ * Con un hito más cuando el cliente le cambió la fecha (#17): si no, ve
+ * un día que no recuerda haber elegido.
+ *
  * Y dos finales que lo cortan: cancelada (antes de empezar) y no
  * realizada (el trabajador llegó pero no se pudo hacer).
  *
@@ -34,6 +37,17 @@ const stepsOf = (booking) => {
         name: "Reserva confirmada",
         when: booking.created_at && shortMoment(booking.created_at),
     });
+
+    // Si se movió, va aquí: pasó después de reservar y antes de empezar.
+    // Sin esto, el cliente ve una fecha que no recuerda haber elegido.
+    if (booking.rescheduled_count > 0) {
+        steps.push({
+            ...CHECK,
+            name: booking.rescheduled_count === 1
+                ? "Cambiaste la fecha"
+                : `Cambiaste la fecha ${booking.rescheduled_count} veces`,
+        });
+    }
 
     if (booking.status === "cancelled") {
         steps.push({
@@ -101,7 +115,7 @@ export const BookingTimeline = ({ booking }) => {
 
     return (
         <section className="cf-bookblock">
-            <h2 className="cf-bookblock__title">Cómo va</h2>
+            <h2 className="cf-bookblock__title">Estado de la reserva</h2>
 
             <div className="cf-timeline">
                 {steps.map((step, position) => (

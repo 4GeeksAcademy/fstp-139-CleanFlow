@@ -31,7 +31,7 @@ export const BookingWhat = ({ booking }) => {
 
     return (
         <section className="cf-bookblock">
-            <h2 className="cf-bookblock__title">Qué contraté</h2>
+            <h2 className="cf-bookblock__title">Detalles de la reserva</h2>
 
             {/* Hay servicios que se contratan solo por horas, sin tareas. */}
             {groups.length > 0 ? (

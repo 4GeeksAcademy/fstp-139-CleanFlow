@@ -6,8 +6,8 @@
  * hubo alguna incidencia.
  *
  * Desde aquí también responde: da el servicio por bueno o cuenta que
- * algo no fue bien (#83), y puede cancelar mientras esté en plazo (#17).
- * Lo que falta por aterrizar es valorar (#20).
+ * algo no fue bien (#83), cambiar la fecha o cancelar mientras esté en
+ * plazo (#17) y valorar cuando lo dio por bueno (#20).
  *
  * Estilos: dashboard.css, sección 9 (cf-bookdetail).
  */
@@ -17,16 +17,18 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getMyBookings, confirmBooking, claimBooking } from "../../services/bookingService";
+import { createReview } from "../../services/reviewService";
 import { BookingStatusPill, awaitsConfirmation } from "../../components/dashboard/bookings/BookingStatusPill";
 import { BookingTimeline } from "../../components/dashboard/bookings/BookingTimeline";
 import { BookingCancelled } from "../../components/dashboard/bookings/BookingCancelled";
-import { BookingCancel } from "../../components/dashboard/bookings/BookingCancel";
+import { BookingChanges } from "../../components/dashboard/bookings/BookingChanges";
 import { BookingWhat } from "../../components/dashboard/bookings/BookingWhat";
 import { BookingPrice } from "../../components/dashboard/bookings/BookingPrice";
 import { BookingWorker } from "../../components/dashboard/bookings/BookingWorker";
 import { BookingWhen } from "../../components/dashboard/bookings/BookingWhen";
 import { BookingPhotos } from "../../components/dashboard/bookings/BookingPhotos";
 import { BookingConfirm } from "../../components/dashboard/bookings/BookingConfirm";
+import { BookingReview } from "../../components/dashboard/bookings/BookingReview";
 import { ClaimForm } from "../../components/dashboard/bookings/ClaimForm";
 import { BookingIncidents } from "../../components/dashboard/bookings/BookingIncidents";
 import { BookingZoom } from "../../components/dashboard/bookings/BookingZoom";
@@ -144,6 +146,38 @@ export const BookingDetail = () => {
         setClaiming(false);
     };
 
+
+    // ---------- LA VALORACIÓN (#20) ----------
+
+    // Aparte de answering: valorar no es responder, y el error de una no
+    // tiene por qué borrar el mensaje de la otra.
+    const [rating, setRating] = useState(false);
+    const [rateError, setRateError] = useState("");
+
+    /**
+     * El cliente pone su nota.
+     *
+     * Devuelve la reserva con la reseña ya dentro, así que el bloque pasa
+     * solo del formulario a lo que dejó escrito.
+     */
+    const handleRate = async (data) => {
+        setRating(true);
+        setRateError("");
+
+        const result = await createReview(booking.booking_id, data, store.token);
+
+        setRating(false);
+
+        if (expired(result)) return;
+
+        if (!result.ok) {
+            setRateError(result.data.message);
+            return;
+        }
+
+        setBooking(result.data.booking);
+    };
+
     // ---------- MIENTRAS LLEGA LA RESERVA ----------
 
     if (loading) {
@@ -233,7 +267,6 @@ export const BookingDetail = () => {
                 <div className="cf-bookdetail__col">
                     <BookingTimeline booking={booking} />
                     <BookingCancelled booking={booking} />
-                    <BookingCancel key={booking.booking_id} booking={booking} onCancelled={setBooking} />
                     <BookingWhat booking={booking} />
                     <BookingPhotos tasks={booking.tasks} onZoom={setZoomed} />
                     <BookingConfirm
@@ -241,6 +274,12 @@ export const BookingDetail = () => {
                         saving={answering}
                         onConfirm={handleConfirm}
                         onClaim={() => setClaiming(true)}
+                    />
+                    <BookingReview
+                        booking={booking}
+                        saving={rating}
+                        error={rateError}
+                        onSubmit={handleRate}
                     />
                 </div>
 
@@ -252,6 +291,14 @@ export const BookingDetail = () => {
                 </div>
 
             </div>
+
+            {/* Fuera de la rejilla y a lo ancho: lo que modifica la
+                reserva se decide después de haberla leído entera. */}
+            <BookingChanges
+                key={booking.booking_id}
+                booking={booking}
+                onChanged={setBooking}
+            />
 
             <BookingZoom photo={zoomed} onClose={() => setZoomed(null)} />
 

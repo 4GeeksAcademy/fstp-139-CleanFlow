@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getWorkerBookings } from "../../services/bookingService";
 import { WorkerBookingCard } from "../../components/dashboard/worker/WorkerBookingCard";
+import { madridToday } from "../../utils/madridDate";
 
 // Las dos pestañas, en el orden en que se enseñan, con lo que dice cada
 // una cuando se queda vacía.
@@ -27,24 +28,6 @@ const TABS = [
 
 // Cuántas barras grises se pintan mientras llega la respuesta.
 const SKELETON_ROWS = 3;
-
-/**
- * Hoy, en hora de Madrid y como "2026-09-24".
- *
- * Se calcula con la zona horaria y no con el reloj del navegador: un
- * trabajador de vacaciones fuera vería el día cambiado, y el backend
- * decide con la hora de Madrid.
- */
-const madridToday = () => {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Madrid",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    }).format(new Date());
-
-    return parts;
-};
 
 /** A qué pestaña va cada estado. En curso todavía es un próximo. */
 const tabOf = (status) =>
@@ -121,6 +104,7 @@ export const MisReservasTrabajador = () => {
                         Lo que tienes asignado, empezando por lo de hoy.
                     </p>
                 </div>
+
             </div>
 
             {error && <p className="cf-dash-alert" role="alert">{error}</p>}

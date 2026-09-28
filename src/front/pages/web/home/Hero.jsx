@@ -8,7 +8,7 @@
  */
 
 import { Link } from "react-router-dom";
-import { REVIEWS_SUMMARY } from "../../../data/reviews";
+import useGlobalReducer from "../../../hooks/useGlobalReducer";
 import heroImage from "../../../assets/img/hero-salon.jpg";
 
 
@@ -23,10 +23,14 @@ const starIcons = (average) =>
 
 export const Hero = () => {
 
-    // toLocaleString: 4.8 se escribe "4,8" en español.
-    const average = REVIEWS_SUMMARY.average.toLocaleString("es-ES", {
-        minimumFractionDigits: 1,
-    })
+    // La nota real, la misma que enseña la sección de opiniones más abajo:
+    // dos números distintos para lo mismo en la misma página no se
+    // sostienen. Del store y no con su propia llamada, que las dos están
+    // en esta pantalla y sería pedir lo mismo dos veces. En null mientras
+    // llega, y también si todavía no hay ninguna valoración.
+    const { store } = useGlobalReducer()
+
+    const average = store.reviewsAverage
 
     return (
         <section id="hero" className="cf-hero">
@@ -77,30 +81,38 @@ export const Hero = () => {
             </div>
 
             {/* ---------- VALORACIONES ----------
-                El dato sale de data/reviews.js y hoy es provisional. Cuando
-                exista la tabla de reseñas cambia el origen, no este archivo. */}
-            <div className="cf-hero__rating">
-                <div className="cf-container">
-                    <div className="cf-hero__rating-in">
+                Sin ninguna todavía, la banda no se pinta: una nota inventada
+                vende más, pero deja de ser verdad en cuanto alguien la mira. */}
+            {average !== null && (
+                <div className="cf-hero__rating">
+                    <div className="cf-container">
+                        <div className="cf-hero__rating-in">
 
-                        <span className="cf-hero__score">{average}</span>
+                            {/* toLocaleString: 4.5 se escribe "4,5" en español. */}
+                            <span className="cf-hero__score">
+                                {average.toLocaleString("es-ES", {
+                                    minimumFractionDigits: 1,
+                                })}
+                            </span>
 
-                        {/* aria-hidden: la nota ya se lee en el número de al
-                            lado; si no, se cantarían cinco iconos sin sentido. */}
-                        <span className="cf-hero__stars" aria-hidden="true">
-                            {starIcons(REVIEWS_SUMMARY.average).map((icon, index) => (
-                                <i key={index} className={icon}></i>
-                            ))}
-                        </span>
+                            {/* aria-hidden: la nota ya se lee en el número de al
+                                lado; si no, se cantarían cinco iconos sin sentido. */}
+                            <span className="cf-hero__stars" aria-hidden="true">
+                                {starIcons(average).map((icon, index) => (
+                                    <i key={index} className={icon}></i>
+                                ))}
+                            </span>
 
-                        <span className="cf-hero__reviews">
-                            <b>Valoración media</b>
-                            sobre {REVIEWS_SUMMARY.total} opiniones de clientes
-                        </span>
+                            <span className="cf-hero__reviews">
+                                <b>Valoración media</b>
+                                sobre {store.reviewsTotal}{" "}
+                                {store.reviewsTotal === 1 ? "opinión" : "opiniones"} de clientes
+                            </span>
 
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
         </section>
     )

@@ -12,7 +12,7 @@ import { EUROS } from "./bookingFormat";
 
 export const BookingPrice = ({ booking }) => (
     <section className="cf-bookblock">
-        <h2 className="cf-bookblock__title">Cuánto pagué</h2>
+        <h2 className="cf-bookblock__title">Precio de la reserva</h2>
 
         <dl className="cf-bookrows">
             <div className="cf-bookrow">

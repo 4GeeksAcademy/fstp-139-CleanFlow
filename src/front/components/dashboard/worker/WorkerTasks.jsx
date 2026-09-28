@@ -52,9 +52,11 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
     // tocan; en los otros dos porque ese trabajo ya no se va a hacer.
     if (!running && booking.status !== "completed") {
         return (
-            <section className="cf-wblock">
+            <section className="cf-wblock" id="worker-tasks" tabIndex={-1}>
                 <h2 className="cf-wblock__title">Qué hay que hacer</h2>
 
+                {tasks.map((task) => <span key={task.booking_task_id}
+                    id={`task-${task.booking_task_id}`} tabIndex={-1} />)}
                 {groupTasks(tasks).map((group) => (
                     <article key={group.name} className="cf-wtask">
                         <div className="cf-wtask__top">
@@ -80,10 +82,13 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
                 const complete = task.status === "completed";
                 const busy = busyTaskId === task.booking_task_id;
                 const ready = Boolean(before && after);
+                const fillMissing = complete && (running || booking.status === "completed");
 
                 return (
                     <article
                         key={task.booking_task_id}
+                        id={`task-${task.booking_task_id}`}
+                        tabIndex={-1}
                         className={`cf-wtask${complete ? " cf-wtask--done" : ""}`}
                     >
                         <div className="cf-wtask__top">
@@ -105,14 +110,16 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
                             )}
                         </div>
 
-                        {/* Cerrada y sin servicio en curso: las fotos ya
-                            están y no hay nada que tocar, solo mirarlas. */}
+                        {fillMissing && !ready && <p className="cf-wtask__hint">
+                            Añade las fotos pendientes. La tarea y el servicio conservan su estado.
+                        </p>}
+                        {/* Una foto ya guardada de una tarea cerrada no se sustituye. */}
                         <div className="cf-wtask__shots">
                             <WorkerShot
                                 kind="before"
                                 photo={before}
                                 uploading={uploading === `${task.booking_task_id}-before`}
-                                canEdit={running && !complete}
+                                canEdit={(running && !complete) || (fillMissing && !before)}
                                 onPick={(kind, file) => onPick(task, kind, file)}
                                 onDelete={onDeletePhoto}
                             />
@@ -120,7 +127,7 @@ export const WorkerTasks = ({ booking, busyTaskId, uploading, onPick, onDeletePh
                                 kind="after"
                                 photo={after}
                                 uploading={uploading === `${task.booking_task_id}-after`}
-                                canEdit={running && !complete}
+                                canEdit={(running && !complete) || (fillMissing && !after)}
                                 onPick={(kind, file) => onPick(task, kind, file)}
                                 onDelete={onDeletePhoto}
                             />
