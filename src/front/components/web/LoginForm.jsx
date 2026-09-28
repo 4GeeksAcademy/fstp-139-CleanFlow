@@ -8,6 +8,9 @@
  *   title / subtitle: la cabecera de la tarjeta
  *   foot(state):      el pie, al que se le pasa el state de la navegación
  *                     para que el enlace conserve el destino (WEB-15)
+ *   google:           si se ofrece entrar con Google. Solo la puerta del
+ *                     cliente: el equipo entra con la cuenta que le dio
+ *                     la empresa, y su correo puede no ser de Google
  *
  * El marco (fondo, logo, centrado y "Volver al inicio") lo pone
  * AuthLayout. Estilos: las clases auth-* de auth.css.
@@ -17,9 +20,10 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../services/authService.js";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
+import { GoogleButton } from "./GoogleButton.jsx";
 
 
-export const LoginForm = ({ title, subtitle, foot }) => {
+export const LoginForm = ({ title, subtitle, foot, google = false }) => {
 
     const { dispatch } = useGlobalReducer()
     const navigate = useNavigate();
@@ -47,6 +51,11 @@ export const LoginForm = ({ title, subtitle, foot }) => {
     // Mensaje de error del backend (credenciales incorrectas, etc.).
     const [error, setError] = useState("");
 
+    // Cuando la cuenta se creó con Google no hay contraseña que fallar,
+    // así que no es un error: es que llamó a la puerta de al lado. Por
+    // eso va en su propio aviso y no en el rojo.
+    const [useGoogle, setUseGoogle] = useState("");
+
     // Aviso de sesión caducada. Se inicializa con lo que venga en el
     // state de la navegación y se guarda en estado propio para poder
     // ocultarlo en cuanto el usuario reaccione (al reintentar el login).
@@ -64,6 +73,7 @@ export const LoginForm = ({ title, subtitle, foot }) => {
         // Limpia el error anterior: si no, al reintentar se quedaría el
         // mensaje viejo en pantalla mientras llega la nueva respuesta.
         setError("");
+        setUseGoogle("");
 
         // El usuario ya ha reaccionado a los avisos (sesión caducada o
         // cuenta creada): se retiran para que no compitan con el error
@@ -75,7 +85,8 @@ export const LoginForm = ({ title, subtitle, foot }) => {
         // correcta, data trae el cuerpo.
         const { ok, data } = await login(email, password)
         if (!ok) {
-            setError(data.error)
+            if (data.use_google) setUseGoogle(data.error)
+            else setError(data.error)
             return
         }
 
@@ -122,9 +133,31 @@ export const LoginForm = ({ title, subtitle, foot }) => {
                 </div>
             )}
 
+            {/* No es un error: se ha equivocado de puerta y le decimos
+                cuál es la suya. Por eso en verde y no en rojo. */}
+            {useGoogle && (
+                <div className="auth-note" role="status">
+                    <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    <span>
+                        <b>Esta cuenta se creó con Google.</b> Entra con el botón de
+                        arriba. Si prefieres una contraseña, puedes crearla después
+                        desde Ajustes.
+                    </span>
+                </div>
+            )}
+
             {/* Solo se pinta si hay error. role="alert" hace que los
                 lectores de pantalla lo anuncien al aparecer. */}
             {error && <div className="auth-alert" role="alert">{error}</div>}
+
+            {/* Arriba del formulario a propósito: abajo, la gente escribe
+                el correo y la contraseña y solo entonces ve el atajo. */}
+            {google && (
+                <>
+                    <GoogleButton onError={setError} />
+                    <p className="auth-or">o con tu correo</p>
+                </>
+            )}
 
             <form onSubmit={handleSubmit}>
                 <div className="auth-field">
@@ -186,9 +219,6 @@ export const LoginForm = ({ title, subtitle, foot }) => {
                     así que también funciona pulsando Enter en un campo. */}
                 <button type="submit" className="auth-btn">Iniciar sesión</button>
             </form>
-
-            {/* Hueco para los accesos externos ("Entrar con Google"), que
-                van en su propia issue. Va aquí, entre el botón y el pie. */}
 
             {/* El pie lo pone cada puerta: no es lo mismo lo que se le
                 ofrece a un cliente que a alguien del equipo.

@@ -14,6 +14,9 @@ export const LoginClients = () => {
         <LoginForm
             title="Área de clientes"
             subtitle="Entra para gestionar tus servicios"
+            // Solo aquí: el equipo entra con la cuenta que le dio la
+            // empresa, y Google nunca debe crear un trabajador.
+            google
             // state: el destino viaja al registro, y tras el alta se
             // vuelve a donde quería ir el usuario (WEB-15).
             foot={(state) => (
