@@ -7926,7 +7926,7 @@ textarea.cf-dash-input {
 }
 
 /* ======================================================================
-  /* 12. Bandejas: candidaturas y mensajes (Inbox.jsx) *
+   12. BANDEJAS: CANDIDATURAS Y MENSAJES (Inbox.jsx)
    ====================================================================== */
 
 .cf-applications {
@@ -7936,12 +7936,12 @@ textarea.cf-dash-input {
 }
 
 .cf-applications__header-content {
-    min-width: 0;
-    overflow-wrap: anywhere;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .cf-applications__subject {
-    overflow-wrap: anywhere;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- CABECERA ---------- */
