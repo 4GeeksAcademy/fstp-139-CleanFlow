@@ -119,6 +119,16 @@ class User(db.Model):
     # no la encontrarían.
     __tablename__ = "users"
 
+    # Una cuenta tiene contraseña, Google, o las dos. Nunca ninguna: sin
+    # esto, un fallo al crearla dejaría a alguien sin forma de entrar y
+    # sin manera de arreglarlo desde la aplicación.
+    __table_args__ = (
+        db.CheckConstraint(
+            "password_hash IS NOT NULL OR google_id IS NOT NULL",
+            name="user_has_a_way_in",
+        ),
+    )
+
     # ------------------------------------------------------------------
     # COLUMNAS
     # ------------------------------------------------------------------
@@ -130,8 +140,10 @@ class User(db.Model):
     email: Mapped[str] = mapped_column(
         String(120), unique=True, nullable=False)
 
-    # El hash, nunca la contraseña en claro (ver set_password).
-    password_hash: Mapped[str] = mapped_column(nullable=False)
+    # El hash, nunca la contraseña en claro (ver set_password). Nulable
+    # desde que se puede entrar con Google: quien lo haga no tiene
+    # ninguna hasta que se la cree en Ajustes.
+    password_hash: Mapped[str | None] = mapped_column(nullable=True)
 
     # La BD solo acepta estos tres roles. `name` es el nombre del tipo en
     # PostgreSQL, y es obligatorio.
@@ -143,6 +155,22 @@ class User(db.Model):
     # Desactivar en vez de borrar conserva el historial de la cuenta.
     is_active: Mapped[bool] = mapped_column(Boolean(), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # ---- ENTRAR CON GOOGLE ----
+
+    # El "sub" que da Google, no el correo: una persona puede cambiar el
+    # correo de su cuenta de Google y el sub no cambia nunca. Es lo que
+    # identifica de verdad a quien entra.
+    google_id: Mapped[str | None] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
+
+    # Lo dice Google en su token. Sin correo verificado NO se vincula una
+    # cuenta que ya existe: si no, cualquiera se crea un Google con el
+    # correo de otro y se mete en su cuenta.
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, server_default="false"
+    )
 
     # server_default: la fecha la pone la BD al insertar, no Python.
     created_at: Mapped[DateTime] = mapped_column(
@@ -163,7 +191,15 @@ class User(db.Model):
         self.password_hash = generate_password_hash(password).decode('utf-8')
 
     def check_password(self, password):
-        """True si la contraseña recibida coincide con el hash guardado."""
+        """True si la contraseña recibida coincide con el hash guardado.
+
+        Sin hash no hay nada que comparar: la cuenta se creó con Google y
+        todavía no se ha puesto contraseña. Se devuelve False y es quien
+        llama el que decide qué contarle al usuario.
+        """
+        if not self.password_hash:
+            return False
+
         try:
             return check_password_hash(self.password_hash, password)
         except ValueError:
