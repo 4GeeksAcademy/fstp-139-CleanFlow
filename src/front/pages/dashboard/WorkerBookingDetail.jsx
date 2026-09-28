@@ -12,7 +12,7 @@
 
 import "../../dashboard.css";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import {
     getWorkerBookings,
@@ -36,19 +36,13 @@ import { WorkerIncidents } from "../../components/dashboard/incidents/WorkerInci
 import { IncidentForm } from "../../components/dashboard/incidents/IncidentForm";
 import { longDate, timeOf } from "../../components/dashboard/bookings/bookingFormat";
 
-const LIST_PATH = "/dashboard/tasks";
+import { madridToday } from "../../utils/madridDate";
 
-/** Hoy en Madrid, como "2026-09-24". El backend decide con esa hora. */
-const madridToday = () =>
-    new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Madrid",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    }).format(new Date());
+const LIST_PATH = "/dashboard/tasks";
 
 export const WorkerBookingDetail = () => {
     const { bookingId } = useParams();
+    const { hash } = useLocation();
     const { store, dispatch } = useGlobalReducer();
 
     const [booking, setBooking] = useState(null);
@@ -87,6 +81,17 @@ export const WorkerBookingDetail = () => {
     }, [bookingId, store.token, dispatch]);
 
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        if (loading || !booking || !hash) return;
+        // El detalle llega después de navegar: esperamos a que exista el destino.
+        const frame = window.requestAnimationFrame(() => {
+            const target = document.getElementById(hash.slice(1));
+            target?.scrollIntoView({ block: "center" });
+            target?.focus({ preventScroll: true });
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [booking, loading, hash]);
 
 
     // ---------- SUBIR, BORRAR Y MARCAR ----------
@@ -156,12 +161,12 @@ export const WorkerBookingDetail = () => {
     /**
      * Las tres acciones que mueven el servicio por su línea de tiempo.
      *
-     * El día es el de hoy, que es el único que se puede trabajar: el
-     * backend rechaza cualquier otro.
+     * Empezar corresponde a hoy; también podemos cerrar un día pasado
+     * que quedó abierto, usando el mismo endpoint de cierre.
      */
-    const handleAction = async (action) => {
+    const handleAction = async (action, selectedDay = null) => {
         const today = madridToday();
-        const day = booking.days.find((row) => row.starts_at.slice(0, 10) === today);
+        const day = selectedDay || booking.days.find((row) => row.starts_at.slice(0, 10) === today);
 
         if (!day) return;
 
@@ -257,7 +262,7 @@ export const WorkerBookingDetail = () => {
 
     // ---------- LO QUE PUEDE SALIR MAL ----------
 
-    if (error) {
+    if (error && !booking) {
         return (
             <div className="cf-wdetail">
                 <Link to={LIST_PATH} className="cf-wdetail__back">
@@ -354,7 +359,8 @@ export const WorkerBookingDetail = () => {
 
                 <div className="cf-wdetail__col">
                     <WorkerTimeline booking={booking} />
-                    <WorkerDays booking={booking} today={madridToday()} />
+                    <WorkerDays booking={booking} today={madridToday()} busy={acting}
+                        onClosePast={(day) => handleAction("finishDay", day)} />
                     <WorkerWhere booking={booking} />
                     <WorkerActions
                         booking={booking}

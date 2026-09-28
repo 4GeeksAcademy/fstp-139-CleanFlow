@@ -14,6 +14,7 @@ import { PublicLayout } from "./pages/web/PublicLayout";
 import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
+import { CompleteProfile } from "./pages/web/CompleteProfile";
 import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
 import { WorkerBookingDetail } from "./pages/dashboard/WorkerBookingDetail";
 import { LoginClients } from "./pages/web/LoginClients";
@@ -37,8 +38,11 @@ import { AffectedBookings } from "./pages/dashboard/AffectedBookings";
 import { ListadoIncidencias } from "./pages/dashboard/ListadoIncidencias";
 import { MyBookings } from "./pages/dashboard/MyBookings";
 import { Applications } from "./pages/dashboard/Applications";
+import { Messages } from "./pages/dashboard/Messages";
 import { BookingDetail } from "./pages/dashboard/BookingDetail";
 import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
+
+import { ServiceDetail } from "./pages/web/ServiceDetail";
 import { DashboardHome } from "./pages/dashboard/home/DashboardHome";
 
 export const router = createBrowserRouter(
@@ -48,6 +52,7 @@ export const router = createBrowserRouter(
       <Route path="/" element={<PublicLayout />} errorElement={<h1>Not found!</h1>}>
         <Route index element={<Home />} />
         <Route path="work-with-us" element={<WorkWithUs />} />
+        <Route path="services/:slug" element={<ServiceDetail />} />
       </Route>
 
       {/* ---------- ACCESO Y REGISTRO: layout propio, sin navbar ni footer ----------
@@ -58,6 +63,10 @@ export const router = createBrowserRouter(
         <Route path="login-clients" element={<LoginClients />} />
         <Route path="login-workers" element={<LoginWorkers />} />
         <Route path="register" element={<Register />} />
+        {/* El paso que falta tras entrar con Google. Pide sesión, pero va
+            fuera de /dashboard porque todavía no puede pasar ahí, así que
+            ProtectedRoutes no la cubre: la pantalla se guarda ella sola. */}
+        <Route path="completar-perfil" element={<CompleteProfile />} />
       </Route>
 
       {/* ---------- ZONA PRIVADA ---------- */}
@@ -108,6 +117,7 @@ export const router = createBrowserRouter(
               tasks-catalog y no tasks: tasks ya es la ruta del trabajador. */}
           <Route element={<RoleRoute allowed={["manager"]} />}>
             <Route path="applications" element={<Applications />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="incidents" element={<ListadoIncidencias />} />
             <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="affected-bookings" element={<AffectedBookings />} />

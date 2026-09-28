@@ -52,3 +52,23 @@ export const uploadAvatar = async (file, token) => {
 export const removeAvatar = async (token) => {
   return await apiRequest("/api/account/avatar", { method: "DELETE", token });
 };
+
+/**
+ * Crea una contraseña donde no había ninguna, para quien entró con
+ * Google. No pide la anterior porque no existe: por eso es POST y no
+ * PUT, y por eso el backend rechaza si la cuenta ya tiene una.
+ */
+export const createPassword = (newPassword, token) => apiRequest(
+    "/api/account/password",
+    { method: "POST", token, body: { new_password: newPassword } }
+);
+
+/**
+ * Conecta un Google a la cuenta de la sesión. `credential` es el token
+ * que devuelve el botón de Google; quien comprueba la firma es el
+ * backend. data: { account }.
+ */
+export const connectGoogle = (credential, token) => apiRequest(
+    "/api/account/google",
+    { method: "POST", token, body: { credential } }
+);

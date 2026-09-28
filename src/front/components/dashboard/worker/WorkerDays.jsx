@@ -13,7 +13,7 @@
 
 import { longDate, timeOf } from "../bookings/bookingFormat";
 
-export const WorkerDays = ({ booking, today }) => (
+export const WorkerDays = ({ booking, today, busy = false, onClosePast }) => (
     <section className="cf-wblock">
         <h2 className="cf-wblock__title">
             Fecha{booking.days.length > 1 && `s · ${booking.days.length} días`}
@@ -25,12 +25,23 @@ export const WorkerDays = ({ booking, today }) => (
             return (
                 <div
                     key={day.booking_day_id}
+                    id={`day-${day.booking_day_id}`}
+                    tabIndex={-1}
                     className={`cf-wday${isToday ? " cf-wday--today" : ""}`}
                 >
                     <span className="cf-wday__when">
                         {isToday ? "Hoy" : longDate(day.starts_at)}
                         {" · "}{timeOf(day.starts_at)} – {timeOf(day.ends_at)}
                     </span>
+
+                    {onClosePast && day.started_at && !day.finished_at
+                        && day.ends_at.slice(0, 10) < today
+                        && !["cancelled", "not_done"].includes(booking.status) && (
+                            <button type="button" className="cf-dash-btn cf-dash-btn--sm"
+                                disabled={busy} onClick={() => onClosePast(day)}>
+                                {busy ? "Guardando…" : "Cerrar este día"}
+                            </button>
+                        )}
 
                     {/* La hora real solo cuando el día ya se cerró: a
                         medias no dice nada todavía. */}

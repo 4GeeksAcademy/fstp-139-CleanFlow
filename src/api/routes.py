@@ -8,12 +8,13 @@ ENDPOINTS DE LA API DE CLEANFLOW. Todo cuelga de /api (prefijo puesto en app.py)
 @role_required ya comprueba el token: no se le añade @jwt_required() encima.
 """
 
+import os
 import re
 import math
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, request, jsonify, url_for, Blueprint, current_app
-from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus, public_name
+from api.models import db, User, Task, Service, Worker, Address, Shift, Review, Booking, BookingDay, BookingTask, BookingStatus, Incident, IncidentType, IncidentSource, Media, MediaKind, MediaType, BookingTaskStatus, JobApplication, ContactMessage, ApplicationStatus, AuthAttempt, public_name
 from api.utils import generate_sitemap, APIException, role_required, slugify
 from api.availability import booking_intervals, can_work, load_busy, madrid_now, month_availability, pick_worker, BOOKING_HORIZON, MADRID, MIN_NOTICE, SEARCH_LIMIT_DAYS
 from api.absence_routes import affected_reasons, booking_query
@@ -21,6 +22,8 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -665,12 +668,96 @@ def update_worker_status(worker_id):
 #   POST   /api/register   alta de cliente
 #   POST   /api/login      devuelve token + usuario
 
+# ----------------------------------------------------------------------
+# TOPE DE INTENTOS EN LAS PUERTAS DE ENTRADA
+# ----------------------------------------------------------------------
+# Sin esto, cualquiera puede probar contraseñas o sondear qué correos
+# están registrados tantas veces como quiera. Un tope no lo impide, pero
+# convierte un ataque de segundos en uno de días.
+#
+# Por IP y no por correo: por correo, cualquiera podría dejarte fuera de
+# tu cuenta fallando tu contraseña a propósito.
+# ----------------------------------------------------------------------
+
+# Cuántos intentos se permiten por minuto en cada puerta. Entrar da más
+# margen que registrarse: equivocarse escribiendo la contraseña es
+# normal, y registrarse dos veces seguidas no lo es.
+AUTH_LIMITS = {
+    "login": 10,
+    "register": 5,
+    "google": 10,
+}
+
+AUTH_WINDOW_MINUTES = 1
+
+
+def client_ip():
+    """La IP de quien llama, no la del proxy.
+
+    En Render la aplicación va detrás de un proxy, así que remote_addr
+    devuelve siempre la misma dirección. Sin mirar X-Forwarded-For, todo
+    el mundo contaría como un solo visitante y el primero que fallara
+    diez veces dejaría fuera a los demás.
+
+    De la cabecera se coge el PRIMER valor, que es el cliente original;
+    los siguientes son los proxies por los que ha pasado.
+    """
+    forwarded = request.headers.get("X-Forwarded-For", "")
+
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:45]
+
+    return (request.remote_addr or "desconocida")[:45]
+
+
+def too_many_attempts(scope):
+    """True si esta IP ya ha gastado sus intentos en esta puerta.
+
+    Apunta el intento de paso, y aprovecha para borrar los que ya han
+    salido de la ventana: así la tabla no crece sin fin y no hace falta
+    ninguna tarea programada que la limpie.
+    """
+    ip = client_ip()
+    now = madrid_now()
+    since = now - timedelta(minutes=AUTH_WINDOW_MINUTES)
+
+    db.session.execute(
+        db.delete(AuthAttempt).where(AuthAttempt.created_at < since)
+    )
+
+    used = db.session.execute(
+        db.select(func.count(AuthAttempt.auth_attempt_id)).where(
+            AuthAttempt.ip == ip,
+            AuthAttempt.scope == scope,
+            AuthAttempt.created_at >= since,
+        )
+    ).scalar_one()
+
+    db.session.add(AuthAttempt(ip=ip, scope=scope, created_at=now))
+    db.session.commit()
+
+    return used >= AUTH_LIMITS[scope]
+
+
+def slow_down():
+    """La respuesta cuando se han gastado los intentos."""
+    return jsonify({
+        "message": "Demasiados intentos. Espera un minuto y vuelve a probar.",
+        "error": "Demasiados intentos. Espera un minuto y vuelve a probar.",
+    }), 429
+
+
 @api.route('/register', methods=['POST'])
 def register():
     """Da de alta un usuario nuevo (siempre como client).
 
     Todo se valida ANTES de tocar la BD, y cada fallo tiene su código HTTP.
     """
+    # Lo primero de todo: sin tope, esta puerta sirve para averiguar qué
+    # correos están registrados probándolos uno a uno.
+    if too_many_attempts("register"):
+        return slow_down()
+
     data = request.get_json()
 
     if not data:
@@ -698,6 +785,17 @@ def register():
 
     # 409 y no 400: los datos son correctos, pero chocan con algo que ya existe.
     if existing_user:
+        # Si la creó con Google, no es que el correo esté "pillado": es
+        # que la cuenta ya es suya. Decirle eso y no que se busque otro
+        # correo, que es lo que entendería con el mensaje de siempre.
+        if not existing_user.password_hash:
+            return jsonify({
+                "message": "Ya tienes una cuenta con este correo, creada con Google. "
+                           "Entra con el botón de Google: es la misma cuenta, "
+                           "con tus reservas.",
+                "use_google": True,
+            }), 409
+
         return jsonify({"message": "El correo electrónico ya está registrado"}), 409
 
     if len(password) < 6:
@@ -731,6 +829,9 @@ def login():
 
     El usuario va incluido para que el frontend sepa el rol sin otra petición.
     """
+    if too_many_attempts("login"):
+        return slow_down()
+
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
@@ -746,6 +847,13 @@ def login():
     if existing_user is None:
         return jsonify({"error": "Invalid email or password"}), 401
 
+    # Cuenta creada con Google: no hay contraseña que comprobar, y
+    # check_password devuelve False, así que cae en el 401 de abajo con
+    # el mismo mensaje que todos.
+    #
+    # Se le ayuda SIN decir nada: la pantalla enseña "¿te registraste con
+    # Google?" en cualquier fallo, sea cual sea el motivo. El que está
+    # atascado lo lee, y el que va probando correos no aprende nada.
     if existing_user.check_password(password):
         if not existing_user.is_active:
             return jsonify({"error": "Your account is deactivated. Contact the administrator."}), 403
@@ -759,6 +867,169 @@ def login():
         }), 200
     else:
         return jsonify({"error": "Invalid email or password"}), 401
+
+
+# ----------------------------------------------------------------------
+# ENTRAR CON GOOGLE
+# ----------------------------------------------------------------------
+#   POST   /api/auth/google    público, sin sesión
+#
+# La idea que gobierna todo esto: la cuenta es EL CORREO, no la forma de
+# entrar. Nadie tiene "cuenta de Google" y "cuenta normal": tiene una
+# cuenta y una o dos llaves para abrirla.
+#
+# Devuelve exactamente lo mismo que /login, para que al frontend le dé
+# igual por dónde haya entrado el usuario.
+# ----------------------------------------------------------------------
+
+
+def google_claims(credential):
+    """Comprueba el token de Google y devuelve lo que dice, o (None, error).
+
+    Verificar la firma es lo único que sostiene esta puerta: sin ella,
+    cualquiera enviaría el correo del encargado y entraría como él. El
+    correo que llegue del navegador NUNCA se usa tal cual.
+    """
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+
+    if not client_id:
+        return None, "Falta configurar el acceso con Google."
+
+    if not isinstance(credential, str) or not credential:
+        return None, "No se ha recibido el identificador de Google."
+
+    try:
+        # Comprueba la firma contra las claves públicas de Google, que
+        # caduque y que el token sea para NUESTRA aplicación y no para otra.
+        return id_token.verify_oauth2_token(
+            credential, google_requests.Request(), client_id
+        ), None
+    except ValueError:
+        return None, "No hemos podido validar tu cuenta de Google."
+
+
+def google_owns_mailbox(claims, email):
+    """Si el buzón es de Google, email_verified prueba la propiedad HOY.
+
+    Una cuenta de Google puede crearse con un correo de otro proveedor:
+    Google lo comprueba UNA VEZ, el día del alta, y desde entonces
+    arrastra el "verificado" para siempre. Si esa dirección cambia de
+    manos —un dominio que caduca, un correo reciclado, alguien que deja
+    la empresa—, el nuevo dueño obtiene un token con verified=True para
+    un correo que no era suyo.
+
+    Con gmail.com o con un dominio de Workspace (hd) el buzón lo gestiona
+    Google, así que ahí la comprobación sí es de ahora mismo.
+
+    Solo decide si se puede VINCULAR una cuenta que ya existe. Crear una
+    nueva no roba nada a nadie y sigue abierto a cualquier correo.
+    """
+    return bool(claims.get("hd")) or email.endswith(("@gmail.com", "@googlemail.com"))
+
+
+@api.route("/auth/google", methods=["POST"])
+def auth_google():
+    """Entra o se registra con Google.
+
+    Cuatro caminos, y el orden importa:
+
+      1. El google_id ya existe          -> entra
+      2. El correo existe sin Google     -> se vincula y entra
+      3. No existe                       -> se crea, siempre como cliente
+      4. Está desactivada                -> 403, igual que en /login
+    """
+    if too_many_attempts("google"):
+        return slow_down()
+
+    data = get_json_body() or {}
+
+    claims, error = google_claims(data.get("credential"))
+
+    if error:
+        return jsonify({"message": error}), 401
+
+    # Sin correo verificado no se toca nada. Sin esta comprobación,
+    # cualquiera se crea una cuenta de Google con el correo de otro, la
+    # deja sin verificar y entra en la cuenta ajena de CleanFlow.
+    if not claims.get("email_verified"):
+        return jsonify({
+            "message": "Tu correo de Google no está verificado. "
+                       "Verifícalo o entra con tu contraseña."
+        }), 403
+
+    google_id = claims.get("sub")
+    email = (claims.get("email") or "").strip().lower()
+
+    if not google_id or not email:
+        return jsonify({"message": "Google no ha devuelto tu correo."}), 401
+
+    # Por el sub primero: es lo que no cambia. Si alguien cambió el correo
+    # de su cuenta de Google, así sigue entrando en la suya de siempre.
+    user = db.session.execute(
+        db.select(User).where(User.google_id == google_id)
+    ).scalar_one_or_none()
+
+    if user is None:
+        user = db.session.execute(
+            db.select(User).where(User.email == email)
+        ).scalar_one_or_none()
+
+        if user is not None:
+            # Con un buzón que no es de Google, "verificado" puede ser de
+            # hace años y no prueba nada hoy. Entrar aquí sería abrirle la
+            # cuenta de otro a quien heredó esa dirección, así que se le
+            # pide lo único que solo sabe el dueño: su contraseña.
+            #
+            # El mensaje no dice que la cuenta exista. Sería decirle a
+            # quien prueba correos ajenos cuáles están dados de alta.
+            if not google_owns_mailbox(claims, email):
+                return jsonify({
+                    "message": "Con este correo hay que entrar con contraseña. "
+                               "Después puedes conectar Google desde "
+                               "Ajustes → Seguridad."
+                }), 409
+
+            # Ya tenía cuenta con contraseña: se le añade la segunda llave
+            # en vez de crearle una cuenta duplicada con el mismo correo.
+            user.google_id = google_id
+        else:
+            user = User(
+                name=claims.get("given_name") or claims.get("name") or "",
+                # Google no siempre manda el apellido aparte. Si falta, se
+                # parte el nombre completo; y si tampoco, se queda vacío:
+                # no puede fallar un registro por eso.
+                last_name=(
+                    claims.get("family_name")
+                    or " ".join((claims.get("name") or "").split()[1:])
+                ),
+                email=email,
+                # Sin teléfono: Google no lo da y se pide en el paso
+                # siguiente, antes de dejarle entrar al panel.
+                phone=None,
+                role="client",
+                is_active=True,
+                google_id=google_id,
+                # Su foto de Google, y solo al crear la cuenta: la que
+                # suba luego a mano en Ajustes manda siempre.
+                avatar_url=claims.get("picture"),
+            )
+            db.session.add(user)
+
+    user.email_verified = True
+
+    db.session.commit()
+
+    # Se mira DESPUÉS de vincular: si el encargado la reactiva, la cuenta
+    # ya tiene su google_id puesto y entra sin repetir nada.
+    if not user.is_active:
+        return jsonify({
+            "message": "Tu cuenta está desactivada. Contacta con CleanFlow."
+        }), 403
+
+    return jsonify({
+        "token": create_access_token(identity=str(user.user_id)),
+        "user": user.serialize_session(),
+    }), 200
 
 
 # ----------------------------------------------------------------------
@@ -922,6 +1193,55 @@ def clean_phone(value, current):
     return phone, None
 
 
+@api.route("/account/phone", methods=["PATCH"])
+@jwt_required()
+def set_account_phone():
+    """Guarda el teléfono que falta tras entrar con Google.
+
+    Aparte de PUT /account porque no es lo mismo: aquel edita una cuenta
+    completa y este termina de crearla. Aquí no hay nombre ni apellidos
+    que validar, solo el dato que falta.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    # Solo termina una cuenta a medias; no edita una hecha. Sin esto, un
+    # trabajador se cambiaría el teléfono por aquí y se saltaría la regla
+    # de PUT /account, donde sus datos los gestiona el encargado.
+    #
+    # Va aquí y no en un rol: no hace falta saber quién llama, basta con
+    # que esta puerta solo sirva para lo que se abrió.
+    if user.phone:
+        return jsonify({
+            "message": "Tu cuenta ya tiene teléfono. Puedes cambiarlo desde Ajustes."
+        }), 409
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    # clean_phone trata un campo ausente como "no lo cambies" y devuelve
+    # lo que había. Aquí eso no vale: lo que había es nada, así que sin
+    # este aviso una petición vacía saldría con un 200 dejando la cuenta
+    # igual de incompleta.
+    if data.get("phone") is None:
+        return jsonify({"message": "El teléfono es obligatorio"}), 400
+
+    phone, error = clean_phone(data.get("phone"), None)
+
+    if error:
+        return jsonify({"message": error}), 400
+
+    user.phone = phone
+
+    db.session.commit()
+
+    return jsonify({"user": user.serialize_session()}), 200
+
+
 @api.route("/account", methods=["GET"])
 @jwt_required()
 def get_account():
@@ -995,6 +1315,103 @@ def update_account():
         "account": user.serialize_account(),
         "user": user.serialize_session()
     }), 200
+
+
+@api.route("/account/password", methods=["POST"])
+@jwt_required()
+def create_account_password():
+    """Crea una contraseña donde no había ninguna.
+
+    Para quien entró con Google: así puede entrar también por su cuenta
+    el día que no tenga acceso a su Google.
+
+    POST y no PUT porque no es lo mismo que cambiarla: aquí no hay
+    anterior que pedir. Y por eso mismo NO puede servir para cambiarla:
+    con una sesión abierta en un ordenador ajeno, cualquiera se pondría
+    una contraseña nueva sin saber la que había.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    if user.password_hash:
+        return jsonify({
+            "message": "Ya tienes una contraseña. Puedes cambiarla desde aquí mismo."
+        }), 409
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    new_password = data.get("new_password")
+
+    if not isinstance(new_password, str) or not new_password:
+        return jsonify({"message": "La contraseña es obligatoria"}), 400
+
+    if len(new_password) < PASSWORD_MIN_LENGTH:
+        return jsonify({
+            "message": f"La contraseña debe tener mínimo {PASSWORD_MIN_LENGTH} caracteres"
+        }), 400
+
+    # set_password hashea; nunca se asigna password_hash a mano.
+    user.set_password(new_password)
+    db.session.commit()
+
+    return jsonify({"account": user.serialize_account()}), 200
+
+
+@api.route("/account/google", methods=["POST"])
+@jwt_required()
+def connect_account_google():
+    """Conecta una cuenta de Google a la sesión abierta.
+
+    Es la salida de quien entró con contraseña: aquí no hay que adivinar
+    de quién es el correo, porque ya entró con su contraseña y eso es la
+    prueba. Por eso se vincula el Google que elija, sea del buzón que sea.
+
+    También es lo que se le ofrece a quien /auth/google rechazó por tener
+    el correo en otro proveedor.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    data = get_json_body() or {}
+
+    claims, error = google_claims(data.get("credential"))
+
+    if error:
+        return jsonify({"message": error}), 401
+
+    google_id = claims.get("sub")
+
+    if not google_id:
+        return jsonify({"message": "Google no ha devuelto tu cuenta."}), 401
+
+    if user.google_id:
+        return jsonify({
+            "message": "Tu cuenta ya tiene un Google conectado."
+        }), 409
+
+    # Un mismo Google no puede abrir dos cuentas de CleanFlow: si no, al
+    # entrar por el botón no sabríamos en cuál de las dos meterle.
+    taken = db.session.execute(
+        db.select(User).where(User.google_id == google_id)
+    ).scalar_one_or_none()
+
+    if taken is not None:
+        return jsonify({
+            "message": "Ese Google ya está conectado a otra cuenta."
+        }), 409
+
+    user.google_id = google_id
+
+    db.session.commit()
+
+    return jsonify({"account": user.serialize_account()}), 200
 
 
 @api.route("/account/password", methods=["PUT"])
@@ -2931,12 +3348,12 @@ def finish_booking_day(booking_id, day_id):
 # cliente (#83) y, si reclama, la respuesta del encargado (#19).
 
 
-def task_in_progress(task_id):
+def task_in_progress(task_id, *, allow_missing_photo=False):
     """La tarea y su reserva, si es de quien pregunta y está en curso.
 
     Devuelve (task, booking, None), o (None, None, (respuesta, código)).
-    Las fotos solo se tocan con el servicio en marcha: ni antes de llegar
-    ni después de finalizarlo.
+    Tras finalizar solo la subida puede añadir una foto que falta;
+    borrar y sustituir pruebas sigue bloqueado.
     """
     user_id = int(get_jwt_identity())
 
@@ -2961,7 +3378,10 @@ def task_in_progress(task_id):
             "message": "Solo puedes subir fotos de tus reservas asignadas."
         }), 403)
 
-    if booking.status != BookingStatus.IN_PROGRESS:
+    can_complete_photos = (allow_missing_photo
+        and booking.status == BookingStatus.COMPLETED
+        and task.status == BookingTaskStatus.COMPLETED)
+    if booking.status != BookingStatus.IN_PROGRESS and not can_complete_photos:
         return None, None, (jsonify({
             "message": "Solo puedes tocar las fotos con el servicio en curso."
         }), 409)
@@ -2978,7 +3398,7 @@ def upload_task_photo(task_id):
     Llega como archivo (multipart/form-data): el campo `photo` con la
     imagen y `kind` con "before" o "after".
     """
-    task, booking, error = task_in_progress(task_id)
+    task, booking, error = task_in_progress(task_id, allow_missing_photo=True)
 
     if error:
         return error
@@ -2989,6 +3409,14 @@ def upload_task_photo(task_id):
         return jsonify({
             "message": 'La foto debe ser "before" o "after".'
         }), 400
+
+    kind = MediaKind(kind_value)
+    previous = db.session.execute(db.select(Media).where(
+        Media.booking_task_id == task_id, Media.kind == kind,
+    )).scalars().all()
+    # El bloqueo de la reserva serializa subidas: tras cerrar, solo se rellenan huecos.
+    if task.status == BookingTaskStatus.COMPLETED and previous:
+        return jsonify({"message": "Las fotos de una tarea cerrada no se sustituyen."}), 409
 
     # Antes de leer nada: un archivo enorme no se carga en memoria solo
     # para caducar. El margen cubre las cabeceras del multipart.
@@ -3001,16 +3429,7 @@ def upload_task_photo(task_id):
         message, status = error
         return jsonify({"message": message}), status
 
-    kind = MediaKind(kind_value)
-
-    # Repetir el antes sustituye al anterior: dos "antes" de la misma
-    # tarea no significan nada, y el segundo sería el bueno.
-    previous = db.session.execute(
-        db.select(Media).where(
-            Media.booking_task_id == task_id,
-            Media.kind == kind,
-        )
-    ).scalars().all()
+    # Solo las tareas abiertas pueden reemplazar fotos existentes.
 
     for photo in previous:
         db.session.delete(photo)
@@ -3727,6 +4146,36 @@ def global_rating():
     return (round(float(average), 1) if total else None), total
 
 
+def review_age(created_at):
+    """Cuánto hace que se escribió una opinión, sin decir cuándo.
+
+    Devuelve {"value": 2, "unit": "week"}, nunca una fecha. La web lo
+    escribe con Intl.RelativeTimeFormat, así que aquí no hay ni un texto:
+    solo el número y la unidad.
+
+    El redondeo se hace en el servidor a propósito. Si mandáramos la
+    fecha para que la redondease el navegador, el día y la hora exactos
+    ya habrían salido de aquí, y con el nombre del cliente al lado eso
+    dice qué tarde concreta hubo alguien en su casa.
+    """
+    if created_at is None:
+        return None
+
+    # Con el max(), una opinión recién escrita nunca sale con días
+    # negativos si el reloj va un pelo por detrás.
+    days = max((madrid_now() - created_at).days, 0)
+
+    if days < 7:
+        return {"value": days, "unit": "day"}
+    if days < 31:
+        return {"value": days // 7, "unit": "week"}
+    if days < 365:
+        return {"value": days // 30, "unit": "month"}
+
+    # Siempre un año redondo: a partir de aquí dejamos de contar.
+    return {"value": 1, "unit": "year"}
+
+
 @api.route("/reviews/public", methods=["GET"])
 def public_reviews():
     """La media de CleanFlow y las últimas opiniones, para la web.
@@ -3735,17 +4184,27 @@ def public_reviews():
     arma el diccionario a mano en vez de usar Review.serialize(), que
     lleva client_id y las fotos: ni el id de un cliente ni el interior de
     su casa tienen por qué salir de la aplicación.
+
+    Sí sale su avatar, que es distinto: es la cara que el propio cliente
+    eligió como pública. Y el servicio y lo reciente que es la opinión,
+    que dan contexto sin decir de quién es la casa ni cuándo estuvimos.
     """
     media, total = global_rating()
 
+    # El nombre del servicio sale del join y no de la reserva de cada
+    # opinión: Review no tiene relación con Booking, solo el id suelto, y
+    # resolverlo dentro del bucle sería una consulta por cada una.
+    #
     # Solo las que traen comentario: una cita vacía no se puede enseñar.
-    reviews = db.session.execute(
-        db.select(Review)
+    rows = db.session.execute(
+        db.select(Review, Service.name)
+        .join(Booking, Booking.booking_id == Review.booking_id)
+        .join(Service, Service.service_id == Booking.service_id)
         .where(Review.comment.is_not(None))
         .order_by(Review.created_at.desc())
         .limit(PUBLIC_REVIEWS_LIMIT)
         .options(selectinload(Review.client))
-    ).scalars().all()
+    ).all()
 
     return jsonify({
         "average": media,
@@ -3754,10 +4213,19 @@ def public_reviews():
             {
                 "review_id": review.review_id,
                 "client_name": public_name(review.client),
+                # Si no tiene foto, la web pinta sus iniciales. Ponerle
+                # una cara de archivo que no es la suya sería mentir.
+                "client_avatar_url": (
+                    review.client.avatar_url if review.client else None
+                ),
+                "service_name": service_name,
+                # Cuánto hace, no cuándo. Es lo que ya enseñaba la web, y
+                # ahora es también lo único que sale de la API.
+                "age": review_age(review.created_at),
                 "rating": review.rating,
                 "comment": review.comment,
             }
-            for review in reviews
+            for review, service_name in rows
         ],
     }), 200
 

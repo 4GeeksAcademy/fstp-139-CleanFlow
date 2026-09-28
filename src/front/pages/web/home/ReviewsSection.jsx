@@ -1,30 +1,95 @@
-import { useEffect, useState } from "react";
-import { getPublicReviews } from "../../../services/reviewService";
+/**
+ * QUÉ OPINAN NUESTROS CLIENTES (#41).
+ *
+ * Las últimas opiniones de CleanFlow y la media que forman. Nunca de
+ * Google ni de ninguna fuente externa: son las mismas notas que dejan
+ * los clientes al terminar un servicio (#20).
+ *
+ * Lo que sale de cada uno: su nombre de pila con la inicial del
+ * apellido, su foto de perfil si la tiene, el servicio y cuándo fue.
+ * Las fotos que sube al valorar no salen nunca: son el interior de su
+ * casa y las hizo para nosotros, no para publicarlas.
+ *
+ * Estilos: web.css, bloque cf-reviews.
+ */
+
+import { useState } from "react";
+import useGlobalReducer from "../../../hooks/useGlobalReducer";
+import { Stars } from "../../../components/dashboard/bookings/Stars";
+
+/**
+ * "hace 2 semanas".
+ *
+ * El backend manda el número y la unidad ya redondeados y nunca la
+ * fecha, para que el día exacto en que hubo alguien en casa de un
+ * cliente no salga del servidor. Aquí solo se escribe, y lo escribe el
+ * propio navegador, que ya sabe hacerlo en cualquier idioma.
+ */
+const RELATIVE = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
+
+const ageText = (age) => {
+    if (!age) return "";
+
+    // Lo único que Intl no sabe hacer es un tope: con un año escribiría
+    // "hace 1 año", y a partir de ahí queremos dejar de contar.
+    if (age.unit === "year") return "hace más de un año";
+
+    return RELATIVE.format(-age.value, age.unit);
+};
+
+/** "Pablo V." -> "PV", para cuando el cliente no tiene foto. */
+const initialsOf = (name) => (name || "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0].toUpperCase())
+    .join("");
+
+/**
+ * Su foto de perfil, o sus iniciales.
+ *
+ * La cara la eligió él y por eso puede salir; si no tiene, van sus
+ * iniciales. Nunca una foto de archivo: poner al lado de su nombre una
+ * cara que no es la suya sería mentir.
+ *
+ * El onError cubre una URL que ya no responde: antes de un icono roto,
+ * las iniciales.
+ */
+const Face = ({ review }) => {
+    const [failed, setFailed] = useState(false);
+
+    if (!review.client_avatar_url || failed) {
+        return (
+            <span className="cf-review-card__face" aria-hidden="true">
+                {initialsOf(review.client_name)}
+            </span>
+        );
+    }
+
+    return (
+        <span className="cf-review-card__face">
+            <img
+                src={review.client_avatar_url}
+                alt={`Foto de ${review.client_name}`}
+                loading="lazy"
+                onError={() => setFailed(true)}
+            />
+        </span>
+    );
+};
 
 export const ReviewsSection = () => {
-    const [reviews, setReviews] = useState([]);
-    const [isProvisional, setIsProvisional] = useState(false);
+    // Del store, que lo pide ReviewsLoader una sola vez al arrancar: el
+    // hero de esta misma pantalla enseña la misma media, y sin esto
+    // serían dos viajes para el mismo dato.
+    const { store } = useGlobalReducer();
 
-    useEffect(() => {
-        let isMounted = true;
+    const average = store.reviewsAverage;
+    const total = store.reviewsTotal;
+    const reviews = store.reviews;
 
-        const loadReviews = async () => {
-            const result = await getPublicReviews();
-
-            if (isMounted && result.ok) {
-                setReviews(result.data);
-                setIsProvisional(result.provisional === true);
-            }
-        };
-
-        loadReviews();
-
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    // Si no existen opiniones, la sección no se muestra vacía.
+    // Sin opiniones la sección no aparece: mejor que no exista a que
+    // salga vacía o con un "0 sobre 5" que no significa nada.
     if (reviews.length === 0) {
         return null;
     }
@@ -43,55 +108,51 @@ export const ReviewsSection = () => {
                         </h2>
                     </div>
 
-                    {isProvisional && (
-                        <span className="cf-reviews__example-label">
-                            Opiniones de ejemplo
-                        </span>
+                    {/* La media, que es lo que de verdad convence: un
+                        visitante lee un número antes que ningún comentario. */}
+                    {average !== null && (
+                        <div className="cf-reviews__score">
+                            <span>
+                                {/* La coma es lo que se escribe en español. */}
+                                <span className="cf-reviews__avg">
+                                    {String(average).replace(".", ",")}
+                                </span>
+                                <span className="cf-reviews__of">sobre 5</span>
+                            </span>
+
+                            <span>
+                                <Stars value={average} size={17} />
+                                <p className="cf-reviews__count">
+                                    {total} {total === 1 ? "valoración" : "valoraciones"}
+                                </p>
+                            </span>
+                        </div>
                     )}
                 </div>
 
                 <div className="cf-reviews__grid">
                     {reviews.map((review) => (
-                        <article
-                            className="cf-review-card"
-                            key={review.review_id}
-                        >
-                            <span
-                                className="cf-review-card__quote"
-                                aria-hidden="true"
-                            >
-                                “
-                            </span>
-
-                            <div
-                                className="cf-review-card__stars"
-                                aria-hidden="true"
-                            >
-                                {Array.from({ length: 5 }, (_, index) => (
-                                    <span
-                                        key={index}
-                                        className={
-                                            index < review.rating
-                                                ? "cf-review-card__star cf-review-card__star--active"
-                                                : "cf-review-card__star"
-                                        }
-                                    >
-                                        ★
-                                    </span>
-                                ))}
+                        <article className="cf-review-card" key={review.review_id}>
+                            <div className="cf-review-card__stars">
+                                <Stars value={review.rating} size={15} />
                             </div>
-
-                            <span className="sr-only">
-                                {review.rating} de 5 estrellas
-                            </span>
 
                             <p className="cf-review-card__comment">
                                 {review.comment}
                             </p>
 
-                            <p className="cf-review-card__client">
-                                {review.client_name}
-                            </p>
+                            <div className="cf-review-card__who">
+                                <Face review={review} />
+
+                                <div>
+                                    <p className="cf-review-card__name">
+                                        {review.client_name}
+                                    </p>
+                                    <p className="cf-review-card__meta">
+                                        {review.service_name} · {ageText(review.age)}
+                                    </p>
+                                </div>
+                            </div>
                         </article>
                     ))}
                 </div>

@@ -93,3 +93,78 @@ export const register = async (formData) => {
         };
     }
 };
+
+/**
+ * Entra o se registra con Google.
+ *
+ * `credential` es el token firmado que devuelve Google. Aquí solo se
+ * reenvía: quien comprueba que la firma es de verdad es el backend, y
+ * es lo único que sostiene esta puerta.
+ *
+ * Responde igual que login(): { token, user }. Al frontend le da lo
+ * mismo por dónde haya entrado el usuario.
+ */
+export const loginWithGoogle = async (credential) => {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/auth/google`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ credential }),
+        });
+
+        const data = await response.json();
+
+        return {
+            ok: response.ok,
+            data,
+        };
+    } catch (error) {
+        console.error("Fallo de red al entrar con Google:", error);
+
+        return {
+            ok: false,
+            networkError: true,
+            data: {
+                message: "No se ha podido conectar con el servidor. Inténtalo de nuevo en unos segundos.",
+            },
+        };
+    }
+};
+
+/**
+ * Guarda el teléfono que falta tras entrar con Google.
+ *
+ * Devuelve el usuario ya actualizado, para repintar la sesión sin tener
+ * que volver a pedirlo.
+ */
+export const setAccountPhone = async (phone, token) => {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/account/phone`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ phone }),
+        });
+
+        const data = await response.json();
+
+        return {
+            ok: response.ok,
+            data,
+        };
+    } catch (error) {
+        console.error("Fallo de red al guardar el teléfono:", error);
+
+        return {
+            ok: false,
+            networkError: true,
+            data: {
+                message: "No se ha podido conectar con el servidor. Inténtalo de nuevo en unos segundos.",
+            },
+        };
+    }
+};

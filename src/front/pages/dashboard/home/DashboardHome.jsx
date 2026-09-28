@@ -6,8 +6,8 @@
  * saber qué le toca hoy, el encargado a mirar cómo va el negocio. Aquí
  * solo se decide cuál de las tres se pinta.
  *
- * PARA AÑADIR LA TUYA: impórtala y pon su nombre en lugar del null que
- * le toca en HOMES. Nada más. Mientras sea null se ve el aviso.
+ * Las tres ya están. El aviso de abajo se queda para un caso que sigue
+ * siendo posible: una sesión sin rol, que no encuentra ninguna.
  *
  * Ojo: esta ruta no puede redirigir a ninguna parte. RoleRoute manda
  * aquí a quien entra donde no le toca, así que un Navigate en esta
@@ -18,13 +18,14 @@
 
 import "../../../dashboard.css"
 import useGlobalReducer from "../../../hooks/useGlobalReducer"
-import { ManagerHome } from "./ManagerHome"
 import { ClientHome } from "./ClientHome"
+import { WorkerHome } from "./WorkerHome"
+import { ManagerHome } from "./ManagerHome"
 
-// El inicio de cada rol. null = todavía no existe.
+// El inicio de cada rol.
 const HOMES = {
     client: ClientHome,   // #23
-    worker: null,   // #21
+    worker: WorkerHome,   // #21
     manager: ManagerHome,  // #24
 }
 

@@ -7,18 +7,10 @@
 
 import { Link } from "react-router-dom";
 
-import servicePlaceholder from "../../assets/img/service-placeholder.svg";
-import limpiezaEsencial from "../../assets/img/services/limpieza-esencial.webp";
-import limpiezaIntegral from "../../assets/img/services/limpieza-integral.webp";
-import limpiezaProfunda from "../../assets/img/services/limpieza-profunda.webp";
-import limpiezaFinDeObra from "../../assets/img/services/limpieza-fin-de-obra.webp";
-
-const serviceImages = {
-    "limpieza-esencial": limpiezaEsencial,
-    "limpieza-integral": limpiezaIntegral,
-    "limpieza-profunda": limpiezaProfunda,
-    "limpieza-fin-de-obra": limpiezaFinDeObra,
-};
+import {
+    getServiceImage,
+    servicePlaceholder,
+} from "../../data/serviceImages";
 
 const formatPrice = (price) => {
     const value = Number(price);
@@ -34,11 +26,7 @@ const formatPrice = (price) => {
 };
 
 export const ServiceCard = ({ service }) => {
-    const imageSrc =
-        service.image_url ||
-        serviceImages[service.slug] ||
-        servicePlaceholder;
-
+    const imageSrc = getServiceImage(service);
     return (
         <article className="cf-service-card">
             <img
@@ -75,6 +63,14 @@ export const ServiceCard = ({ service }) => {
                         aria-label={`Contratar ${service.name}`}
                     >
                         Contratar
+                    </Link>
+
+                    <Link
+                        to={`/services/${service.slug}`}
+                        className="cf-btn cf-btn--ghost"
+                        aria-label={`Ver más información sobre ${service.name}`}
+                    >
+                        Ver más información
                     </Link>
                 </div>
             </div>
