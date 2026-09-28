@@ -34,8 +34,8 @@ const addressLabel = (address) => {
     return `${address.street}, ${address.number}${floor} · ${address.city}`;
 };
 
-export const NextBooking = ({ booking }) => {
-    if (!booking) {
+export const NextBooking = ({ booking, day }) => {
+    if (!booking || !day) {
         return (
             <section className="cf-client-next">
                 <p className="cf-dash-eyebrow">Lo siguiente</p>
@@ -52,7 +52,6 @@ export const NextBooking = ({ booking }) => {
         );
     }
 
-    const firstDay = booking.days[0];
 
     return (
         <section className="cf-client-next">
@@ -60,7 +59,7 @@ export const NextBooking = ({ booking }) => {
                 <p className="cf-dash-eyebrow">Lo siguiente</p>
 
                 <h2>
-                    {dayLabel(firstDay.starts_at)} viene{" "}
+                    {dayLabel(day.starts_at)} viene{" "}
                     {booking.worker_name || "nuestro equipo"}
                 </h2>
 
@@ -69,11 +68,11 @@ export const NextBooking = ({ booking }) => {
 
             <article className="cf-client-next__card">
                 <div className="cf-client-next__date">
-                    <strong>{dayLabel(firstDay.starts_at)}</strong>
+                    <strong>{dayLabel(day.starts_at)}</strong>
 
                     <span>
-                        {firstDay.starts_at.slice(11, 16)}–
-                        {firstDay.ends_at.slice(11, 16)}
+                        {day.starts_at.slice(11, 16)}–
+                        {day.ends_at.slice(11, 16)}
                     </span>
                 </div>
 

@@ -6,18 +6,26 @@ import { NextBooking } from "../../../components/dashboard/home/NextBooking";
 import { ClientPendingActions } from "../../../components/dashboard/home/ClientPendingActions";
 import { RebookServices } from "../../../components/dashboard/home/RebookServices";
 import { EmptyClientHome } from "../../../components/dashboard/home/EmptyClientHome";
-const nextConfirmedBooking = (bookings) =>
-    bookings
-        .filter(
-            (booking) =>
-                booking.status === "confirmed" &&
-                booking.days?.length > 0
+const nextConfirmedBooking = (bookings) => {
+    const now = new Date();
+
+    return bookings
+        .filter((booking) =>
+            ["confirmed", "in_progress"].includes(booking.status)
+        )
+        .flatMap((booking) =>
+            (booking.days || [])
+                .filter(
+                    (day) =>
+                        !day.finished_at &&
+                        new Date(day.ends_at) >= now
+                )
+                .map((day) => ({ booking, day }))
         )
         .sort((first, second) =>
-            first.days[0].starts_at.localeCompare(
-                second.days[0].starts_at
-            )
+            first.day.starts_at.localeCompare(second.day.starts_at)
         )[0] || null;
+};
 
 export const ClientHome = () => {
     const { store, dispatch } = useGlobalReducer();
@@ -110,7 +118,10 @@ export const ClientHome = () => {
                 </p>
             </header>
 
-            <NextBooking booking={nextBooking} />
+            <NextBooking
+                booking={nextBooking?.booking}
+                day={nextBooking?.day}
+            />
 
             <ClientPendingActions bookings={bookings} />
             <RebookServices
