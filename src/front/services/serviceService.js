@@ -26,6 +26,18 @@ export const getServices = async () => {
   return { ...result, data: Array.isArray(result.data.services) ? result.data.services : [] };
 };
 
+/**
+ * Devuelve un servicio activo por su slug.
+ * data: el servicio encontrado.
+ */
+export const getServiceBySlug = async (slug) => {
+  const result = await apiRequest(`/api/services/${slug}`);
+
+  if (!result.ok) return result;
+
+  return { ...result, data: result.data.service };
+};
+
 
 // ----------------------------------------------------------------------
 // GESTIÓN DEL CATÁLOGO (ENCARGADO)

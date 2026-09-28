@@ -41,6 +41,8 @@ import { Applications } from "./pages/dashboard/Applications";
 import { Messages } from "./pages/dashboard/Messages";
 import { BookingDetail } from "./pages/dashboard/BookingDetail";
 import { WorkerAbsencesPage } from "./pages/dashboard/WorkerAbsencesPage";
+
+import { ServiceDetail } from "./pages/web/ServiceDetail";
 import { DashboardHome } from "./pages/dashboard/home/DashboardHome";
 
 export const router = createBrowserRouter(
@@ -50,6 +52,7 @@ export const router = createBrowserRouter(
       <Route path="/" element={<PublicLayout />} errorElement={<h1>Not found!</h1>}>
         <Route index element={<Home />} />
         <Route path="work-with-us" element={<WorkWithUs />} />
+        <Route path="services/:slug" element={<ServiceDetail />} />
       </Route>
 
       {/* ---------- ACCESO Y REGISTRO: layout propio, sin navbar ni footer ----------
