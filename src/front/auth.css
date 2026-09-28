@@ -238,6 +238,51 @@
 
 .auth-note b { font-weight: 600; }
 
+/* ---- El paso que falta tras entrar con Google ---- */
+
+/* Su cuenta, ya creada, arriba del campo. Dice sin palabras "lo tuyo ya
+   está hecho, esto es lo último": sin ella parecería que está
+   empezando un registro de cero justo cuando esperaba entrar. */
+.auth-who {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 12px 14px;
+    border-radius: var(--auth-radius-md);
+    background: var(--cf-primary-soft);
+}
+
+.auth-face {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--auth-muted);
+}
+
+.auth-face img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.auth-who-name { margin: 0; font-size: 14px; font-weight: 600; }
+.auth-who-mail { margin: 1px 0 0; color: var(--auth-muted); font-size: 12.5px; }
+
+/* El porqué debajo del campo: pedir un teléfono sin decir para qué es
+   lo que hace que la gente escriba números falsos. */
+.auth-hint {
+    margin: 6px 0 0;
+    color: var(--auth-muted);
+    font-size: 12.5px;
+    line-height: 1.5;
+}
+
 /* ---- Botón principal ---- */
 
 .auth-btn {

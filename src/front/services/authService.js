@@ -132,3 +132,39 @@ export const loginWithGoogle = async (credential) => {
         };
     }
 };
+
+/**
+ * Guarda el teléfono que falta tras entrar con Google.
+ *
+ * Devuelve el usuario ya actualizado, para repintar la sesión sin tener
+ * que volver a pedirlo.
+ */
+export const setAccountPhone = async (phone, token) => {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/account/phone`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ phone }),
+        });
+
+        const data = await response.json();
+
+        return {
+            ok: response.ok,
+            data,
+        };
+    } catch (error) {
+        console.error("Fallo de red al guardar el teléfono:", error);
+
+        return {
+            ok: false,
+            networkError: true,
+            data: {
+                message: "No se ha podido conectar con el servidor. Inténtalo de nuevo en unos segundos.",
+            },
+        };
+    }
+};

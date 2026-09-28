@@ -1077,6 +1077,45 @@ def clean_phone(value, current):
     return phone, None
 
 
+@api.route("/account/phone", methods=["PATCH"])
+@jwt_required()
+def set_account_phone():
+    """Guarda el teléfono que falta tras entrar con Google.
+
+    Aparte de PUT /account porque no es lo mismo: aquel edita una cuenta
+    completa y este termina de crearla. Aquí no hay nombre ni apellidos
+    que validar, y el trabajador no está bloqueado porque esta puerta
+    solo la cruza quien acaba de entrar sin teléfono.
+    """
+    user = current_user()
+
+    if not user:
+        return jsonify({"message": "Usuario no encontrado"}), 404
+
+    data = get_json_body()
+
+    if data is None:
+        return jsonify({"message": "No se recibieron datos"}), 400
+
+    # clean_phone trata un campo ausente como "no lo cambies" y devuelve
+    # lo que había. Aquí eso no vale: lo que había es nada, así que sin
+    # este aviso una petición vacía saldría con un 200 dejando la cuenta
+    # igual de incompleta.
+    if data.get("phone") is None:
+        return jsonify({"message": "El teléfono es obligatorio"}), 400
+
+    phone, error = clean_phone(data.get("phone"), None)
+
+    if error:
+        return jsonify({"message": error}), 400
+
+    user.phone = phone
+
+    db.session.commit()
+
+    return jsonify({"user": user.serialize_session()}), 200
+
+
 @api.route("/account", methods=["GET"])
 @jwt_required()
 def get_account():

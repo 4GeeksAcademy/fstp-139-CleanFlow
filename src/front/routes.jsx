@@ -14,6 +14,7 @@ import { PublicLayout } from "./pages/web/PublicLayout";
 import { AuthLayout } from "./pages/web/AuthLayout";
 import { Home } from "./pages/web/Home";
 import { Register } from "./pages/web/Register";
+import { CompleteProfile } from "./pages/web/CompleteProfile";
 import { MisReservasTrabajador } from "./pages/dashboard/MisReservasTrabajador";
 import { WorkerBookingDetail } from "./pages/dashboard/WorkerBookingDetail";
 import { LoginClients } from "./pages/web/LoginClients";
@@ -58,6 +59,9 @@ export const router = createBrowserRouter(
         <Route path="login-clients" element={<LoginClients />} />
         <Route path="login-workers" element={<LoginWorkers />} />
         <Route path="register" element={<Register />} />
+        {/* El paso que falta tras entrar con Google. Con sesión, pero
+            fuera de /dashboard: todavía no puede pasar ahí. */}
+        <Route path="completar-perfil" element={<CompleteProfile />} />
       </Route>
 
       {/* ---------- ZONA PRIVADA ---------- */}

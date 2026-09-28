@@ -1,9 +1,10 @@
 /**
  * Guardián de sesión de toda la zona privada.
  *
- * Responde a una sola pregunta: ¿hay sesión? Si no la hay, saca al
- * usuario al login; si la hay, deja pasar y además comprueba con el
- * backend que el token siga siendo válido.
+ * Responde a dos preguntas: ¿hay sesión? y ¿está completa la cuenta?
+ * Sin sesión, al login; con la cuenta a medias —entró con Google y le
+ * falta el teléfono—, al paso que lo pide. Si todo está, deja pasar y
+ * además comprueba con el backend que el token siga siendo válido.
  *
  * Se monta en routes.jsx como ruta "pathless" (sin path propio)
  * envolviendo a /dashboard: añade la comprobación sin añadir ningún
@@ -96,6 +97,14 @@ export const ProtectedRoutes = () => {
                 state={{ from: location, expired: store.sessionExpired }}
             />
         )
+    }
+
+    // Hay sesión pero la cuenta está a medias: entró con Google, que no
+    // da el teléfono, y sin él no se puede avisar al cliente el día del
+    // servicio. La guarda va aquí y no en un useEffect de la pantalla,
+    // que si no se cuela escribiendo la URL a mano.
+    if (store.user?.needs_phone) {
+        return <Navigate to="/completar-perfil" replace />
     }
 
     // Hay sesión: se pinta la ruta hija que corresponda (DashboardLayout
