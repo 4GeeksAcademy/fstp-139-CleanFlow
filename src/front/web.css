@@ -2208,6 +2208,14 @@ main > section:nth-of-type(even) {
   padding: var(--cf-space-8) 0 0;
 }
 
+/* La portada alterna bandas blancas con `main > section:nth-of-type(2n)`,
+   y aquí esa regla también alcanza: pintaba de blanco las tareas y "Otros
+   servicios" y dejaba el cierre en crema, partiendo la página en trozos
+   sin sentido. El único contraste que queremos es la banda verde. */
+.cf-service-detail > section:not(.cf-service-detail__how) {
+  background-color: transparent;
+}
+
 /* Ancho propio y no .cf-container: aquel llega a 1440px y aquí se busca
    una medida de lectura. Con más ancho, la entradilla pierde el renglón. */
 .cf-service-detail__w {
@@ -2558,7 +2566,7 @@ main > section:nth-of-type(even) {
 /* ---------- EL CIERRE ---------- */
 
 .cf-service-detail__end {
-  padding: 112px 0 120px;
+  padding: 112px 0 96px;
   text-align: center;
 }
 
@@ -2569,6 +2577,16 @@ main > section:nth-of-type(even) {
   font-size: clamp(1.75rem, 3.5vw, 2.25rem);
   font-weight: 600;
   letter-spacing: -0.02em;
+}
+
+/* Una línea fina lo separa del cierre. Sin ella los dos bloques se
+   funden y no se entiende que esto ya es otra cosa: una recomendación,
+   no parte del servicio que se estaba mirando.
+   Va dentro del ancho de lectura y no a sangre, para que acompañe al
+   texto en vez de cortar la página. */
+.cf-service-detail__others .cf-service-detail__w {
+  padding-top: 72px;
+  border-top: 1px solid var(--cf-border);
 }
 
 .cf-service-detail__others {
