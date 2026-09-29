@@ -80,7 +80,7 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
         // correcta, data trae el cuerpo.
         const { ok, data } = await login(email, password)
         if (!ok) {
-            setError(data.error)
+            setError(data.message)
             return
         }
 
@@ -145,8 +145,8 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
                         <div className="auth-note" role="status">
                             <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
                             <span>
-                                <b>¿Te registraste con Google?</b> Entonces no tienes
-                                contraseña: entra con el botón de arriba.
+                                <b>¿Te registraste con Google?</b> Entra con el botón
+                                «Continuar con Google».
                             </span>
                         </div>
                     )}

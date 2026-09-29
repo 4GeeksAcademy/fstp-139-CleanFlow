@@ -75,11 +75,9 @@ export const Register = () => {
             }
 
             // Los campos no se borran: así se puede corregir y reintentar.
-            setError(
-                created.networkError
-                    ? created.data.error
-                    : created.data.message || created.data.error || "No se pudo completar el registro"
-            );
+            // Un solo camino para los dos casos: la API y los fallos de red
+            // mandan el mensaje en la misma clave.
+            setError(created.data.message || "No se pudo completar el registro");
             setLoading(false);
             return;
         }
