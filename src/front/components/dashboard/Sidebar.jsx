@@ -103,6 +103,10 @@ const COLLAPSED_KEY = "cleanflow:sidebar-collapsed"
 
 // Por debajo de 1024px el menú desplegado se come la página: si nunca se
 // ha elegido nada en este navegador, arranca plegado.
+//
+// Esto también da `true` en un móvil, y se queda guardado. Da igual: allí
+// el menú es un cajón y la clase del modo icono no se le pone. Sirve para
+// que, al girar el teléfono a tablet, salga plegado como toca.
 const TABLET_QUERY = "(max-width: 1023.98px)"
 
 const readCollapsed = () => {
