@@ -6,6 +6,9 @@ import { getTasks } from "../../services/taskService";
 import { ServiceCard } from "../../components/web/ServiceCard";
 import { getServiceImage } from "../../data/serviceImages";
 
+/** "1 hora" / "8 horas". El singular se cuela si no se mira. */
+const horasTexto = (horas) => `${horas} ${horas === 1 ? "hora" : "horas"}`;
+
 const formatPrice = (price) => {
     const value = Number(price);
 
@@ -156,156 +159,188 @@ export const ServiceDetail = () => {
     // que mandaba al registro y perdía el servicio por el camino.
     const contractPath = `/dashboard/book?servicio=${service.slug}`;
 
+    // Sin minutos por tarea el servicio va por tiempo, como fin de obra.
+    // Es lo que decide casi todo lo que cambia en esta pantalla.
+    const porTareas = service.minutes_per_task !== null;
+
+    const tareasPorHora = porTareas
+        ? Math.floor(60 / service.minutes_per_task)
+        : 0;
+
+    // Los tres pasos: los mismos hitos, contados según cómo se contrate.
+    // Sin esto, a un servicio por jornadas se le hablaría de tareas.
+    const pasos = porTareas
+        ? [
+            ["Eliges las tareas", "De la lista de abajo, las que necesites. Ninguna es obligatoria."],
+            ["Eliges día y hora", "Ves la agenda real del equipo y los huecos que quedan libres."],
+            ["Vamos a tu casa", "Te decimos quién va, y al terminar ves las fotos de cómo quedó."],
+        ]
+        : [
+            ["Eliges cuántas horas", `Desde ${service.min_hours} y en bloques de ${service.hour_step}.`],
+            ["Eliges cuándo empezar", "Si son varias jornadas, se reparten en días seguidos con la misma persona."],
+            ["Vamos a tu casa", "Te decimos quién va, y al terminar ves las fotos de cómo quedó."],
+        ];
+
     return (
         <main className="cf-service-detail">
-            <section className="cf-service-detail__hero">
-                <div className="cf-service-detail__image-wrap">
-                    <img
-                        src={imageSrc}
-                        alt={service.name}
-                        className="cf-service-detail__image"
-                    />
-                </div>
+            {/* ---------- LA PORTADA ---------- */}
+            <div className="cf-service-detail__w">
+                <Link to="/#services" className="cf-service-detail__back">
+                    <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                    Todos los servicios
+                </Link>
 
-                <div className="cf-service-detail__content">
-                    <p className="cf-service-detail__eyebrow">
-                        Servicio de limpieza
-                    </p>
+                <div className="cf-service-detail__rule" />
 
-                    <h1 className="cf-service-detail__title">
-                        {service.name}
-                    </h1>
+                <p className="cf-service-detail__eyebrow">Servicio de limpieza</p>
 
-                    <p className="cf-service-detail__description">
-                        {service.long_description ||
-                            service.description ||
-                            "Consulta todos los detalles de este servicio de limpieza."}
-                    </p>
+                <h1 className="cf-service-detail__title">{service.name}</h1>
 
-                    <div className="cf-service-detail__facts">
-                        <div className="cf-service-detail__fact">
-                            <span>Precio</span>
-                            <strong>
-                                {formatPrice(service.base_hourly_rate)} / hora
-                            </strong>
-                        </div>
+                <p className="cf-service-detail__lede">
+                    {service.long_description ||
+                        service.description ||
+                        "Consulta todos los detalles de este servicio de limpieza."}
+                </p>
 
-                        <div className="cf-service-detail__fact">
-                            <span>Mínimo</span>
-                            <strong>
-                                {service.min_hours}{" "}
-                                {service.min_hours === 1 ? "hora" : "horas"}
-                            </strong>
-                        </div>
-
-                        <div className="cf-service-detail__fact">
-                            <span>Máximo</span>
-                            <strong>
-                                {service.max_hours
-                                    ? `${service.max_hours} horas`
-                                    : "Consultar disponibilidad"}
-                            </strong>
-                        </div>
-
-                        <div className="cf-service-detail__fact">
-                            <span>
-                                {service.minutes_per_task !== null
-                                    ? "En una hora caben"
-                                    : "Contratación"}
-                            </span>
-
-                            <strong>
-                                {service.minutes_per_task !== null
-                                    ? `${Math.floor(60 / service.minutes_per_task)} tareas`
-                                    : `Bloques de ${service.hour_step} horas`}
-                            </strong>
-                        </div>
+                {/* ---------- FOTO Y COMPRA ---------- */}
+                <div className="cf-service-detail__main">
+                    <div className="cf-service-detail__shot">
+                        <img src={imageSrc} alt={service.name} />
                     </div>
 
-                    <p className="cf-service-detail__availability">
-                        Las horas disponibles dependen de la agenda del trabajador y del
-                        horario que elijas.
-                    </p>
+                    <div className="cf-service-detail__buy">
+                        <p className="cf-service-detail__price">
+                            {formatPrice(service.base_hourly_rate)}
+                            <small>por hora</small>
+                        </p>
 
-                    <Link
-                        to={contractPath}
-                        className="cf-btn cf-service-detail__cta"
-                    >
+                        <div className="cf-service-detail__facts">
+                            <div className="cf-service-detail__fact">
+                                <span>Mínimo</span>
+                                <strong>{horasTexto(service.min_hours)}</strong>
+                            </div>
+
+                            <div className="cf-service-detail__fact">
+                                <span>Máximo</span>
+                                <strong>
+                                    {service.max_hours
+                                        ? horasTexto(service.max_hours)
+                                        : "Sin tope"}
+                                </strong>
+                            </div>
+
+                            <div className="cf-service-detail__fact">
+                                <span>
+                                    {porTareas ? "En una hora caben" : "Se contrata en"}
+                                </span>
+                                <strong>
+                                    {porTareas
+                                        ? `${tareasPorHora} ${tareasPorHora === 1 ? "tarea" : "tareas"}`
+                                        : `bloques de ${service.hour_step} h`}
+                                </strong>
+                            </div>
+                        </div>
+
+                        <Link to={contractPath} className="cf-btn cf-service-detail__cta">
+                            Contratar este servicio
+                        </Link>
+
+                        <p className="cf-service-detail__after">
+                            {porTareas
+                                ? "Eliges el día, la hora y las tareas en el siguiente paso."
+                                : "Eliges cuántas horas y qué días en el siguiente paso."}
+                        </p>
+
+                        <p className="cf-service-detail__avail">
+                            <i className="fa-solid fa-circle-info" aria-hidden="true" />
+                            <span>
+                                <strong>Siempre según disponibilidad.</strong> Las horas que
+                                puedes contratar dependen de la agenda del equipo. Al elegir
+                                día y hora verás cuántas quedan libres.
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* ---------- LA BANDA OSCURA ----------
+                A sangre, fuera del ancho de lectura: es lo que parte la
+                página por la mitad y evita que se lea del tirón. */}
+            <section className="cf-service-detail__how">
+                <div className="cf-service-detail__w">
+                    <h2>
+                        {porTareas
+                            ? "Contratarlo lleva tres pasos"
+                            : "Se contrata por tiempo, no por tareas"}
+                    </h2>
+
+                    <div className="cf-service-detail__steps">
+                        {pasos.map(([titulo, texto], indice) => (
+                            <div className="cf-service-detail__step" key={titulo}>
+                                <span className="cf-service-detail__step-n">
+                                    {indice + 1}
+                                </span>
+                                <h3>{titulo}</h3>
+                                <p>{texto}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ---------- LAS TAREAS ----------
+                Son las del catálogo, no las de este servicio: el backend
+                todavía no las relaciona. Por eso el título dice lo que se
+                puede añadir y no lo que incluye. */}
+            {porTareas && tasks.length > 0 && (
+                <section className="cf-service-detail__block">
+                    <div className="cf-service-detail__w">
+                        <h2 className="cf-service-detail__h2">Tareas que puedes añadir</h2>
+
+                        <p className="cf-service-detail__sub">
+                            Eliges las que necesites al contratar. Cada una ocupa unos{" "}
+                            {service.minutes_per_task} minutos del tiempo que contrates.
+                        </p>
+
+                        <ul className="cf-service-detail__tasks">
+                            {tasks.map((task) => (
+                                <li className="cf-service-detail__task" key={task.task_id}>
+                                    <i className="fa-solid fa-check" aria-hidden="true" />
+                                    <div>
+                                        <strong>{task.task_name}</strong>
+                                        {task.description && <p>{task.description}</p>}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </section>
+            )}
+
+            {/* ---------- EL CIERRE ---------- */}
+            <section className="cf-service-detail__end">
+                <div className="cf-service-detail__w">
+                    <h2>¿Lo dejamos listo esta semana?</h2>
+                    <Link to={contractPath} className="cf-btn">
                         Contratar este servicio
                     </Link>
                 </div>
             </section>
 
-            <section className="cf-service-detail__tasks">
-                {service.minutes_per_task !== null ? (
-                    <>
-                        <h2>Tareas que puedes añadir</h2>
-
-                        <p className="cf-service-detail__tasks-intro">
-                            Puedes seleccionar estas tareas al contratar el servicio.
-                            Cada una dispone de aproximadamente{" "}
-                            {service.minutes_per_task} minutos dentro del tiempo contratado.
-                        </p>
-
-                        {tasks.length > 0 ? (
-                            <ul className="cf-service-detail__task-list">
-                                {tasks.map((task) => (
-                                    <li
-                                        key={task.task_id}
-                                        className="cf-service-detail__task"
-                                    >
-                                        <i
-                                            className="fa-solid fa-check"
-                                            aria-hidden="true"
-                                        />
-
-                                        <div>
-                                            <strong>{task.task_name}</strong>
-
-                                            {task.description && (
-                                                <p>{task.description}</p>
-                                            )}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p>
-                                Consulta las tareas disponibles al contratar el servicio.
-                            </p>
-                        )}
-                    </>
-                ) : (
-                    <>
-                        <h2>Cómo se contrata este servicio</h2>
-
-                        <p className="cf-service-detail__tasks-intro">
-                            Este servicio no se organiza por tareas individuales. Se
-                            contrata en bloques de {service.hour_step} horas, desde un
-                            mínimo de {service.min_hours} hasta un máximo de{" "}
-                            {service.max_hours} horas.
-                        </p>
-                    </>
-                )}
-            </section>
-
             {otherServices.length > 0 && (
                 <section className="cf-service-detail__others">
-                    <div className="cf-service-detail__others-heading">
+                    <div className="cf-service-detail__w">
                         <p className="cf-service-detail__eyebrow">
                             También te puede interesar
                         </p>
 
-                        <h2>Otros servicios</h2>
-                    </div>
+                        <h2 className="cf-service-detail__h2">Otros servicios</h2>
 
-                    <div className="cf-service-detail__others-grid">
-                        {otherServices.map((item) => (
-                            <ServiceCard
-                                key={item.slug}
-                                service={item}
-                            />
-                        ))}
+                        <div className="cf-service-detail__others-grid">
+                            {otherServices.map((item) => (
+                                <ServiceCard key={item.slug} service={item} />
+                            ))}
+                        </div>
                     </div>
                 </section>
             )}
