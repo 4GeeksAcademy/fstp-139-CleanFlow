@@ -1,6 +1,12 @@
 /**
  * Tarjeta reutilizable para mostrar un servicio de CleanFlow.
  *
+ * La usan la portada y el bloque "Otros servicios" de la ficha.
+ *
+ * Lleva dos salidas: contratar, que es a lo que viene el cliente, y ver
+ * la ficha, para el que todavía duda. Cuál es la principal lo dice el
+ * relleno del botón, no dónde esté colocado.
+ *
  * Prioriza la imagen configurada en el backend.
  * Si no existe, utiliza una imagen local de demostración según el servicio.
  */
@@ -57,9 +63,9 @@ export const ServiceCard = ({ service }) => {
                         /h
                     </p>
 
-                    {/* Contratar va a la derecha, que es donde acaba la
-                        lectura y donde cae el pulgar en el móvil. Cuál es
-                        el principal lo dice el relleno, no el sitio. */}
+                    {/* Contratar va el último: a la derecha si los dos
+                        caben en la fila, y debajo si la tarjeta es
+                        estrecha. En los dos casos cierra la lectura. */}
                     <div className="cf-service-card__actions">
                         <Link
                             to={`/services/${service.slug}`}

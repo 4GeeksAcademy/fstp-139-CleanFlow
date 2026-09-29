@@ -1,3 +1,21 @@
+/**
+ * LA FICHA PÚBLICA DE UN SERVICIO (/services/:slug).
+ *
+ * A dónde llega quien ve un servicio en la portada y quiere saber más
+ * antes de contratarlo. No pide sesión: es parte de la web pública.
+ *
+ * La misma plantilla sirve para las dos formas de contratar. Los
+ * servicios con tareas enseñan la lista y cuántas caben en una hora; los
+ * que van por tiempo —fin de obra— explican los bloques y no enseñan
+ * ninguna lista. Lo decide `porTareas`.
+ *
+ * Las tareas que se ven son las del catálogo, no las de este servicio:
+ * el backend todavía no las relaciona. Por eso el bloque dice lo que se
+ * puede AÑADIR y no lo que el servicio incluye.
+ *
+ * Estilos: web.css, bloque cf-service-detail.
+ */
+
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
