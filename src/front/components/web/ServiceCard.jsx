@@ -57,21 +57,26 @@ export const ServiceCard = ({ service }) => {
                         /h
                     </p>
 
-                    <Link
-                        to={`/dashboard/book?servicio=${service.slug}`}
-                        className="cf-btn"
-                        aria-label={`Contratar ${service.name}`}
-                    >
-                        Contratar
-                    </Link>
+                    {/* Contratar va a la derecha, que es donde acaba la
+                        lectura y donde cae el pulgar en el móvil. Cuál es
+                        el principal lo dice el relleno, no el sitio. */}
+                    <div className="cf-service-card__actions">
+                        <Link
+                            to={`/services/${service.slug}`}
+                            className="cf-btn cf-btn--ghost"
+                            aria-label={`Ver más información sobre ${service.name}`}
+                        >
+                            Ver más información
+                        </Link>
 
-                    <Link
-                        to={`/services/${service.slug}`}
-                        className="cf-btn cf-btn--ghost"
-                        aria-label={`Ver más información sobre ${service.name}`}
-                    >
-                        Ver más información
-                    </Link>
+                        <Link
+                            to={`/dashboard/book?servicio=${service.slug}`}
+                            className="cf-btn"
+                            aria-label={`Contratar ${service.name}`}
+                        >
+                            Contratar
+                        </Link>
+                    </div>
                 </div>
             </div>
         </article>
