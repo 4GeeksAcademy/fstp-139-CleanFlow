@@ -2,8 +2,9 @@
  * Pantalla de registro de clientes.
  *
  * Como el login, solo el contenido de la tarjeta: el marco lo pone
- * AuthLayout. Tras el alta abre la sesión sola y vuelve a donde iba el
- * usuario: el catálogo si venía de "Reservar ahora" y, si no, /dashboard.
+ * AuthLayout. Tras el alta abre la sesión sola y devuelve al usuario a
+ * donde iba, con sus parámetros: quien venía de contratar un servicio
+ * llega con ese servicio ya elegido. Sin destino guardado, /dashboard.
  *
  * Los estilos son las clases auth-* de auth.css.
  */

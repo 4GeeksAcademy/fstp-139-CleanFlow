@@ -46,12 +46,18 @@ export const ServiceDetail = () => {
     const [tasks, setTasks] = useState([]);
     const [otherServices, setOtherServices] = useState([]);
 
+    // Tres finales distintos y no uno solo: "no existe" se cuenta de otra
+    // manera que "no hemos podido cargarlo", y solo el segundo se puede
+    // reintentar. retryKey es el que vuelve a lanzar el efecto.
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
     const [error, setError] = useState("");
     const [retryKey, setRetryKey] = useState(0);
 
     useEffect(() => {
+        // Cambiar de servicio deja la petición anterior en el aire. Sin
+        // esto, la que tarde más pinta la última y se ve una ficha que no
+        // es la de la dirección.
         let cancelled = false;
 
         const loadServiceDetail = async () => {
@@ -92,6 +98,9 @@ export const ServiceDetail = () => {
 
             if (cancelled) return;
 
+            // Los otros dos bloques son de adorno: si fallan, la ficha se
+            // pinta igual sin ellos. Solo el servicio en sí es motivo
+            // para enseñar un error.
             if (servicesResult.ok) {
                 setOtherServices(
                     servicesResult.data.filter(

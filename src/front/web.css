@@ -2130,12 +2130,12 @@ main > section:nth-of-type(even) {
   font-size: var(--cf-text-sm);
 }
 
-/* Los dos botones en fila. Con flex-wrap, si aun así no cupieran, se
-   apilan en vez de desbordar la tarjeta. */
+/* Los dos botones, uno al lado del otro cuando caben y apilados cuando
+   no: las tarjetas de la portada van a cuatro columnas y ahí no hay
+   sitio. Lo reparte el flex-basis de abajo. */
 .cf-service-card__actions {
-  /* align-self: el pie alinea a la izquierda y sin esto la fila de
-     botones se encoge a su contenido, así que nunca habría sitio para
-     los dos y se apilarían siempre. */
+  /* El pie alinea a la izquierda; sin el stretch esta fila se encogería
+     a su contenido y nunca habría sitio para los dos. */
   align-self: stretch;
   display: flex;
   flex-wrap: wrap;
@@ -2143,12 +2143,8 @@ main > section:nth-of-type(even) {
 }
 
 /* Más pequeños que el botón de siempre: a tamaño completo los dos juntos
-   no caben en una tarjeta. Aquí compiten con la foto y el texto, no
-   mandan ellos.
-   El flex-basis de 130px es lo que decide el reparto: si los dos caben,
-   se ponen uno al lado del otro y crecen hasta llenar la fila; y si no
-   —las tarjetas de la portada van a cuatro columnas—, cada uno ocupa su
-   propia fila entera en vez de quedarse a medias. */
+   no caben en ninguna tarjeta. Aquí compiten con la foto y el texto, no
+   mandan ellos. */
 .cf-service-card__actions .cf-btn {
   flex: 1 1 130px;
   padding: 10px 18px;
