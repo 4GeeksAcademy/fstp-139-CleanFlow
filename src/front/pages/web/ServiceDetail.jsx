@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getServiceBySlug, getServices } from "../../services/serviceService";
 import { getTasks } from "../../services/taskService";
 import { ServiceCard } from "../../components/web/ServiceCard";
@@ -21,7 +20,6 @@ const formatPrice = (price) => {
 
 export const ServiceDetail = () => {
     const { slug } = useParams();
-    const { store } = useGlobalReducer();
 
     const [service, setService] = useState(null);
     const [tasks, setTasks] = useState([]);
@@ -150,9 +148,13 @@ export const ServiceDetail = () => {
 
     const imageSrc = getServiceImage(service);
 
-    const contractPath = store.token
-        ? `/dashboard/book?servicio=${service.slug}`
-        : "/register";
+    // Siempre a contratar, haya sesión o no. Si no la hay, ProtectedRoutes
+    // lo intercepta, lo manda al login que le toca y guarda esta misma
+    // dirección para devolverlo después con el servicio ya elegido.
+    //
+    // La ficha no pregunta por la sesión a propósito: hacerlo aquí era lo
+    // que mandaba al registro y perdía el servicio por el camino.
+    const contractPath = `/dashboard/book?servicio=${service.slug}`;
 
     return (
         <main className="cf-service-detail">

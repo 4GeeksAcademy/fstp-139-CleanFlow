@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { login, register } from "../../services/authService";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
+import { returnPath } from "../../authPaths.js";
 import { GoogleButton } from "../../components/web/GoogleButton.jsx";
 
 
@@ -19,10 +20,11 @@ export const Register = () => {
     const navigate = useNavigate();
     const { dispatch } = useGlobalReducer();
 
-    // Lo que dejó ProtectedRoutes al mandar al login: el destino. Entrando
-    // al registro por su cuenta no hay, y se va a /dashboard.
+    // Lo que dejó ProtectedRoutes al mandar al login: el destino, con sus
+    // parámetros. Entrando al registro por su cuenta no hay, y returnPath
+    // devuelve /dashboard.
     const location = useLocation();
-    const from = location.state?.from?.pathname || "/dashboard";
+    const from = returnPath(location.state?.from);
 
     // Inputs controlados, como en el login: el estado manda, no el DOM.
     const [formData, setFormData] = useState({
