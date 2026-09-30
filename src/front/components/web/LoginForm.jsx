@@ -20,6 +20,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../services/authService.js";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
+import { returnPath } from "../../authPaths.js";
 import { GoogleButton } from "./GoogleButton.jsx";
 
 
@@ -33,10 +34,10 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
     // echar aquí al usuario. No viajan en la URL, así que no se pueden
     // falsificar con un enlace preparado.
     //
-    // `from`: la ruta que intentaba abrir. Si llegó al login por su
-    // cuenta no hay state, y se usa /dashboard. El ?. es imprescindible:
-    // entrando directo a una puerta, state y from son undefined.
-    const from = location.state?.from?.pathname || "/dashboard";
+    // `from`: la ruta que intentaba abrir, con sus parámetros. returnPath
+    // se encarga de que no se pierda nada y de poner /dashboard si llegó
+    // al login por su cuenta y no hay destino guardado.
+    const from = returnPath(location.state?.from);
 
     // Inputs controlados: React guarda lo que se escribe en su estado y
     // lo devuelve al input por la prop `value`. El estado es la fuente
@@ -80,7 +81,7 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
         // correcta, data trae el cuerpo.
         const { ok, data } = await login(email, password)
         if (!ok) {
-            setError(data.error)
+            setError(data.message)
             return
         }
 
@@ -145,8 +146,8 @@ export const LoginForm = ({ title, subtitle, foot, google = false }) => {
                         <div className="auth-note" role="status">
                             <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
                             <span>
-                                <b>¿Te registraste con Google?</b> Entonces no tienes
-                                contraseña: entra con el botón de arriba.
+                                <b>¿Te registraste con Google?</b> Entra con el botón
+                                «Continuar con Google».
                             </span>
                         </div>
                     )}

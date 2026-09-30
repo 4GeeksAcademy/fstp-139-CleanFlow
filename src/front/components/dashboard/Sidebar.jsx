@@ -103,6 +103,10 @@ const COLLAPSED_KEY = "cleanflow:sidebar-collapsed"
 
 // Por debajo de 1024px el menú desplegado se come la página: si nunca se
 // ha elegido nada en este navegador, arranca plegado.
+//
+// Esto también da `true` en un móvil, y se queda guardado. Da igual: allí
+// el menú es un cajón y la clase del modo icono no se le pone. Sirve para
+// que, al girar el teléfono a tablet, salga plegado como toca.
 const TABLET_QUERY = "(max-width: 1023.98px)"
 
 const readCollapsed = () => {
@@ -245,12 +249,22 @@ export const Sidebar = () => {
         }
     }, [menuOpen])
 
-    // Si la pantalla crece a tablet con el menú abierto (al girar el móvil),
-    // se cierra: allí el sidebar ya se ve fijo.
+    // En móvil el menú es un cajón entero, así que plegarlo a iconos no
+    // tiene sentido. Hace falta saberlo al pintar, y por eso va en un
+    // estado y no en un matchMedia leído al vuelo: al girar el teléfono
+    // el componente tiene que volver a pintarse con el valor nuevo.
+    const [isMobile, setIsMobile] = useState(
+        () => window.matchMedia(MOBILE_QUERY).matches
+    )
+
+    // Un solo efecto para las dos cosas que dependen del ancho: apuntar
+    // si estamos en móvil y, si la pantalla crece a tablet con el menú
+    // abierto, cerrarlo —allí el sidebar ya se ve fijo—.
     useEffect(() => {
         const mobile = window.matchMedia(MOBILE_QUERY)
 
         const handleChange = (event) => {
+            setIsMobile(event.matches)
             if (!event.matches) closeMenu()
         }
 
@@ -292,6 +306,16 @@ export const Sidebar = () => {
         return <p className="cf-side__eyebrow">{link.group}</p>
     }
 
+    // El modo icono solo fuera del móvil: dentro del cajón escondía el
+    // submenú del catálogo y sacaba las etiquetas emergentes, que ahí no
+    // pintan nada. `collapsed` se guarda igual, así que quien pliegue el
+    // menú en el ordenador se lo encuentra plegado al volver.
+    const clasesDelMenu = [
+        "cf-side",
+        collapsed && !isMobile ? "cf-side--rail" : "",
+        menuOpen ? "cf-side--open" : "",
+    ].filter(Boolean).join(" ")
+
     return (
         <>
             {/* Solo en móvil: barra superior con la hamburguesa a la derecha.
@@ -326,7 +350,7 @@ export const Sidebar = () => {
 
             <aside
                 id="dashboard-sidebar"
-                className={"cf-side" + (collapsed ? " cf-side--rail" : "") + (menuOpen ? " cf-side--open" : "")}
+                className={clasesDelMenu}
                 data-theme={theme}
                 aria-label="Menú del panel"
             >

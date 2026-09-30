@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { loginWithGoogle } from "../../services/authService.js";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
+import { returnPath } from "../../authPaths.js";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCRIPT = "https://accounts.google.com/gsi/client";
@@ -69,8 +70,10 @@ export const GoogleButton = ({ onError, onCredential, className = "auth-google" 
     // haya un botón que no hace nada al pulsarlo.
     const [failed, setFailed] = useState(false);
 
-    // A dónde iba el usuario antes de que lo mandaran al login.
-    const from = location.state?.from?.pathname || "/dashboard";
+    // A dónde iba el usuario antes de que lo mandaran al login, con sus
+    // parámetros: si no, vuelve a la pantalla correcta pero sin el
+    // servicio que venía a contratar.
+    const from = returnPath(location.state?.from);
 
     useEffect(() => {
         if (!CLIENT_ID) {

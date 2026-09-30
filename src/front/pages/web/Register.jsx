@@ -2,8 +2,9 @@
  * Pantalla de registro de clientes.
  *
  * Como el login, solo el contenido de la tarjeta: el marco lo pone
- * AuthLayout. Tras el alta abre la sesión sola y vuelve a donde iba el
- * usuario: el catálogo si venía de "Reservar ahora" y, si no, /dashboard.
+ * AuthLayout. Tras el alta abre la sesión sola y devuelve al usuario a
+ * donde iba, con sus parámetros: quien venía de contratar un servicio
+ * llega con ese servicio ya elegido. Sin destino guardado, /dashboard.
  *
  * Los estilos son las clases auth-* de auth.css.
  */
@@ -12,6 +13,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { login, register } from "../../services/authService";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
+import { returnPath } from "../../authPaths.js";
 import { GoogleButton } from "../../components/web/GoogleButton.jsx";
 
 
@@ -19,10 +21,11 @@ export const Register = () => {
     const navigate = useNavigate();
     const { dispatch } = useGlobalReducer();
 
-    // Lo que dejó ProtectedRoutes al mandar al login: el destino. Entrando
-    // al registro por su cuenta no hay, y se va a /dashboard.
+    // Lo que dejó ProtectedRoutes al mandar al login: el destino, con sus
+    // parámetros. Entrando al registro por su cuenta no hay, y returnPath
+    // devuelve /dashboard.
     const location = useLocation();
-    const from = location.state?.from?.pathname || "/dashboard";
+    const from = returnPath(location.state?.from);
 
     // Inputs controlados, como en el login: el estado manda, no el DOM.
     const [formData, setFormData] = useState({
@@ -75,11 +78,9 @@ export const Register = () => {
             }
 
             // Los campos no se borran: así se puede corregir y reintentar.
-            setError(
-                created.networkError
-                    ? created.data.error
-                    : created.data.message || created.data.error || "No se pudo completar el registro"
-            );
+            // Un solo camino para los dos casos: la API y los fallos de red
+            // mandan el mensaje en la misma clave.
+            setError(created.data.message || "No se pudo completar el registro");
             setLoading(false);
             return;
         }

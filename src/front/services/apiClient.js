@@ -71,9 +71,13 @@ export const apiRequest = async (path, { method = "GET", token, body } = {}) => 
     return { ok: false, status: response.status, data: { message: UNEXPECTED_RESPONSE } };
   }
 
-  // El backend pone el error en claves distintas: msg (JWT, 401), error
-  // (role_required 403 y login) y message (validaciones 400/404/409).
-  // Se unifica en data.message para que las pantallas lean siempre lo mismo.
+  // Nuestro backend contesta siempre en `message`. Pero flask-jwt-extended
+  // responde por su cuenta en `msg` cuando falta el token o ha caducado, y
+  // ese no lo controlamos. Se unifica todo en data.message para que las
+  // pantallas lean siempre de un solo sitio.
+  //
+  // `error` se queda como red por si algún día vuelve a aparecer: cuesta
+  // nada y evita que una pantalla se quede muda.
   if (!response.ok) {
     data = { ...data, message: data.message || data.error || data.msg || GENERIC_ERROR };
   }

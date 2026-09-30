@@ -1,6 +1,12 @@
 /**
  * Tarjeta reutilizable para mostrar un servicio de CleanFlow.
  *
+ * La usan la portada y el bloque "Otros servicios" de la ficha.
+ *
+ * Lleva dos salidas: contratar, que es a lo que viene el cliente, y ver
+ * la ficha, para el que todavía duda. Cuál es la principal lo dice el
+ * relleno del botón, no dónde esté colocado.
+ *
  * Prioriza la imagen configurada en el backend.
  * Si no existe, utiliza una imagen local de demostración según el servicio.
  */
@@ -57,21 +63,26 @@ export const ServiceCard = ({ service }) => {
                         /h
                     </p>
 
-                    <Link
-                        to={`/dashboard/book?servicio=${service.slug}`}
-                        className="cf-btn"
-                        aria-label={`Contratar ${service.name}`}
-                    >
-                        Contratar
-                    </Link>
+                    {/* Contratar va el último: a la derecha si los dos
+                        caben en la fila, y debajo si la tarjeta es
+                        estrecha. En los dos casos cierra la lectura. */}
+                    <div className="cf-service-card__actions">
+                        <Link
+                            to={`/services/${service.slug}`}
+                            className="cf-btn cf-btn--ghost"
+                            aria-label={`Ver más información sobre ${service.name}`}
+                        >
+                            Ver más información
+                        </Link>
 
-                    <Link
-                        to={`/services/${service.slug}`}
-                        className="cf-btn cf-btn--ghost"
-                        aria-label={`Ver más información sobre ${service.name}`}
-                    >
-                        Ver más información
-                    </Link>
+                        <Link
+                            to={`/dashboard/book?servicio=${service.slug}`}
+                            className="cf-btn"
+                            aria-label={`Contratar ${service.name}`}
+                        >
+                            Contratar
+                        </Link>
+                    </div>
                 </div>
             </div>
         </article>
