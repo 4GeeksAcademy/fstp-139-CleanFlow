@@ -15,6 +15,10 @@
  * de verdad es el backend (@role_required en /account/google): esconderlo
  * aquí es para no ofrecer algo que iba a acabar en un 403.
  *
+ * Y tiene que ser el Google del MISMO correo de la cuenta. El correo se
+ * dice antes de pulsar, no solo al fallar: con varias sesiones de Google
+ * abiertas, elegir a ciegas acaba en error casi siempre.
+ *
  * Hasta saber cuáles tiene no se pinta nada de eso: enseñar el
  * formulario equivocado hace que escriba tres campos para nada.
  *
@@ -184,9 +188,11 @@ export const AccountSecurity = () => {
         if (!hasPassword) setKeys((current) => ({ ...current, hasPassword: true }))
     }
 
-    // Conectar un Google a esta cuenta. Quien está aquí ya entró con su
-    // contraseña, así que la propiedad de la cuenta está probada y no
-    // hace falta comprobar de quién es el correo.
+    // Conectar un Google a esta cuenta. Tiene que ser el del mismo
+    // correo: quien está aquí ya probó que la cuenta es suya al entrar
+    // con su contraseña, pero con un Google de otro correo acabaría con
+    // la identidad partida en dos cuentas. Lo comprueba el backend; aquí
+    // solo se enseña lo que responda.
     const handleGoogle = async (credential) => {
         setLinkError("")
         setLinking(true)
@@ -346,9 +352,15 @@ export const AccountSecurity = () => {
                 al cliente, que es el único que entra por esa puerta. */}
             {isClient && !keys.hasGoogle && (
                 <div className="cf-account__connect">
+                    {/* El correo se dice ANTES de abrir el selector de Google.
+                        Quien tiene varias sesiones abiertas elegiría a ciegas y
+                        se comería el error de "ese Google usa otro correo".
+
+                        store.user existe seguro: isClient lee su rol. */}
                     <p className="cf-account__lede">
                         Conecta tu Google y podrás entrar con un botón, sin escribir
-                        la contraseña.
+                        la contraseña. Tiene que ser el de <strong>{store.user.email}</strong>,
+                        el correo de tu cuenta.
                     </p>
 
                     {linkError && (
