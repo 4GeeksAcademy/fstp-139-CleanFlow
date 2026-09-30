@@ -2130,6 +2130,27 @@ main > section:nth-of-type(even) {
   font-size: var(--cf-text-sm);
 }
 
+/* Los dos botones, uno al lado del otro cuando caben y apilados cuando
+   no: las tarjetas de la portada van a cuatro columnas y ahí no hay
+   sitio. Lo reparte el flex-basis de abajo. */
+.cf-service-card__actions {
+  /* El pie alinea a la izquierda; sin el stretch esta fila se encogería
+     a su contenido y nunca habría sitio para los dos. */
+  align-self: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+}
+
+/* Más pequeños que el botón de siempre: a tamaño completo los dos juntos
+   no caben en ninguna tarjeta. Aquí compiten con la foto y el texto, no
+   mandan ellos. */
+.cf-service-card__actions .cf-btn {
+  flex: 1 1 130px;
+  padding: 10px 18px;
+  font-size: 0.8125rem;
+}
+
 .cf-service-card__link {
   display: inline-flex;
   align-items: center;
@@ -2175,119 +2196,342 @@ main > section:nth-of-type(even) {
 }
 
 /* ================================================================
-   DETALLE PÚBLICO DE SERVICIO
+   DETALLE PÚBLICO DE SERVICIO (ServiceDetail.jsx)
+
+   Una ficha editorial: el título a ancho completo, la foto y la compra
+   en dos columnas, y una banda verde a sangre partiendo la página por
+   la mitad. La contundencia sale de la escala y del aire, no de meter
+   cada dato en su recuadro.
    ================================================================ */
 
 .cf-service-detail {
-  width: min(1180px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 48px 0 72px;
+  padding: var(--cf-space-8) 0 0;
 }
 
-.cf-service-detail__hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: 48px;
+/* La portada alterna bandas blancas con `main > section:nth-of-type(2n)`,
+   y aquí esa regla también alcanza: pintaba de blanco las tareas y "Otros
+   servicios" y dejaba el cierre en crema, partiendo la página en trozos
+   sin sentido. El único contraste que queremos es la banda verde. */
+.cf-service-detail > section:not(.cf-service-detail__how) {
+  background-color: transparent;
+}
+
+/* Ancho propio y no .cf-container: aquel llega a 1440px y aquí se busca
+   una medida de lectura. Con más ancho, la entradilla pierde el renglón. */
+.cf-service-detail__w {
+  width: min(1120px, 100% - 48px);
+  margin-inline: auto;
+}
+
+/* ---------- LA PORTADA ---------- */
+
+.cf-service-detail__back {
+  display: inline-flex;
   align-items: center;
-}
-
-.cf-service-detail__image-wrap {
-  overflow: hidden;
-  border-radius: var(--cf-radius-md);
-  background: var(--cf-surface);
-}
-
-.cf-service-detail__image {
-  width: 100%;
-  height: 460px;
-  display: block;
-  object-fit: cover;
-}
-
-.cf-service-detail__content {
-  min-width: 0;
-}
-
-.cf-service-detail__eyebrow {
-  margin: 0 0 var(--cf-space-2);
-  color: var(--cf-primary);
-  font-size: var(--cf-text-sm);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.cf-service-detail__title {
-  margin: 0 0 var(--cf-space-4);
-  color: var(--cf-primary);
-  font-family: var(--cf-font-heading);
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  line-height: 1.05;
-}
-
-.cf-service-detail__description {
-  margin: 0;
-  color: var(--cf-muted);
-  font-size: 1rem;
-  line-height: 1.7;
-}
-
-.cf-service-detail__facts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--cf-space-3);
-  margin: 32px 0;
-}
-
-.cf-service-detail__fact {
-  padding: var(--cf-space-4);
-  border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius-md);
-  background: var(--cf-surface);
-}
-
-.cf-service-detail__fact span,
-.cf-service-detail__fact strong {
-  display: block;
-}
-
-.cf-service-detail__fact span {
-  margin-bottom: var(--cf-space-2);
+  gap: var(--cf-space-2);
+  margin-bottom: var(--cf-space-12);
   color: var(--cf-muted);
   font-size: var(--cf-text-sm);
-}
-
-.cf-service-detail__fact strong {
-  color: var(--cf-text);
-}
-
-.cf-service-detail__cta {
   text-decoration: none;
 }
 
-.cf-service-detail__tasks,
-.cf-service-detail__others {
-  margin-top: 72px;
+.cf-service-detail__back:hover {
+  color: var(--cf-primary);
 }
 
-.cf-service-detail__tasks h2,
-.cf-service-detail__others h2 {
-  margin: 0 0 var(--cf-space-3);
+/* Una raya corta de color antes del título: basta para que la portada no
+   arranque en frío, que era verde sobre crema y nada más. */
+.cf-service-detail__rule {
+  width: 56px;
+  height: 5px;
+  margin-bottom: var(--cf-space-6);
+  border-radius: 999px;
+  background-color: var(--cf-accent);
+}
+
+.cf-service-detail__eyebrow {
+  margin: 0 0 var(--cf-space-4);
+  color: var(--cf-accent-dark);
+  font-family: var(--cf-font-brand);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cf-service-detail__title {
+  margin: 0;
+  max-width: 16ch;
   color: var(--cf-primary);
   font-family: var(--cf-font-heading);
+  /* ⚠️ A mano: la escala de tokens no llega a este tamaño. */
+  font-size: clamp(2.75rem, 7vw, 5rem);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
 }
 
-.cf-service-detail__tasks-intro {
-  max-width: 720px;
-  margin: 0 0 24px;
+/* 60ch y 1.75 de interlínea: la medida en la que un párrafo se lee sin
+   que el ojo pierda el renglón. */
+.cf-service-detail__lede {
+  margin: var(--cf-space-8) 0 0;
+  max-width: 60ch;
+  color: var(--cf-text);
+  font-size: 1.1875rem;
+  line-height: 1.75;
+}
+
+/* ---------- FOTO Y COMPRA ---------- */
+
+.cf-service-detail__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: var(--cf-space-12);
+  align-items: start;
+  margin-top: var(--cf-space-16);
+}
+
+.cf-service-detail__shot {
+  overflow: hidden;
+  border-radius: var(--cf-radius-lg);
+  aspect-ratio: 4 / 3;
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-service-detail__shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Se queda a la vista al bajar: quien ya decidió no tiene que volver
+   arriba a buscar el botón. */
+.cf-service-detail__buy {
+  position: sticky;
+  top: var(--cf-space-8);
+}
+
+/* El precio en terracota y el botón en verde. Es lo primero que se busca
+   al entrar, y con los dos del mismo color no destacaría ninguno. */
+.cf-service-detail__price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cf-space-2);
+  margin: 0;
+  color: var(--cf-accent-dark);
+  font-family: var(--cf-font-heading);
+  font-size: 3.25rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-service-detail__price small {
   color: var(--cf-muted);
-  line-height: 1.6;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
-.cf-service-detail__task-list {
+.cf-service-detail__cta {
+  width: 100%;
+  margin-top: var(--cf-space-6);
+}
+
+.cf-service-detail__after {
+  margin: var(--cf-space-3) 0 0;
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ---------- LOS DATOS, SIN CAJAS ----------
+   Filas separadas por una línea fina. Un recuadro por dato serían cuatro
+   marcos compitiendo por algo que solo hay que leer. */
+
+.cf-service-detail__facts {
+  margin-top: var(--cf-space-8);
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-service-detail__fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  padding: 15px 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-service-detail__fact span {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-service-detail__fact strong {
+  color: var(--cf-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Con fondo y filo, para que se lea como un aviso y no como el cuarto
+   párrafo gris seguido. */
+.cf-service-detail__avail {
+  display: flex;
+  gap: 11px;
+  margin: var(--cf-space-6) 0 0;
+  padding: 14px 16px;
+  border-left: 3px solid var(--cf-accent);
+  border-radius: 0 var(--cf-radius-md) var(--cf-radius-md) 0;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-muted);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+
+.cf-service-detail__avail i {
+  flex: none;
+  margin-top: 3px;
+  color: var(--cf-accent-dark);
+}
+
+.cf-service-detail__avail strong {
+  color: var(--cf-text);
+  font-weight: 600;
+}
+
+/* ---------- LA BANDA OSCURA ----------
+   Crema, verde, crema. Ese cambio de aire es lo que hace que una página
+   larga no se lea del tirón, y es el mismo recurso que usan los inicios
+   del panel. */
+
+.cf-service-detail__how {
+  position: relative;
+  overflow: hidden;
+  margin-top: 112px;
+  padding: 88px 0;
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+}
+
+/* Dos manchas muy suaves para que el verde no sea un rectángulo plano.
+   ⚠️ A mano: los tokens no tienen versiones translúcidas. */
+.cf-service-detail__how::before,
+.cf-service-detail__how::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.cf-service-detail__how::before {
+  width: 560px;
+  height: 560px;
+  top: -300px;
+  right: -120px;
+  background: radial-gradient(circle, rgba(201, 123, 74, 0.34), transparent 68%);
+}
+
+.cf-service-detail__how::after {
+  width: 400px;
+  height: 400px;
+  bottom: -250px;
+  left: 4%;
+  background: radial-gradient(circle, rgba(231, 237, 223, 0.15), transparent 70%);
+}
+
+.cf-service-detail__how .cf-service-detail__w {
+  position: relative;
+}
+
+.cf-service-detail__how h2 {
+  margin: 0 0 var(--cf-space-16);
+  max-width: 18ch;
+  color: inherit;
+  font-family: var(--cf-font-heading);
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.cf-service-detail__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cf-space-12);
+}
+
+/* La línea de arriba marca dónde empieza cada paso. En crema apagado no
+   se veía y los tres se leían como un solo párrafo. */
+.cf-service-detail__step {
+  padding-top: var(--cf-space-6);
+  border-top: 2px solid var(--cf-accent);
+}
+
+.cf-service-detail__step-n {
+  display: block;
+  margin-bottom: var(--cf-space-4);
+  color: var(--cf-accent);
+  font-family: var(--cf-font-heading);
+  font-size: 2.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.cf-service-detail__step h3 {
+  margin: 0 0 var(--cf-space-2);
+  color: inherit;
+  font-family: inherit;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.cf-service-detail__step p {
+  margin: 0;
+  /* ⚠️ Crema translúcido a mano: no hay token para el texto secundario
+     sobre fondo oscuro. */
+  color: rgba(247, 243, 232, 0.72);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+/* ---------- LAS TAREAS ---------- */
+
+.cf-service-detail__block {
+  padding-top: 112px;
+}
+
+.cf-service-detail__h2 {
+  margin: 0 0 var(--cf-space-3);
+  max-width: 20ch;
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.cf-service-detail__sub {
+  margin: 0 0 var(--cf-space-12);
+  max-width: 56ch;
+  color: var(--cf-muted);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+
+/* Dos columnas de líneas, no una rejilla de tarjetas: es una lista para
+   ojear, no once elementos reclamando atención. */
+.cf-service-detail__tasks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--cf-space-3);
+  column-gap: var(--cf-space-12);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2295,89 +2539,130 @@ main > section:nth-of-type(even) {
 
 .cf-service-detail__task {
   display: flex;
-  gap: var(--cf-space-3);
-  padding: var(--cf-space-4);
-  border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius-md);
-  background: var(--cf-surface);
+  gap: 14px;
+  padding: 18px 0;
+  border-top: 1px solid var(--cf-border);
 }
 
 .cf-service-detail__task i {
-  flex: 0 0 auto;
-  margin-top: 3px;
-  color: var(--cf-primary);
+  flex: none;
+  margin-top: 4px;
+  color: var(--cf-accent);
 }
 
 .cf-service-detail__task strong {
-  color: var(--cf-text);
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .cf-service-detail__task p {
-  margin: var(--cf-space-2) 0 0;
+  margin: 3px 0 0;
   color: var(--cf-muted);
   font-size: var(--cf-text-sm);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
-.cf-service-detail__others-heading {
-  margin-bottom: 24px;
+/* ---------- EL CIERRE ---------- */
+
+.cf-service-detail__end {
+  padding: 112px 0 96px;
+  text-align: center;
+}
+
+.cf-service-detail__end h2 {
+  margin: 0 0 var(--cf-space-6);
+  color: var(--cf-primary);
+  font-family: var(--cf-font-heading);
+  font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Una línea fina lo separa del cierre. Sin ella los dos bloques se
+   funden y no se entiende que esto ya es otra cosa: una recomendación,
+   no parte del servicio que se estaba mirando.
+   Va dentro del ancho de lectura y no a sangre, para que acompañe al
+   texto en vez de cortar la página. */
+.cf-service-detail__others .cf-service-detail__w {
+  padding-top: 72px;
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-service-detail__others {
+  padding-bottom: 120px;
 }
 
 .cf-service-detail__others-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--cf-space-4);
+  margin-top: var(--cf-space-8);
 }
 
-.cf-service-detail__others-grid .cf-service-card {
-  width: 100%;
-  min-width: 0;
-}
+/* ---------- LOS TRES ESTADOS ----------
+   Cargando, error y servicio que no existe. Centrados y con aire: son
+   pantallas enteras, no un aviso al pie. */
 
-.cf-service-detail__status,
 .cf-service-detail__state {
+  max-width: 46ch;
+  margin: 80px auto 120px;
   text-align: center;
 }
 
-.cf-service-detail__status {
-  padding: 80px 0;
-  color: var(--cf-muted);
-}
-
-.cf-service-detail__state {
-  max-width: 620px;
-  margin: 60px auto;
-  padding: 48px 24px;
-  border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius-md);
-  background: var(--cf-surface);
-}
-
 .cf-service-detail__state h1 {
-  margin-top: 0;
+  margin: 0 0 var(--cf-space-3);
   color: var(--cf-primary);
   font-family: var(--cf-font-heading);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
 }
 
 .cf-service-detail__state p {
-  margin-bottom: 24px;
+  margin: 0 0 var(--cf-space-6);
   color: var(--cf-muted);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-/* Tablet */
-@media (max-width: 900px) {
-  .cf-service-detail {
-    padding-top: 32px;
+.cf-service-detail__status {
+  margin: 80px auto 120px;
+  color: var(--cf-muted);
+  text-align: center;
+}
+
+/* ---------- PANTALLAS ESTRECHAS ---------- */
+
+@media (max-width: 980px) {
+  .cf-service-detail__main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cf-space-8);
   }
 
-  .cf-service-detail__hero {
-    grid-template-columns: 1fr;
-    gap: 32px;
+  /* Sin sitio para que acompañe al scroll: pasa debajo de la foto. */
+  .cf-service-detail__buy {
+    position: static;
   }
 
-  .cf-service-detail__image {
-    height: 380px;
+  .cf-service-detail__steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cf-space-8);
+  }
+
+  .cf-service-detail__how {
+    margin-top: 88px;
+    padding: 64px 0;
+  }
+
+  .cf-service-detail__how h2 {
+    margin-bottom: var(--cf-space-12);
+  }
+
+  .cf-service-detail__block {
+    padding-top: 88px;
+  }
+
+  .cf-service-detail__end {
+    padding: 88px 0 96px;
   }
 
   .cf-service-detail__others-grid {
@@ -2385,39 +2670,17 @@ main > section:nth-of-type(even) {
   }
 }
 
-/* Móvil */
-@media (max-width: 600px) {
-  .cf-service-detail {
-    width: min(100% - 24px, 1180px);
-    padding: 24px 0 48px;
-  }
-
-  .cf-service-detail__image {
-    height: 240px;
-  }
-
-  .cf-service-detail__facts,
-  .cf-service-detail__task-list,
-  .cf-service-detail__others-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 640px) {
+  .cf-service-detail__w {
+    width: min(1120px, 100% - 32px);
   }
 
   .cf-service-detail__tasks,
+  .cf-service-detail__others-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .cf-service-detail__others {
-    margin-top: 48px;
-  }
-
-  .cf-service-detail__cta {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .cf-service-detail__others-grid .cf-service-card {
-    min-width: 0;
-  }
-
-  .cf-service-detail__state {
-    margin: 32px auto;
-    padding: 32px 20px;
+    padding-bottom: 88px;
   }
 }
