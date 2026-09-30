@@ -944,9 +944,13 @@ def auth_google():
     Cuatro caminos, y el orden importa:
 
       1. El google_id ya existe          -> entra
-      2. El correo existe sin Google     -> se vincula y entra
+      2. El correo existe sin Google     -> se vincula y entra (solo cliente)
       3. No existe                       -> se crea, siempre como cliente
       4. Está desactivada                -> 403, igual que en /login
+
+    Google es cosa del cliente: el trabajador y el encargado entran por
+    el área de empleados, que no ofrece el botón. Lo que no se toca es el
+    camino 1, para no dejar fuera a quien ya lo tuviera vinculado.
     """
     if too_many_attempts("google"):
         return slow_down()
@@ -985,6 +989,18 @@ def auth_google():
         ).scalar_one_or_none()
 
         if user is not None:
+            # Los empleados no vinculan Google por aquí: entran por su
+            # área con correo y contraseña. Sin esto, la barrera de
+            # /account/google se saltaría sola, porque este camino añade
+            # el google_id sin que nadie lo pida.
+            #
+            # El mensaje es el mismo que el de abajo a propósito: no dice
+            # que la cuenta exista ni de quién es.
+            if user.role != "client":
+                return jsonify({
+                    "message": "Con este correo hay que entrar con contraseña."
+                }), 409
+
             # Con un buzón que no es de Google, "verificado" puede ser de
             # hace años y no prueba nada hoy. Entrar aquí sería abrirle la
             # cuenta de otro a quien heredó esa dirección, así que se le
@@ -1373,9 +1389,9 @@ def create_account_password():
 
 
 @api.route("/account/google", methods=["POST"])
-@jwt_required()
+@role_required("client")
 def connect_account_google():
-    """Conecta una cuenta de Google a la sesión abierta.
+    """Conecta una cuenta de Google a la sesión abierta. Solo el cliente.
 
     Es la salida de quien entró con contraseña: aquí no hay que adivinar
     de quién es el correo, porque ya entró con su contraseña y eso es la
@@ -1383,6 +1399,10 @@ def connect_account_google():
 
     También es lo que se le ofrece a quien /auth/google rechazó por tener
     el correo en otro proveedor.
+
+    El trabajador y el encargado no pasan: su puerta de entrada no ofrece
+    Google y tampoco pueden añadirlo por detrás. Esconderles el botón en
+    Ajustes no bastaría, porque este endpoint se puede llamar a mano.
     """
     user = current_user()
 
