@@ -1436,7 +1436,9 @@ textarea.cf-dash-input {
   }
 }
 
-/* En móvil el menú es un cajón entero: plegarlo no tiene sentido. */
+/* En móvil el menú es un cajón entero, así que el botón de plegar sobra.
+   Quien impide de verdad que se pliegue es Sidebar.jsx, que no le pone
+   la clase cf-side--rail; esto solo quita el botón de en medio. */
 @media (max-width: 767.98px) {
   .cf-side__collapse {
     display: none;
@@ -1586,54 +1588,6 @@ textarea.cf-dash-input {
     transition:
       transform 0.25s ease,
       visibility 0s;
-  }
-
-  /* Plegado no existe en móvil: el cajón sale siempre entero. */
-  .cf-side--rail {
-    width: min(290px, 86vw);
-    padding: var(--cf-space-4) 14px;
-  }
-
-  .cf-side--rail .cf-side__name,
-  .cf-side--rail .cf-side__eyebrow,
-  .cf-side--rail .cf-side__link span,
-  .cf-side--rail .cf-side__chevron,
-  .cf-side--rail .cf-side__paneltag,
-  .cf-side--rail .cf-side__who,
-  .cf-side--rail .cf-side__action span {
-    display: revert;
-  }
-
-  .cf-side--rail .cf-side__link {
-    grid-template-columns: 22px minmax(0, 1fr) auto;
-    justify-items: stretch;
-    padding: 10px 12px;
-  }
-
-  .cf-side--rail .cf-side__user {
-    grid-template-columns: 44px minmax(0, 1fr);
-    justify-items: stretch;
-    padding: 12px;
-  }
-
-  .cf-side--rail .cf-side__actions {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .cf-side--rail .cf-side__theme {
-    display: grid;
-  }
-
-  .cf-side--rail .cf-side__theme-switch {
-    display: none;
-  }
-
-  .cf-side--rail .cf-side__count {
-    position: static;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 7px;
-    font-size: 0.72rem;
   }
 
   /* La marca ya está en la barra de arriba: repetirla dentro del cajón
@@ -9088,8 +9042,13 @@ textarea.cf-dash-input {
 }
 
 /* clamp: en una pantalla estrecha el saludo no puede ocupar tres líneas. */
+/* color: inherit y no un token suelto. El `h1` global de index.css lo
+   pinta de --cf-primary, y una regla directa gana siempre a lo heredado:
+   el saludo salía verde oscuro sobre el verde del hero, o sea invisible.
+   Con inherit sigue al hero si algún día cambia de fondo. */
 .cf-home__hi {
   margin: 0;
+  color: inherit;
   font-family: var(--cf-font-heading);
   font-size: clamp(2rem, 4.2vw, 2.9rem);
   font-weight: 600;

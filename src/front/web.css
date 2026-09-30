@@ -1529,8 +1529,11 @@ main > section:nth-of-type(even) {
   color: var(--cf-accent);
 }
 
+/* En --cf-border no se veía (contraste 1.26) y los enlaces legales
+   quedaban pegados. Con --cf-muted separa de verdad y sigue siendo
+   discreto: es un punto, no un elemento más de la lista. */
 .cf-footer__sep {
-  color: var(--cf-border);
+  color: var(--cf-muted);
 }
 
 @media (max-width: 768px) {
