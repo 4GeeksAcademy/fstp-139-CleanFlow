@@ -70,10 +70,16 @@ export const GoogleButton = ({ onError, onCredential, className = "auth-google" 
     // haya un botón que no hace nada al pulsarlo.
     const [failed, setFailed] = useState(false);
 
-    // A dónde iba el usuario antes de que lo mandaran al login, con sus
-    // parámetros: si no, vuelve a la pantalla correcta pero sin el
-    // servicio que venía a contratar.
-    const from = returnPath(location.state?.from);
+    // A dónde iba el usuario antes de que lo mandaran al login.
+    //
+    // En crudo y ya montado, porque hacen falta los dos: la ruta montada
+    // para navegar, y el original para pasárselo tal cual a la pantalla
+    // del teléfono, que lo volverá a montar con returnPath.
+    //
+    // Montado incluye los parámetros: si no, vuelve a la pantalla correcta
+    // pero sin el servicio que venía a contratar.
+    const cameFrom = location.state?.from;
+    const from = returnPath(cameFrom);
 
     useEffect(() => {
         if (!CLIENT_ID) {
@@ -106,7 +112,19 @@ export const GoogleButton = ({ onError, onCredential, className = "auth-google" 
             // Sin teléfono no se pasa al panel: la cuenta acaba de nacer
             // con Google, que no lo da, y hace falta para poder avisar al
             // cliente el día del servicio.
-            navigate(data.user.needs_phone ? "/completar-perfil" : from, { replace: true });
+            //
+            // El desvío se lleva el destino consigo. Si se quedara aquí,
+            // quien venía de "Contratar" acabaría en el panel y tendría
+            // que buscar el servicio otra vez.
+            if (data.user.needs_phone) {
+                navigate("/completar-perfil", {
+                    replace: true,
+                    state: { from: cameFrom },
+                });
+                return;
+            }
+
+            navigate(from, { replace: true });
         };
 
         loadGoogle()
@@ -132,7 +150,7 @@ export const GoogleButton = ({ onError, onCredential, className = "auth-google" 
 
         return () => { alive = false; };
     // Solo al montar: volver a inicializar pintaría el botón dos veces.
-    }, [dispatch, navigate, from]);
+    }, [dispatch, navigate, from, cameFrom]);
 
     if (failed) return null;
 
