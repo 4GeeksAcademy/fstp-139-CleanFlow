@@ -460,7 +460,7 @@ export const ManagerHome = () => {
                                     {hourOf(service.starts_at)} – {hourOf(service.ends_at)}
                                 </span>
 
-                                <span>
+                                <span className="cf-home__svc-name">
                                     {/* El nombre abre el detalle. Botón y no
                                         la fila entera: dentro ya hay otro
                                         botón, y anidarlos no vale. */}
