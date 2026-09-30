@@ -4,6 +4,7 @@ This module takes care of starting the API Server, Loading the DB and Adding the
 import os
 from datetime import timedelta
 from flask import Flask, request, jsonify, url_for, send_from_directory
+from werkzeug.exceptions import HTTPException
 from flask_migrate import Migrate
 from flask_swagger import swagger
 from api.utils import APIException, generate_sitemap
@@ -59,6 +60,30 @@ app.register_blueprint(absence_api, url_prefix='/api')
 @app.errorhandler(APIException)
 def handle_invalid_usage(error):
     return jsonify(error.to_dict()), error.status_code
+
+
+# Un fallo nuestro también se cuenta en JSON. Flask contesta los 500 con
+# una página HTML, y entonces el frontend no encuentra el mensaje y
+# enseña un aviso críptico: eso es lo que escondió durante días que
+# cancelar una reserva estaba roto.
+#
+# exc_info=True deja la traza entera en el log —en Render, en su
+# pestaña—, que es donde hay que mirar. Al usuario no se le cuenta nada
+# del fallo: no le sirve y diría de más.
+@app.errorhandler(500)
+@app.errorhandler(Exception)
+def handle_server_error(error):
+    # Las respuestas de error normales (404, 405, 409...) viajan como
+    # excepciones y no son fallos nuestros: se devuelven tal cual.
+    if isinstance(error, HTTPException) and error.code != 500:
+        return error
+
+    app.logger.error("Fallo no controlado en %s %s", request.method, request.path,
+                     exc_info=True)
+
+    return jsonify({
+        "message": "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos segundos."
+    }), 500
 
 # generate sitemap with all your endpoints
 

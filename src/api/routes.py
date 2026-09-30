@@ -2889,6 +2889,11 @@ def cancel_booking(booking_id):
             "message": "Debes indicar el motivo de cancelación."
         }), 400
 
+    # madrid_now() y no datetime.now(MADRID): son dos cosas distintas.
+    # Arriba, para COMPARAR con el plazo, hace falta la zona horaria; aquí,
+    # para GUARDAR, va sin ella, como el resto de fechas de la tabla.
+    now = madrid_now()
+
     booking.status = BookingStatus.CANCELLED
     booking.cancelled_by_company = user.role == "manager"
     booking.cancellation_reason = reason or None
@@ -3047,6 +3052,11 @@ def reschedule_booking(booking_id):
     intervals = booking_intervals(worker, start, hours)
 
     # ---- SE MUEVE ----
+
+    # madrid_now() y no datetime.now(MADRID): son dos cosas distintas.
+    # Arriba, para COMPARAR con el plazo, hace falta la zona horaria; aquí,
+    # para GUARDAR, va sin ella, como el resto de fechas de la tabla.
+    now = madrid_now()
 
     # Los tramos viejos se borran uno a uno: la relación no lleva
     # delete-orphan, así que vaciar la lista dejaría filas con booking_id
