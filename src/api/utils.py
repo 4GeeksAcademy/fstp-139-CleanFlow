@@ -102,7 +102,9 @@ def role_required(*roles):
 
             # El rol se lee de la BD en cada petición, nunca del frontend.
             if not user or user.role not in roles:
-                return jsonify({"error": "You don't have permission to access this resource"}), 403
+                return jsonify({
+                    "message": "No tienes permiso para acceder a esto."
+                }), 403
 
             return fn(*args, **kwargs)
         return wrapper

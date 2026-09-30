@@ -40,15 +40,15 @@ export const login = async (email, password) => {
         };
     } catch (error) {
         // Sin respuesta: backend caído, sin conexión o CORS. Un 401 NO entra
-        // aquí. Se devuelve el mensaje dentro de data.error para que
-        // Login.jsx lo pinte por el camino de siempre.
+        // aquí. El mensaje va en data.message, la misma clave que usa la
+        // API, para que la pantalla lo pinte por el camino de siempre.
         console.error("Fallo de red al iniciar sesión:", error);
 
         return {
             ok: false,
             networkError: true,
             data: {
-                error: "No se ha podido conectar con el servidor. Inténtalo de nuevo en unos segundos.",
+                message: "No se ha podido conectar con el servidor. Inténtalo de nuevo en unos segundos.",
             },
         };
     }
@@ -81,14 +81,14 @@ export const register = async (formData) => {
         };
     } catch (error) {
         // Sin respuesta (backend caído o sin conexión). Mismo formato que
-        // login(): el mensaje va en data.error.
+        // login(): el mensaje va en data.message.
         console.error("Fallo de red al registrar usuario:", error);
 
         return {
             ok: false,
             networkError: true,
             data: {
-                error: "No se ha podido conectar con el servidor. Inténtalo de nuevo en unos segundos.",
+                message: "No se ha podido conectar con el servidor. Inténtalo de nuevo en unos segundos.",
             },
         };
     }

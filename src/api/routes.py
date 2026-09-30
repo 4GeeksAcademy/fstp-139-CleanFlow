@@ -823,6 +823,14 @@ def register():
     }), 201
 
 
+# Una sola constante para los dos fallos de acceso —el correo no existe y
+# la contraseña no es la suya— porque tienen que decir EXACTAMENTE lo
+# mismo: si se distinguieran, cualquiera averiguaría qué correos están
+# registrados probándolos uno a uno. En una constante y no repetido a
+# mano para que no puedan separarse sin querer.
+CREDENCIALES_MAL = "El correo o la contraseña no son correctos."
+
+
 @api.route('/login', methods=['POST'])
 def login():
     """Comprueba credenciales y devuelve token + usuario.
@@ -837,7 +845,7 @@ def login():
     password = data.get("password")
 
     if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
+        return jsonify({"message": "Escribe tu correo y tu contraseña."}), 400
 
     existing_user = db.session.execute(db.select(User).where(
         User.email == email)).scalar_one_or_none()
@@ -845,7 +853,7 @@ def login():
     # Mismo mensaje si falla el email o la contraseña: así nadie puede
     # averiguar qué correos están registrados.
     if existing_user is None:
-        return jsonify({"error": "Invalid email or password"}), 401
+        return jsonify({"message": CREDENCIALES_MAL}), 401
 
     # Cuenta creada con Google: no hay contraseña que comprobar, y
     # check_password devuelve False, así que cae en el 401 de abajo con
@@ -856,17 +864,19 @@ def login():
     # atascado lo lee, y el que va probando correos no aprende nada.
     if existing_user.check_password(password):
         if not existing_user.is_active:
-            return jsonify({"error": "Your account is deactivated. Contact the administrator."}), 403
+            return jsonify({
+                "message": "Tu cuenta está desactivada. Escríbenos y la revisamos."
+            }), 403
         # El token guarda el user_id como texto (lo que espera la librería).
         # Caduca solo: no hay que guardarlo en ningún sitio.
         access_token = create_access_token(identity=str(existing_user.user_id))
         return jsonify({
-            "msg": "Logged succefully",
+            "message": "Sesión iniciada",
             "token": access_token,
             "user": existing_user.serialize_session()
         }), 200
     else:
-        return jsonify({"error": "Invalid email or password"}), 401
+        return jsonify({"message": CREDENCIALES_MAL}), 401
 
 
 # ----------------------------------------------------------------------
@@ -1109,7 +1119,7 @@ def get_profile():
 
     # Token válido, pero el usuario se borró con la sesión abierta.
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"message": "No hemos encontrado tu cuenta."}), 404
 
     # Misma forma que /login ({"user": ...}): el frontend lee siempre data.user.
     return jsonify({"user": user.serialize_session()}), 200
