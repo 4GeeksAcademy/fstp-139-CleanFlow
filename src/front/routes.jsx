@@ -26,6 +26,7 @@ import { RoleRoute } from "./pages/dashboard/RoleRoute";
 import { ManageTasks } from "./pages/dashboard/ManageTasks";
 import { ManageServices } from "./pages/dashboard/ManageServices";
 import { ListadoClientes } from "./pages/dashboard/ListadoClientes";
+import { ListadoReservas } from "./pages/dashboard/ListadoReservas";
 import { ListadoTrabajadores } from "./pages/dashboard/ListadoTrabajadores";
 import { ListadoTurnos } from "./pages/dashboard/ListadoTurnos";
 import { EditarTrabajador } from "./pages/dashboard/EditarTrabajador";
@@ -121,6 +122,7 @@ export const router = createBrowserRouter(
             <Route path="messages" element={<Messages />} />
             <Route path="incidents" element={<ListadoIncidencias />} />
             <Route path="clients" element={<ListadoClientes />} />
+            <Route path="bookings" element={<ListadoReservas />} />
             <Route path="workers" element={<ListadoTrabajadores />} />
             <Route path="affected-bookings" element={<AffectedBookings />} />
             <Route

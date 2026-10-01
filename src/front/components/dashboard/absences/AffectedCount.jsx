@@ -1,8 +1,15 @@
 /**
- * CONTADOR DE RESERVAS AFECTADAS DEL MENÚ (#15, #75).
+ * CONTADOR DE RESERVAS AFECTADAS (#15, #75).
  *
- * La pastilla junto a "Reservas afectadas". Pide solo el número
- * (count_only) y lo mantiene al día sin recargar la página:
+ * YA NO SE PINTA. Estaba junto a "Reservas afectadas" en el menú, y esa
+ * entrada desapareció: ahora el aviso lo da BookingsCount sobre
+ * "Reservas", sumando las afectadas y las incidencias.
+ *
+ * Se conserva por lo mismo que la pantalla de Reservas afectadas: sigue
+ * respondiendo por su URL y, si algún día vuelve al menú, su contador
+ * está aquí. Si se decide limpiarla, este archivo se va con ella.
+ *
+ * Pide solo el número (count_only) y lo mantiene al día sin recargar:
  *
  *   · cada 30 segundos
  *   · al volver a la pestaña (focus)
