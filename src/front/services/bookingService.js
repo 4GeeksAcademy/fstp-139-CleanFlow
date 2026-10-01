@@ -173,3 +173,36 @@ export const rescheduleBooking = (bookingId, { startsAt, workerId }, token) =>
     token,
     body: workerId ? { starts_at: startsAt, worker_id: workerId } : { starts_at: startsAt },
   });
+
+/**
+ * Todas las reservas de la empresa. Solo el encargado.
+ *
+ *   tab       "all" | "affected" | "incident", la pestaña
+ *   q         texto: cliente, trabajador o servicio
+ *   status    lista de grupos: "pending" | "done" | "cancelled"
+ *   service   lista de ids de servicio
+ *   from, to  "2026-10-01", por el día en que empieza la reserva
+ *
+ * status y service son listas porque son de selección múltiple: se
+ * repiten en la URL, que es como Flask las lee con getlist().
+ *
+ * data: { count, counts, facets, bookings }. counts son los números de
+ * las tres pestañas y NO se filtran: son un dato de la empresa, no del
+ * filtro puesto. facets son los números de cada opción del desplegable.
+ */
+export const getManagedBookings = (token, {
+  tab = "all", q = "", status = [], service = [], from = "", to = "",
+  limit = 25, offset = 0,
+} = {}) => {
+  const params = new URLSearchParams({ tab, limit: String(limit), offset: String(offset) });
+
+  if (q.trim()) params.set("q", q.trim());
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+
+  // append y no set: set dejaría solo el último de la lista.
+  status.forEach((value) => params.append("status", value));
+  service.forEach((value) => params.append("service", String(value)));
+
+  return apiRequest(`/api/manage/bookings/search?${params}`, { token });
+};
