@@ -94,17 +94,11 @@ const PANEL_LABEL = {
     manager: "Panel del encargado",
 }
 
-// Las dos opciones del tema, para el menú desplegado.
-const THEMES = [
-    { value: "light", label: "Claro", icon: "fa-sun" },
-    { value: "dark", label: "Oscuro", icon: "fa-moon" },
-]
-
 // ----------------------------------------------------------------------
 // PREFERENCIAS DEL NAVEGADOR
 // ----------------------------------------------------------------------
-// Cómo se dejó el menú (plegado y tema). Son preferencias de este aparato,
-// no del usuario: no tiene sentido llevarlas al servidor. localStorage
+// Cómo se dejó el menú (plegado). Es una preferencia de este aparato y
+// no del usuario: no tiene sentido llevarla al servidor. localStorage
 // puede fallar (ventana privada, permisos) y no vale la pena romper el
 // menú por eso: ante la duda, valores de partida.
 
@@ -129,18 +123,6 @@ const readCollapsed = () => {
         return saved === "true"
     } catch {
         return false
-    }
-}
-
-// Cuando exista el modo oscuro de todo el panel, esta misma clave la
-// leerá el marco.
-const THEME_KEY = "cleanflow:theme"
-
-const readTheme = () => {
-    try {
-        return window.localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"
-    } catch {
-        return "light"
     }
 }
 
@@ -193,24 +175,6 @@ export const Sidebar = () => {
             // Sin guardado: el menú funciona igual, solo que no se recuerda.
         }
     }, [collapsed])
-
-    // ----------------------------------------------------------------------
-    // TEMA CLARO U OSCURO
-    // ----------------------------------------------------------------------
-    // De momento solo cambia el menú: llevarlo a todas las pantallas del
-    // panel es su propia issue. El interruptor se deja puesto y funcionando
-    // para no tener que rehacer el pie después.
-
-    const [theme, setTheme] = useState(readTheme)
-    const dark = theme === "dark"
-
-    useEffect(() => {
-        try {
-            window.localStorage.setItem(THEME_KEY, theme)
-        } catch {
-            // Sin guardado: el interruptor funciona, solo que no se recuerda.
-        }
-    }, [theme])
 
     // ----------------------------------------------------------------------
     // MENÚ DE MÓVIL
@@ -360,7 +324,6 @@ export const Sidebar = () => {
             <aside
                 id="dashboard-sidebar"
                 className={clasesDelMenu}
-                data-theme={theme}
                 aria-label="Menú del panel"
             >
                 {/* Plegar y desplegar. aria-expanded dice si el menú está
@@ -463,43 +426,6 @@ export const Sidebar = () => {
                     solos al guardar en Ajustes, porque esas pantallas
                     despachan SET_USER. */}
                 <div className="cf-side__foot">
-                    {/* Desplegado: las dos opciones a la vista. role="group"
-                        y aria-pressed: comparten una elección, no navegan. */}
-                    <div className="cf-side__theme" role="group" aria-label="Tema del panel">
-                        {THEMES.map(option => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                onClick={() => setTheme(option.value)}
-                                aria-pressed={theme === option.value}
-                            >
-                                <i className={`fa-solid ${option.icon}`} aria-hidden="true" />
-                                <span>{option.label}</span>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Plegado: el mismo tema, en un interruptor. Se pulse
-                        donde se pulse, cambia. role="switch" + aria-checked
-                        es lo que anuncia un interruptor a un lector de
-                        pantalla. El CSS enseña uno u otro, nunca los dos. */}
-                    <button
-                        type="button"
-                        className="cf-side__theme-switch"
-                        onClick={() => setTheme(dark ? "light" : "dark")}
-                        role="switch"
-                        aria-checked={dark}
-                        aria-label="Modo oscuro"
-                    >
-                        <span className="cf-side__theme-track" aria-hidden="true">
-                            <i className="fa-solid fa-sun" />
-                            <i className="fa-solid fa-moon" />
-                            <span className="cf-side__theme-knob" />
-                        </span>
-
-                        <span className="cf-side__tip">{dark ? "Modo claro" : "Modo oscuro"}</span>
-                    </button>
-
                     <p className="cf-side__paneltag">{PANEL_LABEL[role]}</p>
 
                     <div className="cf-side__user">
