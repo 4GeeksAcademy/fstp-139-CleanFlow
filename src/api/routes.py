@@ -4478,7 +4478,7 @@ def claim_booking(booking_id):
 @api.route("/incidents", methods=["GET"])
 @role_required("manager")
 def list_incidents():
-    """Las incidencias, filtradas por estado, tipo y origen.
+    """Las incidencias, filtradas por estado, tipo, origen y reserva.
 
     count_only=1 devuelve solo el número: lo usa la pastilla del menú, y
     así no se traen todas las filas treinta veces por minuto.
@@ -4500,6 +4500,14 @@ def list_incidents():
 
     if source in ("worker", "client"):
         query = query.where(Incident.source == IncidentSource(source))
+
+    # Por reserva: es como se entra desde la marca de su tarjeta en
+    # Reservas. Trae las suyas, abiertas y resueltas, porque al llegar
+    # desde una reserva lo que se quiere ver es todo lo que le ha pasado.
+    booking_id = request.args.get("booking")
+
+    if booking_id and booking_id.isdigit():
+        query = query.where(Incident.booking_id == int(booking_id))
 
     if request.args.get("count_only"):
         total = db.session.execute(
