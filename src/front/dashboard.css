@@ -4290,16 +4290,19 @@ textarea.cf-dash-input {
        y .../absences)
    ======================================================================
 
-   Las pantallas del equipo, con la misma cabecera que Turnos y
-   Servicios. container-type: el diseño estrecho lo decide el hueco que
-   deja el sidebar, no el ancho de la ventana (ver @container al final). */
+   Las pantallas de gestión de personas, con la misma cabecera que Turnos
+   y Servicios. Las reglas comunes de aquí abajo las comparte también
+   Clientes, que tiene su sección propia al final del archivo.
+   container-type: el diseño estrecho lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final). */
 
 /* ---------- COMÚN: CONTENEDOR Y CABECERA ---------- */
 
 .cf-workers,
 .cf-worker-form,
 .cf-absences,
-.cf-affected {
+.cf-affected,
+.cf-clients {
   container-type: inline-size;
   max-width: 1180px;
   color: var(--cf-text);
@@ -4308,7 +4311,8 @@ textarea.cf-dash-input {
 
 .cf-workers__header,
 .cf-absences__header,
-.cf-affected__header {
+.cf-affected__header,
+.cf-clients__header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -4320,7 +4324,8 @@ textarea.cf-dash-input {
 .cf-workers__title,
 .cf-worker-form__title,
 .cf-absences__title,
-.cf-affected__title {
+.cf-affected__title,
+.cf-clients__title {
   margin: 0;
   font-family: var(--cf-font-heading);
   font-size: var(--cf-text-2xl);
@@ -4330,7 +4335,8 @@ textarea.cf-dash-input {
 .cf-workers__lede,
 .cf-worker-form__lede,
 .cf-absences__lede,
-.cf-affected__lede {
+.cf-affected__lede,
+.cf-clients__lede {
   margin: var(--cf-space-2) 0 0;
   max-width: 62ch;
   color: var(--cf-muted);
@@ -10152,5 +10158,379 @@ textarea.cf-dash-input {
   .cf-bookcard,
   .cf-progress__fill {
     transition: none;
+  }
+}
+
+/* ======================================================================
+   CLIENTES (ENCARGADO)
+   ======================================================================
+   La sección gemela de Trabajadores. El contenedor, la cabecera y la
+   barra de pestañas se reaprovechan de allí; aquí solo va lo que esta
+   pantalla tiene de distinto: la rejilla de seis columnas, la fila que
+   se despliega y el pie con el "Ver más".
+   ====================================================================== */
+
+.cf-clients__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  margin-bottom: var(--cf-space-4);
+}
+
+.cf-clients__list {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Seis columnas: la flecha de desplegar, cliente, contacto, servicios,
+   dirección y estado. La primera con ancho fijo para que el nombre de
+   todas las filas empiece en el mismo punto. */
+.cf-clients__head,
+.cf-clients__main {
+  display: grid;
+  grid-template-columns:
+    28px minmax(0, 1.9fr) minmax(0, 1.5fr) minmax(0, 0.9fr)
+    minmax(0, 1.6fr) 140px;
+  align-items: center;
+  gap: var(--cf-space-4);
+  padding: var(--cf-space-3) var(--cf-space-6);
+}
+
+/* Borde transparente: el mismo grosor que la fila, así las columnas de
+   la cabecera caen justo encima de las de abajo. */
+.cf-clients__head {
+  border: 1px solid transparent;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* "Cliente" empieza donde empieza el nombre y no donde la foto. */
+.cf-clients__head > :nth-child(2) {
+  padding-left: calc(48px + var(--cf-space-3));
+}
+
+.cf-clients__row {
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  transition:
+    border-color var(--cf-transition),
+    box-shadow var(--cf-transition);
+}
+
+.cf-clients__row:hover {
+  border-color: var(--cf-primary);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+/* De baja: terracota suave y el texto apagado, el mismo criterio que un
+   trabajador desactivado. Así las dos pantallas se leen igual. */
+.cf-clients__row--inactive,
+.cf-clients__row--inactive:hover {
+  border-color: var(--cf-border);
+  background-color: var(--cf-accent-soft);
+  box-shadow: none;
+}
+
+.cf-clients__row--inactive .cf-clients__person,
+.cf-clients__row--inactive .cf-clients__contact,
+.cf-clients__row--inactive .cf-clients__done,
+.cf-clients__row--inactive .cf-clients__addr {
+  opacity: 0.6;
+}
+
+/* ---------- LA FLECHA DE DESPLEGAR ---------- */
+
+.cf-clients__chev {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  background: none;
+  color: var(--cf-muted);
+  cursor: pointer;
+  transition:
+    transform var(--cf-transition),
+    background-color var(--cf-transition),
+    color var(--cf-transition);
+}
+
+.cf-clients__chev:hover {
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+}
+
+.cf-clients__chev[aria-expanded="true"] {
+  transform: rotate(90deg);
+  color: var(--cf-primary);
+}
+
+/* ---------- LAS COLUMNAS ---------- */
+
+.cf-clients__person {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  min-width: 0;
+}
+
+.cf-clients__who {
+  min-width: 0;
+}
+
+.cf-clients__name {
+  margin: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* tabular-nums: las fechas de una columna quedan alineadas entre sí. */
+.cf-clients__since,
+.cf-clients__last,
+.cf-clients__phone,
+.cf-clients__city {
+  display: block;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-clients__contact,
+.cf-clients__done,
+.cf-clients__addr {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--cf-text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-clients__done strong {
+  font-size: var(--cf-text-base);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cuántas direcciones más tiene, sin tener que desplegar. */
+.cf-clients__more {
+  display: inline-block;
+  margin-left: var(--cf-space-2);
+  padding: 0 7px;
+  border-radius: 999px;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lo que no hay se dice, no se deja en blanco. */
+.cf-clients__none {
+  color: var(--cf-muted);
+  font-style: italic;
+}
+
+/* ---------- EL PANEL DESPLEGADO ---------- */
+
+.cf-clients__panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--cf-space-6);
+  border-top: 1px solid var(--cf-border);
+  padding: var(--cf-space-4) var(--cf-space-6) var(--cf-space-6)
+    calc(var(--cf-space-6) + 28px + var(--cf-space-4));
+}
+
+/* Hace falta decirlo: `display: grid` de arriba tiene la misma fuerza
+   que el [hidden] del navegador y, al ir después, ganaría. Con el
+   atributo en el selector esta regla pesa más y el panel nace cerrado. */
+.cf-clients__panel[hidden] {
+  display: none;
+}
+
+.cf-clients__subtitle {
+  margin: 0 0 var(--cf-space-2);
+  color: var(--cf-muted);
+  font-family: var(--cf-font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cf-clients__addrs {
+  display: grid;
+  gap: var(--cf-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* La raya de la izquierda distingue la principal sin añadir otra
+   etiqueta de color a una fila que ya tiene varias. */
+.cf-clients__addr-item {
+  border-left: 2px solid var(--cf-border);
+  padding-left: var(--cf-space-3);
+  font-size: var(--cf-text-sm);
+  line-height: 1.45;
+}
+
+.cf-clients__addr-item--default {
+  border-left-color: var(--cf-accent);
+}
+
+.cf-clients__addr-item > span {
+  display: block;
+}
+
+.cf-clients__addr-tag {
+  color: var(--cf-accent-dark);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cf-clients__notes {
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-clients__facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--cf-space-2) var(--cf-space-4);
+  margin: 0;
+  font-size: var(--cf-text-sm);
+}
+
+.cf-clients__facts dt {
+  color: var(--cf-muted);
+}
+
+.cf-clients__facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* El aviso de lo que se perdería al darle de baja. Ocupa el ancho
+   entero: es lo último que hay que leer antes de decidir. */
+.cf-clients__pending,
+.cf-clients__warn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  padding: var(--cf-space-3) var(--cf-space-4);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-clients__pending {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.cf-clients__pending i {
+  margin-top: 2px;
+}
+
+.cf-clients__warn {
+  display: block;
+  margin: var(--cf-space-3) 0 0;
+  text-align: left;
+}
+
+/* ---------- EL PIE ---------- */
+
+.cf-clients__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-space-4);
+  margin-top: var(--cf-space-6);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- ESTRECHO ----------
+   Por el ancho del contenido y no por el de la ventana: lo que manda es
+   el hueco que deja el sidebar. */
+
+@container (max-width: 860px) {
+  .cf-clients__head {
+    display: none;
+  }
+
+  /* La flecha y el estado a los lados, y lo demás apilado entre medias:
+     en una columna, cada dato en su línea. */
+  .cf-clients__main {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: var(--cf-space-3);
+    padding: var(--cf-space-4);
+  }
+
+  .cf-clients__person,
+  .cf-clients__contact,
+  .cf-clients__done,
+  .cf-clients__addr {
+    grid-column: 2;
+  }
+
+  /* El interruptor, el último y a la izquierda: donde llega el pulgar. */
+  .cf-clients__main > div:last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .cf-clients__done strong {
+    margin-right: var(--cf-space-2);
+  }
+
+  /* En una columna estrecha, cada dato en su línea sobra: el correo y el
+     teléfono caben juntos, y el número de servicios con su fecha. */
+  .cf-clients__last,
+  .cf-clients__phone {
+    display: inline;
+  }
+
+  /* Separados por un punto, o se leerían pegados:
+     "javier@cleanflow.test600000008". */
+  .cf-clients__phone::before {
+    content: " · ";
+  }
+
+  /* Aquí se parte en varias líneas en vez de cortarse con puntos
+     suspensivos: un correo a medias no sirve para nada, y sin columnas
+     que cuadrar no hay motivo para recortarlo. */
+  .cf-clients__contact,
+  .cf-clients__addr {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .cf-clients__panel {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--cf-space-4);
   }
 }
