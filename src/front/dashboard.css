@@ -4302,7 +4302,8 @@ textarea.cf-dash-input {
 .cf-worker-form,
 .cf-absences,
 .cf-affected,
-.cf-clients {
+.cf-clients,
+.cf-bookings {
   container-type: inline-size;
   max-width: 1180px;
   color: var(--cf-text);
@@ -4312,7 +4313,8 @@ textarea.cf-dash-input {
 .cf-workers__header,
 .cf-absences__header,
 .cf-affected__header,
-.cf-clients__header {
+.cf-clients__header,
+.cf-bookings__header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -4325,7 +4327,8 @@ textarea.cf-dash-input {
 .cf-worker-form__title,
 .cf-absences__title,
 .cf-affected__title,
-.cf-clients__title {
+.cf-clients__title,
+.cf-bookings__title {
   margin: 0;
   font-family: var(--cf-font-heading);
   font-size: var(--cf-text-2xl);
@@ -4336,7 +4339,8 @@ textarea.cf-dash-input {
 .cf-worker-form__lede,
 .cf-absences__lede,
 .cf-affected__lede,
-.cf-clients__lede {
+.cf-clients__lede,
+.cf-bookings__lede {
   margin: var(--cf-space-2) 0 0;
   max-width: 62ch;
   color: var(--cf-muted);
@@ -10532,5 +10536,571 @@ textarea.cf-dash-input {
   .cf-clients__panel {
     grid-template-columns: minmax(0, 1fr);
     padding: var(--cf-space-4);
+  }
+}
+
+/* ======================================================================
+   RESERVAS (ENCARGADO)
+   ======================================================================
+   La tarjeta es la del cliente (cf-bookcard) con dos añadidos: de quién
+   es la reserva y qué le pasa. Aquí solo va lo propio de esta pantalla:
+   la barra con sus desplegables múltiples, las dos marcas y el ajuste
+   de la tarjeta, que aquí no se pulsa entera.
+   ====================================================================== */
+
+/* ---------- LA BARRA ---------- */
+
+.cf-bookings__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-border);
+  padding-bottom: var(--cf-space-3);
+}
+
+.cf-bookings__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+}
+
+.cf-bookings__search {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  flex: 1 1 220px;
+  min-width: 180px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  padding: var(--cf-space-2) var(--cf-space-4);
+}
+
+.cf-bookings__search i {
+  color: var(--cf-muted);
+}
+
+.cf-bookings__search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.cf-bookings__search:focus-within {
+  box-shadow: 0 0 0 3px var(--cf-ring);
+}
+
+/* ---------- LOS DESPLEGABLES ---------- */
+
+.cf-bookings__drop {
+  position: relative;
+}
+
+.cf-bookings__drop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-2);
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  padding: var(--cf-space-2) var(--cf-space-4);
+  font: inherit;
+  font-size: var(--cf-text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--cf-transition),
+    background-color var(--cf-transition);
+}
+
+.cf-bookings__drop-btn:hover,
+.cf-bookings__drop-btn[aria-expanded="true"] {
+  border-color: var(--cf-primary);
+}
+
+/* Con algo elegido se nota sin abrirlo. */
+.cf-bookings__drop-btn[data-on="true"] {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-weight: 600;
+}
+
+.cf-bookings__pop {
+  position: absolute;
+  top: calc(100% + var(--cf-space-2));
+  right: 0;
+  z-index: 20;
+  min-width: 236px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-md);
+  background-color: var(--cf-surface);
+  box-shadow: 0 10px 30px rgba(38, 38, 31, 0.16);
+  padding: var(--cf-space-2);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hace falta decirlo: `display: flex` de arriba pesa lo mismo que el
+   [hidden] del navegador y, al ir antes, perdería. Con el atributo en el
+   selector esta regla manda y el panel nace cerrado. */
+.cf-bookings__pop[hidden] {
+  display: none;
+}
+
+.cf-bookings__pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-3);
+  padding: var(--cf-space-1) var(--cf-space-3) var(--cf-space-2);
+  color: var(--cf-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-bookings__pop-head button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--cf-accent-dark);
+  font: inherit;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Cada opción es una casilla de verdad. Se marcan varias y el panel NO
+   se cierra al marcar: casi nunca se elige una sola. */
+.cf-bookings__opt {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-3);
+  border-radius: var(--cf-radius-sm);
+  padding: var(--cf-space-2) var(--cf-space-3);
+  font-size: var(--cf-text-sm);
+  cursor: pointer;
+}
+
+.cf-bookings__opt:hover {
+  background-color: var(--cf-primary-soft);
+}
+
+.cf-bookings__opt input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cf-primary);
+  cursor: pointer;
+}
+
+/* Cuántas hay de cada opción. Se cuentan sin su propio filtro: si
+   contaran lo ya filtrado, al marcar una el resto se iría a cero. */
+.cf-bookings__opt-n {
+  margin-left: auto;
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Los atajos de fechas, los mismos que ya tiene la pantalla del cliente. */
+.cf-bookings__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-space-2);
+  padding: var(--cf-space-1) var(--cf-space-2) var(--cf-space-2);
+}
+
+.cf-bookings__quick button {
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background-color: var(--cf-surface);
+  color: var(--cf-text);
+  padding: 5px var(--cf-space-3);
+  font: inherit;
+  font-size: var(--cf-text-sm);
+  cursor: pointer;
+}
+
+.cf-bookings__quick button:hover {
+  border-color: var(--cf-primary);
+}
+
+.cf-bookings__quick button[aria-pressed="true"] {
+  border-color: var(--cf-primary);
+  background-color: var(--cf-primary);
+  color: var(--cf-on-primary);
+  font-weight: 600;
+}
+
+.cf-bookings__range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cf-space-2);
+  border-top: 1px solid var(--cf-border);
+  padding: var(--cf-space-2) var(--cf-space-2) var(--cf-space-1);
+}
+
+.cf-bookings__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-space-1);
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+}
+
+/* ---------- LO QUE SE ESTÁ FILTRANDO ---------- */
+
+.cf-bookings__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-space-2);
+  margin-top: var(--cf-space-3);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-bookings__chips-label {
+  color: var(--cf-muted);
+}
+
+/* Una pastilla por valor elegido, no una por filtro: así se quita
+   "Pendientes" sin perder "Canceladas". */
+.cf-bookings__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 999px;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  padding: 4px 6px 4px var(--cf-space-3);
+  font: inherit;
+  font-size: var(--cf-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cf-bookings__chip:hover {
+  filter: brightness(0.96);
+}
+
+.cf-bookings__chip > span[aria-hidden] {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: rgba(46, 59, 38, 0.14);
+  font-size: 11px;
+}
+
+.cf-bookings__chips-clear {
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+  color: var(--cf-accent-dark);
+  font: inherit;
+  font-size: var(--cf-text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- LA LISTA ---------- */
+
+.cf-bookings__count {
+  margin: var(--cf-space-4) 0 var(--cf-space-3);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+.cf-bookings__list {
+  display: grid;
+  gap: var(--cf-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-bookings__foot {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--cf-space-6);
+}
+
+/* ---------- LA TARJETA, AJUSTADA ---------- */
+
+/* En el listado del cliente la tarjeta entera es un botón que abre el
+   detalle. Aquí no se abre nada, así que no debe parecer pulsable: lo
+   que se pulsa son las dos marcas. */
+.cf-bookings__list .cf-bookcard {
+  cursor: default;
+}
+
+.cf-bookings__list .cf-bookcard:hover {
+  transform: none;
+  border-color: var(--cf-border);
+  box-shadow: var(--cf-shadow-sm);
+}
+
+/* Lo que tiene algo sin resolver se reconoce sin leer, igual que un
+   cliente de baja en su listado. */
+.cf-bookcard--todo {
+  border-left: 3px solid var(--cf-accent);
+}
+
+/* El cliente en verde y el trabajador en terracota (cf-bookcard__worker,
+   que ya existía): dos personas en la misma línea tienen que
+   distinguirse de un vistazo. */
+.cf-bookcard__who--client {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: var(--cf-space-2);
+  border-radius: 50%;
+  background-color: var(--cf-primary-soft);
+  color: var(--cf-primary);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+/* ---------- LAS DOS MARCAS ---------- */
+
+/* El título y sus marcas, en una sola línea.
+   nowrap y no wrap: si envolviera, la tarjeta volvería a crecer y
+   estaríamos donde estábamos. Si no cabe, lo que cede es el nombre del
+   servicio, que se corta con puntos suspensivos; las marcas no, que son
+   lo que hay que ver. */
+.cf-bookings__head {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--cf-space-3);
+  min-width: 0;
+}
+
+.cf-bookings__head .cf-bookcard__service {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-bookings__marks {
+  display: flex;
+  flex: none;
+  gap: var(--cf-space-2);
+}
+
+/* Pequeñas a propósito: van al lado de un titular y no deben pelearse
+   con él. Lo que llama la atención de lejos es la banda del borde; esto
+   es el detalle que se lee al acercarse. */
+.cf-bookings__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  border-radius: 999px;
+  /* Alto fijo y no por el contenido: el título mide 22,5px y, si el
+     sello midiera un píxel más, la fila crecería y la tarjeta con avisos
+     volvería a ser más alta que las demás. box-sizing para que el borde
+     del sello de contorno no sume por fuera. */
+  height: 22px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    filter var(--cf-transition),
+    background-color var(--cf-transition);
+}
+
+/* Rellena: se resuelve aquí mismo. */
+.cf-bookings__mark--affected {
+  border: 1px solid transparent;
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+}
+
+.cf-bookings__mark--affected:hover {
+  filter: brightness(0.96);
+}
+
+/* De contorno: lleva a otra pantalla. La forma dice lo que hace, para
+   no tener que aprenderse cuál es cuál. */
+.cf-bookings__mark--incident {
+  border: 1px solid var(--cf-accent);
+  background-color: var(--cf-surface);
+  color: var(--cf-accent-dark);
+}
+
+.cf-bookings__mark--incident:hover {
+  background-color: var(--cf-accent-soft);
+}
+
+.cf-bookings__mark:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+/* ---------- RESOLVER, DENTRO DEL DIÁLOGO ---------- */
+
+.cf-bookings__resolve {
+  text-align: left;
+  max-width: 480px;
+}
+
+.cf-bookings__resolve-sub {
+  margin: var(--cf-space-2) 0 var(--cf-space-4);
+  color: var(--cf-muted);
+  font-size: var(--cf-text-sm);
+}
+
+/* La confirmación de cancelar, dentro del propio bloque y no en otro
+   modal: en Reservas esto ya vive dentro de uno, y un modal dentro de
+   otro es frágil. */
+.cf-affected__confirm {
+  border-radius: var(--cf-radius-sm);
+  background-color: var(--cf-accent-soft);
+  color: var(--cf-accent-dark);
+  padding: var(--cf-space-4);
+}
+
+.cf-affected__confirm-title {
+  margin: 0 0 var(--cf-space-1);
+  font-family: var(--cf-font-heading);
+  font-size: var(--cf-text-lg);
+  font-weight: 600;
+}
+
+.cf-affected__confirm-text {
+  margin: 0 0 var(--cf-space-3);
+  font-size: var(--cf-text-sm);
+}
+
+/* ---------- ESQUELETO ---------- */
+
+.cf-bookings__skel-date {
+  height: 48px;
+  border-radius: var(--cf-radius-sm);
+}
+
+.cf-bookings__skel-name {
+  display: block;
+  width: 46%;
+  height: 16px;
+  margin-bottom: var(--cf-space-2);
+}
+
+.cf-bookings__skel-sub {
+  display: block;
+  width: 70%;
+  height: 12px;
+}
+
+/* ---------- ESTRECHO ----------
+   Por el ancho del contenido y no el de la ventana: manda el hueco que
+   deja el sidebar. */
+
+@container (max-width: 860px) {
+  /* En una sola línea, el margen negativo de las pestañas apoya su
+     subrayado en la raya de la barra. Al partirse en dos filas tiraba
+     del buscador hacia arriba y lo dejaba pegado a las pestañas. Aquí
+     cada fila va por su cuenta. */
+  .cf-bookings__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  /* Las pestañas se parten en dos líneas en vez de deslizarse de lado,
+     que es lo que hace la regla compartida con su overflow-x. Una
+     pestaña que hay que arrastrar para descubrir es una que nadie pulsa.
+     min-width: 0 porque, siendo hijo flexible, si no crece hasta caber
+     su contenido y desborda la página por un par de píxeles. */
+  .cf-bookings__toolbar .cf-services__tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    min-width: 0;
+    gap: var(--cf-space-4);
+    margin-bottom: var(--cf-space-5, 20px);
+  }
+
+  /* El subrayado de la activa se apoya en la raya de las pestañas, que
+     ahora es la suya y no la de la barra entera. */
+  .cf-bookings__toolbar .cf-services__tab {
+    margin-bottom: -1px;
+  }
+
+  /* El buscador se queda la línea entera y los desplegables van debajo:
+     partido en dos no cabe nada escrito. */
+  .cf-bookings__search {
+    flex: 1 0 100%;
+  }
+
+  .cf-bookings__pop {
+    right: auto;
+    left: 0;
+    min-width: 0;
+    width: min(280px, 78cqw);
+  }
+
+  /* En una columna estrecha no caben el título y los sellos con su
+     texto. En vez de partir la fila —que volvería a descuadrar las
+     alturas—, el sello se queda en su icono: redondo, del tamaño del
+     dedo y sin texto. Lo que dice sigue ahí para quien usa lector de
+     pantalla, y al tocarlo se explica entero. */
+  .cf-bookings__mark {
+    position: relative;
+    width: 22px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    font-size: 0.6875rem;
+  }
+
+  /* El sello mide 22px para no levantar la fila, pero se toca en 44:
+     este cuadrado invisible agranda la zona sensible sin ocupar sitio,
+     porque va en posición absoluta y no cuenta para el tamaño. */
+  .cf-bookings__mark::after {
+    content: "";
+    position: absolute;
+    inset: -11px;
+  }
+
+  .cf-bookings__mark-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* El título cede el ancho que necesiten los dos sellos. */
+  .cf-bookings__head {
+    gap: var(--cf-space-2);
   }
 }
