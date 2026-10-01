@@ -26,7 +26,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 from functools import wraps
 
 
@@ -934,6 +934,265 @@ def update_client_status(user_id):
     return jsonify({
         "client": cliente.serialize(),
         "cancelled": canceladas,
+    }), 200
+
+
+# ----------------------------------------------------------------------
+# RESERVAS DE LA EMPRESA (ENCARGADO)
+# ----------------------------------------------------------------------
+#   GET  /api/manage/bookings/search   todas, con pestaña, filtros y tope
+#
+# Hasta aquí cada uno veía las suyas: GET /bookings es del cliente y del
+# trabajador. Nadie veía el conjunto.
+#
+# Las dos colas que antes eran secciones aparte —reservas afectadas e
+# incidencias— caben aquí como pestañas, porque las dos son "qué le pasa
+# a esta reserva" y es en la reserva donde uno va a buscarlo.
+#
+# OJO con "afectada": no es una columna, se calcula cruzando la reserva
+# con las ausencias de su trabajador. Eso manda en cómo está escrito todo
+# lo de abajo, porque no se puede ni filtrar ni paginar en SQL.
+# ----------------------------------------------------------------------
+
+BOOKINGS_PAGE_SIZE = 25
+
+# A qué grupo va cada estado. "En curso" es un pendiente: el servicio se
+# está haciendo ahora mismo, así que no está ni realizado ni cancelado.
+# Es el mismo reparto que hace la pantalla del cliente.
+GRUPOS_DE_ESTADO = {
+    "pending": (BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS),
+    "done": (BookingStatus.COMPLETED, BookingStatus.NOT_DONE),
+    "cancelled": (BookingStatus.CANCELLED,),
+}
+
+# Solo estas pueden estar afectadas: una realizada o cancelada ya no
+# necesita trabajador.
+AFECTABLES = (BookingStatus.PENDING, BookingStatus.CONFIRMED)
+
+
+def con_incidencia_abierta():
+    """Subconsulta: los id de reserva que tienen alguna incidencia sin cerrar."""
+    return db.select(Incident.booking_id).where(Incident.resolved.is_(False))
+
+
+def bookings_filtradas(args, saltar=None):
+    """La consulta con los filtros puestos, menos el que se diga.
+
+    `saltar` sirve para los contadores de cada opción del desplegable:
+    el de "Estado" se cuenta sin aplicar el estado, porque si no, al
+    marcar "Pendientes" el resto de opciones se pondría a cero y
+    parecería que no hay nada más.
+    """
+    cliente = aliased(User)
+    del_trabajador = aliased(User)
+
+    query = (
+        db.select(Booking)
+        .join(cliente, cliente.user_id == Booking.client_id)
+        .join(Service, Service.service_id == Booking.service_id)
+        .outerjoin(Worker, Worker.worker_id == Booking.worker_id)
+        .outerjoin(del_trabajador, del_trabajador.user_id == Worker.user_id)
+    )
+
+    texto = (args.get("q") or "").strip()
+
+    if texto and saltar != "q":
+        patron = f"%{texto}%"
+        query = query.where(db.or_(
+            cliente.name.ilike(patron),
+            cliente.last_name.ilike(patron),
+            del_trabajador.name.ilike(patron),
+            del_trabajador.last_name.ilike(patron),
+            Service.name.ilike(patron),
+        ))
+
+    estados = [g for g in args.getlist("status") if g in GRUPOS_DE_ESTADO]
+
+    if estados and saltar != "status":
+        permitidos = [e for g in estados for e in GRUPOS_DE_ESTADO[g]]
+        query = query.where(Booking.status.in_(permitidos))
+
+    servicios = [int(s) for s in args.getlist("service") if s.isdigit()]
+
+    if servicios and saltar != "service":
+        query = query.where(Booking.service_id.in_(servicios))
+
+    # Por el comienzo de la reserva, que es la fecha que enseña la
+    # tarjeta. Las dos llegan como texto ISO; el "hasta" incluye el día
+    # entero, o una reserva de ese mismo día se quedaría fuera.
+    desde = (args.get("from") or "").strip()
+    hasta = (args.get("to") or "").strip()
+
+    if desde and saltar != "dates":
+        query = query.where(Booking.scheduled_start >= f"{desde} 00:00:00")
+
+    if hasta and saltar != "dates":
+        query = query.where(Booking.scheduled_start <= f"{hasta} 23:59:59")
+
+    if args.get("tab") == "incident":
+        query = query.where(Booking.booking_id.in_(con_incidencia_abierta()))
+
+    return query
+
+
+def cuantas(query):
+    """Cuántas filas devolvería, sin traerlas."""
+    return db.session.execute(
+        db.select(func.count()).select_from(query.subquery())
+    ).scalar_one()
+
+
+def afectadas_ahora(now):
+    """Las reservas afectadas, calculadas una a una.
+
+    No hay forma de hacerlo en SQL: depende de las ausencias del
+    trabajador cruzadas con los días que le quedan a la reserva. Se
+    acota a lo que puede estarlo —pendientes y confirmadas sin terminar—,
+    que son pocas y acotadas por el horizonte de reservas.
+    """
+    candidatas = db.session.execute(
+        booking_query().where(
+            Booking.status.in_(AFECTABLES),
+            Booking.scheduled_end > now,
+        ).order_by(Booking.scheduled_start, Booking.booking_id)
+    ).scalars().all()
+
+    return [(b, motivos) for b in candidatas
+            if (motivos := affected_reasons(b, now))]
+
+
+def incidencias_por_reserva(ids):
+    """Cuántas incidencias abiertas tiene cada una, en una sola consulta.
+
+    Con una consulta por tarjeta, pintar una página serían veinticinco
+    viajes a la base de datos solo para una pastilla.
+    """
+    if not ids:
+        return {}
+
+    return dict(db.session.execute(
+        db.select(Incident.booking_id, func.count())
+        .where(Incident.booking_id.in_(ids), Incident.resolved.is_(False))
+        .group_by(Incident.booking_id)
+    ).all())
+
+
+def serializar_reserva(booking, motivos, abiertas):
+    """Lo que la tarjeta necesita, y nada más."""
+    data = booking.serialize()
+    data["client_name"] = (
+        f"{booking.client.name} {booking.client.last_name}"
+        if booking.client else "Cliente"
+    )
+    data["service_name"] = booking.service.name if booking.service else "Servicio"
+    data["affected_reasons"] = motivos
+    data["open_incidents"] = abiertas
+
+    return data
+
+
+# /search y no /manage/bookings a secas: esa URL ya es la agenda del día
+# del inicio del encargado (bookings_of_day, más abajo). Registrar las dos
+# iguales no da ningún error, simplemente gana la primera del archivo, y
+# el inicio del encargado se queda en blanco.
+@api.route("/manage/bookings/search", methods=["GET"])
+@role_required("manager")
+def list_managed_bookings():
+    """Las reservas de la empresa, con todo lo que la pantalla necesita.
+
+        GET /api/manage/bookings/search?tab=all&q=pablo&status=pending&status=cancelled
+                                &service=1&from=2026-10-01&to=2026-10-31
+                                &limit=25&offset=0
+
+    status y service se pueden repetir: son de selección múltiple.
+
+    Responde {count, counts, facets, bookings}:
+
+      count    las que cumplen la pestaña y los filtros
+      counts   los números de las tres pestañas, SIN filtrar: son un dato
+               de la empresa ("tienes 2 afectadas"), no del filtro puesto
+      facets   cuántas hay de cada opción de los desplegables
+    """
+    args = request.args
+    tab = args.get("tab", "all")
+
+    if tab not in ("all", "affected", "incident"):
+        return jsonify({"message": "tab tiene que ser all, affected o incident"}), 400
+
+    try:
+        limit = max(1, min(int(args.get("limit", BOOKINGS_PAGE_SIZE)), 100))
+        offset = max(0, int(args.get("offset", 0)))
+    except ValueError:
+        return jsonify({"message": "limit y offset tienen que ser números"}), 400
+
+    now = madrid_now()
+    afectadas = afectadas_ahora(now)
+    motivos_por_id = {b.booking_id: motivos for b, motivos in afectadas}
+
+    counts = {
+        "all": cuantas(db.select(Booking)),
+        "affected": len(afectadas),
+        "incident": db.session.execute(
+            db.select(func.count(func.distinct(Incident.booking_id)))
+            .where(Incident.resolved.is_(False))
+        ).scalar_one(),
+    }
+
+    if tab == "affected":
+        # Aquí no se puede paginar en SQL: la lista ya está calculada en
+        # memoria, así que se filtra por los id y se trocea después.
+        permitidos = list(motivos_por_id)
+        query = bookings_filtradas(args).where(Booking.booking_id.in_(permitidos or [0]))
+    else:
+        query = bookings_filtradas(args)
+
+    total = cuantas(query)
+
+    reservas = db.session.execute(
+        query.options(
+            selectinload(Booking.days),
+            selectinload(Booking.client),
+            selectinload(Booking.service),
+            selectinload(Booking.worker).selectinload(Worker.user),
+            selectinload(Booking.worker).selectinload(Worker.absences),
+        )
+        # Lo más próximo primero, que es por donde se empieza a trabajar.
+        # El id desempata: sin él, dos reservas a la misma hora podrían
+        # repetirse o saltarse al pedir la siguiente tanda.
+        .order_by(Booking.scheduled_start.desc(), Booking.booking_id.desc())
+        .limit(limit).offset(offset)
+    ).scalars().all()
+
+    ids = [b.booking_id for b in reservas]
+    abiertas = incidencias_por_reserva(ids)
+
+    # Cada opción del desplegable se cuenta sin su propio filtro, pero
+    # respetando los demás: es lo que hace que los números sirvan para
+    # decidir qué marcar.
+    facets = {
+        "status": {
+            grupo: cuantas(bookings_filtradas(args, saltar="status")
+                           .where(Booking.status.in_(estados)))
+            for grupo, estados in GRUPOS_DE_ESTADO.items()
+        },
+        "service": {
+            str(service_id): cuantas(bookings_filtradas(args, saltar="service")
+                                     .where(Booking.service_id == service_id))
+            for service_id in db.session.execute(
+                db.select(Service.service_id).order_by(Service.service_id)
+            ).scalars().all()
+        },
+    }
+
+    return jsonify({
+        "count": total,
+        "counts": counts,
+        "facets": facets,
+        "bookings": [
+            serializar_reserva(b, motivos_por_id.get(b.booking_id, []),
+                               abiertas.get(b.booking_id, 0))
+            for b in reservas
+        ],
     }), 200
 
 
@@ -5042,6 +5301,9 @@ def day_state(booking, day):
 @role_required("manager")
 def bookings_of_day():
     """Los servicios de un día, para el seguimiento del encargado.
+
+    No confundir con /manage/bookings/search, que es el listado completo
+    de la sección Reservas. Esta devuelve una jornada; aquella, todo.
 
     Sin `date`, hoy. Una reserva de varias jornadas sale en todas, cada
     una con su horario y su propio estado: por eso se filtra por los
