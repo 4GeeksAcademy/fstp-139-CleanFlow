@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="CleanFlow">
+  <title>CleanFlow</title>
+
+  <!-- Placa verde de marca. Sin ella, un isotipo de un solo color
+       desaparece en las pestañas de los navegadores en modo oscuro. -->
+  <rect width="120" height="120" rx="26" fill="#2e3b26"/>
+
+  <!-- El isotipo de components/Logo.jsx, centrado y reducido para que
+       respire dentro de la placa. En crema, el color del fondo de la
+       aplicación. -->
+  <g transform="translate(2 11.8) scale(0.86)" fill="#f7f3e8">
+    <rect x="46" y="8" width="10" height="34" rx="4"/>
+    <path d="M34 42h34a5 5 0 0 1 5 5v7H29v-7a5 5 0 0 1 5-5z"/>
+    <path d="M30 56h6l-9 44a3 3 0 0 1-6 0zM40 56h6l-5 46a3 3 0 0 1-6 0zM50 56h6l-2 48a3 3 0 0 1-6 0zM60 56h6l2 46a3 3 0 0 1-6 0zM70 56h6l6 42a3 3 0 0 1-6 0z"/>
+  </g>
+
+  <g transform="translate(2 11.8) scale(0.86)" fill="none" stroke="#f7f3e8" stroke-linecap="round">
+    <circle cx="86" cy="74" r="28" stroke-width="7" pathLength="100" stroke-dasharray="64 36" transform="rotate(-118 86 74)"/>
+    <circle cx="86" cy="74" r="18" stroke-width="7" pathLength="100" stroke-dasharray="62 38" transform="rotate(-118 86 74)"/>
+    <circle cx="86" cy="74" r="8" stroke-width="6" pathLength="100" stroke-dasharray="56 44" transform="rotate(-118 86 74)"/>
+  </g>
+</svg>
