@@ -663,6 +663,281 @@ def update_worker_status(worker_id):
 
 
 # ----------------------------------------------------------------------
+# CLIENTES (ENCARGADO)
+# ----------------------------------------------------------------------
+#   GET    /api/manage/clients              listar, con buscador y tope
+#   PATCH  /api/manage/clients/<id>/status  dar de alta o de baja
+#
+# La otra mitad de la gente que gestiona el encargado: la que contrata.
+# Solo se mira y se cambia el estado. No se crean —se registran ellos—,
+# no se editan y no se borran.
+#
+# Borrar no es que no se quiera: no se puede. A un cliente lo sujetan sus
+# direcciones, sus reservas, sus reseñas y sus incidencias, y la base de
+# datos no deja quitar una fila a la que otras apuntan. Dar de baja es el
+# borrado real, igual que con los trabajadores.
+# ----------------------------------------------------------------------
+
+# Cuántos van por tanda. La pantalla pide más al pulsar "Ver más": aquí
+# se ven los clientes de toda la empresa, no los de uno, y mandarlos de
+# golpe es una lista que crece sin tope.
+CLIENTS_PAGE_SIZE = 25
+
+# Lo que se cancela al dar de baja. Lo realizado y lo ya cancelado no se
+# tocan: son historial. in_progress tampoco, que hay alguien trabajando
+# en ello ahora mismo.
+CANCEL_AL_DAR_DE_BAJA = (BookingStatus.PENDING, BookingStatus.CONFIRMED)
+
+# El motivo que queda guardado. Lo leería el cliente en Mis reservas si
+# algún día se le vuelve a dar de alta.
+MOTIVO_BAJA = "Este servicio se canceló al desactivar tu cuenta."
+
+
+def client_stats(client_ids):
+    """Servicios realizados y pendientes de cada cliente.
+
+    Dos consultas agrupadas y no una por cliente: con un bucle, pintar
+    una tanda de 25 serían cincuenta viajes a la base de datos.
+
+    count DISTINCT porque se cruza con booking_days: una reserva de tres
+    días saldría tres veces.
+
+    Devuelve {client_id: {...}}. Quien no aparece es que no tiene nada.
+    """
+    if not client_ids:
+        return {}
+
+    stats = {}
+
+    # Realizados: cuántos y cuándo fue el último. La fecha se saca del
+    # último día del servicio y no de completed_at, que puede faltar en
+    # reservas antiguas.
+    hechos = db.session.execute(
+        db.select(
+            Booking.client_id,
+            func.count(func.distinct(Booking.booking_id)),
+            func.max(BookingDay.ends_at),
+        )
+        .join(BookingDay, BookingDay.booking_id == Booking.booking_id)
+        .where(
+            Booking.client_id.in_(client_ids),
+            Booking.status == BookingStatus.COMPLETED,
+        )
+        .group_by(Booking.client_id)
+    ).all()
+
+    for client_id, cuantos, ultimo in hechos:
+        stats.setdefault(client_id, {})["completed_count"] = cuantos
+        stats[client_id]["last_completed_at"] = ultimo.isoformat() if ultimo else None
+
+    # Pendientes: exactamente las que se cancelarían al darle de baja. El
+    # número tiene que cuadrar con lo que avisa la pantalla antes de
+    # hacerlo, así que se cuentan las mismas que luego se cancelan.
+    pendientes = db.session.execute(
+        db.select(
+            Booking.client_id,
+            func.count(func.distinct(Booking.booking_id)),
+            func.min(BookingDay.starts_at),
+        )
+        .join(BookingDay, BookingDay.booking_id == Booking.booking_id)
+        .where(
+            Booking.client_id.in_(client_ids),
+            Booking.status.in_(CANCEL_AL_DAR_DE_BAJA),
+        )
+        .group_by(Booking.client_id)
+    ).all()
+
+    for client_id, cuantos, primero in pendientes:
+        stats.setdefault(client_id, {})["pending_count"] = cuantos
+        stats[client_id]["next_pending_at"] = primero.isoformat() if primero else None
+
+    return stats
+
+
+def client_addresses(client_ids):
+    """Las direcciones activas de cada cliente, la principal primero.
+
+    Las inactivas son bajas lógicas: el cliente ya las borró y no son
+    suyas a efectos de contactarle.
+    """
+    if not client_ids:
+        return {}
+
+    filas = db.session.execute(
+        db.select(Address)
+        .where(Address.client_id.in_(client_ids), Address.is_active.is_(True))
+        .order_by(Address.is_default.desc(), Address.created_at)
+    ).scalars().all()
+
+    por_cliente = {}
+
+    for direccion in filas:
+        por_cliente.setdefault(direccion.client_id, []).append(direccion.serialize())
+
+    return por_cliente
+
+
+@api.route("/manage/clients", methods=["GET"])
+@role_required("manager")
+def list_clients():
+    """Los clientes, con lo que hace falta para la pantalla de una vez.
+
+        GET /api/manage/clients?q=lucia&state=active&limit=25&offset=0
+
+    Responde {"count", "counts", "clients"}.
+
+    count es el total que cumple el filtro, no los devueltos: es lo que
+    permite decir "5 de 38" y saber si queda algo por traer.
+
+    counts son los tres números de las pestañas. Van calculados aquí y no
+    en el navegador —como sí hace la pantalla de trabajadores— porque
+    allí la API devuelve el equipo entero y aquí solo una tanda: contando
+    lo recibido saldría "Activos 25" tuviera los que tuviera.
+    """
+    texto = (request.args.get("q") or "").strip()
+    estado = request.args.get("state", "all")
+
+    if estado not in ("all", "active", "inactive"):
+        return jsonify({"message": "state tiene que ser all, active o inactive"}), 400
+
+    try:
+        limit = int(request.args.get("limit", CLIENTS_PAGE_SIZE))
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        return jsonify({"message": "limit y offset tienen que ser números"}), 400
+
+    # Topes por si llegan a mano: sin ellos, limit=100000 devuelve la
+    # base entera y offset negativo rompe la consulta.
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
+    filtros = [User.role == "client"]
+
+    if texto:
+        patron = f"%{texto}%"
+        filtros.append(db.or_(
+            User.name.ilike(patron),
+            User.last_name.ilike(patron),
+            User.email.ilike(patron),
+            User.phone.ilike(patron),
+        ))
+
+    # Los tres contadores, de una consulta: cuántos activos y cuántos no
+    # entre los que cumplen la búsqueda, sin mirar la pestaña elegida.
+    por_estado = dict(db.session.execute(
+        db.select(User.is_active, func.count(User.user_id))
+        .where(*filtros)
+        .group_by(User.is_active)
+    ).all())
+
+    counts = {
+        "active": por_estado.get(True, 0),
+        "inactive": por_estado.get(False, 0),
+    }
+    counts["all"] = counts["active"] + counts["inactive"]
+
+    if estado == "active":
+        filtros.append(User.is_active.is_(True))
+    elif estado == "inactive":
+        filtros.append(User.is_active.is_(False))
+
+    total = counts[estado]
+
+    # Los de baja primero dentro de cada orden no: se ordena por nombre,
+    # que es como los busca una persona.
+    clientes = db.session.execute(
+        db.select(User)
+        .where(*filtros)
+        .order_by(User.name, User.last_name, User.user_id)
+        .limit(limit)
+        .offset(offset)
+    ).scalars().all()
+
+    ids = [c.user_id for c in clientes]
+    stats = client_stats(ids)
+    direcciones = client_addresses(ids)
+
+    return jsonify({
+        "count": total,
+        "counts": counts,
+        "clients": [{
+            **cliente.serialize(),
+            "completed_count": stats.get(cliente.user_id, {}).get("completed_count", 0),
+            "last_completed_at": stats.get(cliente.user_id, {}).get("last_completed_at"),
+            "pending_count": stats.get(cliente.user_id, {}).get("pending_count", 0),
+            "next_pending_at": stats.get(cliente.user_id, {}).get("next_pending_at"),
+            "addresses": direcciones.get(cliente.user_id, []),
+        } for cliente in clientes],
+    }), 200
+
+
+@api.route("/manage/clients/<int:user_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_client_status(user_id):
+    """Da de alta o de baja a un cliente.
+
+    De baja no es solo cerrarle la puerta. Sin cancelar lo que tiene
+    contratado, el trabajador se presentaría en casa de alguien a quien
+    acabamos de dar de baja: hasta ahora is_active solo lo miraba /login.
+
+    Se cancelan como CleanFlow, que es lo que el cliente ve en Mis
+    reservas y lo que distingue "lo canceló la empresa" de "lo cancelé
+    yo". Volver a darle de alta NO las recupera, y por eso la pantalla
+    avisa antes.
+
+    Dar de alta no cancela ni recupera nada: solo le devuelve la entrada.
+    """
+    data = get_json_body()
+
+    if data is None or not isinstance(data.get("is_active"), bool):
+        return jsonify({
+            "message": "Indica el estado: is_active tiene que ser true o false"
+        }), 400
+
+    cliente = db.session.get(User, user_id)
+
+    if cliente is None:
+        return jsonify({"message": "Cliente no encontrado"}), 404
+
+    # Un trabajador tiene su propio endpoint, que además sincroniza la
+    # fila de workers. Por aquí se le dejaría a medias.
+    if cliente.role != "client":
+        return jsonify({"message": "Esta cuenta no es de un cliente."}), 409
+
+    activo = data["is_active"]
+    canceladas = 0
+
+    if not activo:
+        reservas = db.session.execute(
+            db.select(Booking).where(
+                Booking.client_id == cliente.user_id,
+                Booking.status.in_(CANCEL_AL_DAR_DE_BAJA),
+            )
+        ).scalars().all()
+
+        ahora = madrid_now()
+
+        for reserva in reservas:
+            reserva.status = BookingStatus.CANCELLED
+            reserva.cancelled_by_company = True
+            reserva.cancellation_reason = MOTIVO_BAJA
+            reserva.updated_at = ahora
+
+        canceladas = len(reservas)
+
+    cliente.is_active = activo
+
+    # Un solo commit: si algo fallara a mitad, no puede quedar el cliente
+    # de baja con sus reservas todavía en pie.
+    db.session.commit()
+
+    return jsonify({
+        "client": cliente.serialize(),
+        "cancelled": canceladas,
+    }), 200
+
+
+# ----------------------------------------------------------------------
 # RUTAS PÚBLICAS
 # ----------------------------------------------------------------------
 #   POST   /api/register   alta de cliente
