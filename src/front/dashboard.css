@@ -10844,7 +10844,11 @@ textarea.cf-dash-input {
 
 /* En el listado del cliente la tarjeta entera es un botón que abre el
    detalle. Aquí no se abre nada, así que no debe parecer pulsable: lo
-   que se pulsa son las dos marcas. */
+   que se pulsa son los dos sellos.
+
+   El align-items: center de la tarjeta se deja como está: con los sellos
+   en la línea del título, las dos columnas miden lo mismo y centrarlas
+   es lo correcto. */
 .cf-bookings__list .cf-bookcard {
   cursor: default;
 }

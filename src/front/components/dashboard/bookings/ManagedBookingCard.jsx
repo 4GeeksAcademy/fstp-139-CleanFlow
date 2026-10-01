@@ -23,6 +23,10 @@
  *
  * Solo pinta: avisa con onAffected y onIncidents.
  *
+ * En pantalla estrecha los sellos se quedan en su icono, sin texto: es
+ * lo que permite que sigan cupiendo en la línea del título. Se ven de
+ * 22px pero se tocan en 44, con un área invisible por fuera.
+ *
  * Estilos: dashboard.css (cf-bookcard y cf-bookings__mark).
  */
 
@@ -64,6 +68,12 @@ export const ManagedBookingCard = ({ booking, onAffected, onIncidents }) => {
                                     onClick={() => onAffected(booking)}
                                 >
                                     <i className="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                    {/* El texto va envuelto porque en pantalla
+                                        estrecha se esconde y queda solo el
+                                        icono: así el sello cabe en la línea del
+                                        título y la tarjeta no crece. Escondido,
+                                        no borrado: el lector de pantalla lo
+                                        sigue leyendo entero. */}
                                     <span className="cf-bookings__mark-text">
                                         Afectada · {motivos.map(motivoCorto).join(", ")}
                                     </span>
