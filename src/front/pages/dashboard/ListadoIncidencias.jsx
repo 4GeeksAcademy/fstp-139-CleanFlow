@@ -9,11 +9,17 @@
  * que nadie podía resolver. Al cerrar la reclamación de un cliente, su
  * reserva sale de "en revisión" sola.
  *
+ * YA NO ESTÁ EN EL MENÚ: se entra desde la marca "N incidencias" de la
+ * reserva, en Reservas, que llega con ?booking=<id>. La pantalla sigue
+ * aquí entera porque esto no cabe en un diálogo: una incidencia lleva su
+ * motivo, quién la abrió, sus fotos y el historial de las resueltas.
+ *
  * Estilos: dashboard.css, sección 11 (cf-incidents y cf-incard).
  */
 
 import "../../dashboard.css";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer";
 import { getIncidents, resolveIncident } from "../../services/incidentService";
 import { INCIDENTS_CHANGED } from "../../components/dashboard/incidents/IncidentCount";
@@ -52,6 +58,13 @@ const SKELETON_ROWS = 3;
 export const ListadoIncidencias = () => {
     const { store, dispatch } = useGlobalReducer();
 
+    // Se entra aquí desde la marca de una reserva en Reservas, con
+    // ?booking=<id>. Entonces la pantalla enseña solo las suyas, abiertas
+    // y resueltas: al llegar desde una reserva se quiere ver todo lo que
+    // le ha pasado, no la mitad.
+    const [params, setParams] = useSearchParams();
+    const booking = params.get("booking") || "";
+
     const [incidents, setIncidents] = useState([]);
     const [resolved, setResolved] = useState("false");
     const [type, setType] = useState("");
@@ -61,15 +74,16 @@ export const ListadoIncidencias = () => {
     const [error, setError] = useState("");
     const [zoomed, setZoomed] = useState(null);
 
-    // Los contadores se piden aparte y sin filtrar: tienen que decir
-    // cuántas hay en total, no cuántas quedan tras recortar la lista.
+    // Los contadores se piden aparte y sin los filtros de la barra:
+    // tienen que decir cuántas hay, no cuántas quedan tras recortar. La
+    // reserva sí entra, porque ahí la pantalla entera habla de una sola.
     const [counts, setCounts] = useState({ false: 0, true: 0 });
 
     const load = useCallback(async () => {
         setLoading(true);
         setError("");
 
-        const result = await getIncidents({ resolved, type, source }, store.token);
+        const result = await getIncidents({ resolved, type, source, booking }, store.token);
 
         // Sesión caducada: se cierra aquí y ProtectedRoutes hace el resto.
         if (result.status === 401) {
@@ -82,22 +96,22 @@ export const ListadoIncidencias = () => {
         else setError(result.data.message);
 
         setLoading(false);
-    }, [resolved, type, source, store.token, dispatch]);
+    }, [resolved, type, source, booking, store.token, dispatch]);
 
     useEffect(() => { load(); }, [load]);
 
     // Los dos números del encabezado, en paralelo.
     const loadCounts = useCallback(async () => {
         const [open, closed] = await Promise.all([
-            getIncidents({ resolved: "false" }, store.token, true),
-            getIncidents({ resolved: "true" }, store.token, true),
+            getIncidents({ resolved: "false", booking }, store.token, true),
+            getIncidents({ resolved: "true", booking }, store.token, true),
         ]);
 
         setCounts({
             false: open.ok ? open.data.count : 0,
             true: closed.ok ? closed.data.count : 0,
         });
-    }, [store.token]);
+    }, [booking, store.token]);
 
     useEffect(() => { loadCounts(); }, [loadCounts]);
 
@@ -160,6 +174,23 @@ export const ListadoIncidencias = () => {
                     </p>
                 </div>
             </div>
+
+            {/* Si se llega desde una reserva, se dice y se da salida: si
+                no, parecería que la empresa solo tiene estas. */}
+            {booking && (
+                <p className="cf-dash-results" role="status">
+                    <span>Solo las incidencias de la reserva #{booking}</span>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            params.delete("booking");
+                            setParams(params, { replace: true });
+                        }}
+                    >
+                        Ver todas
+                    </button>
+                </p>
+            )}
 
             {error && <p className="cf-dash-alert" role="alert">{error}</p>}
 
