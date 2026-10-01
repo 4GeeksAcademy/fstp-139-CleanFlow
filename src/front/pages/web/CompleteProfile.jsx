@@ -12,18 +12,33 @@
  * usuario pulsó un botón esperando entrar, y no puede sentir que le han
  * colado un registro por la puerta de atrás.
  *
+ * Este paso está en medio del camino, no al final: quien venía de
+ * "Contratar" tiene que acabar contratando. Por eso los dos sitios que
+ * desvían hasta aquí —GoogleButton y ProtectedRoutes— traen el destino
+ * en el state de la navegación, y aquí se recoge.
+ *
+ * Ese state no sobrevive a recargar la página. Recargando justo en esta
+ * pantalla se pierde el destino y se acaba en el panel; es un caso raro y
+ * se prefiere a guardar el destino en el store y tener que limpiarlo.
+ *
  * Estilos: auth.css (auth-who y los campos de siempre).
  */
 
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import useGlobalReducer from "../../hooks/useGlobalReducer.jsx";
 import { setAccountPhone } from "../../services/authService.js";
-import { loginPathForRole } from "../../authPaths.js";
+import { loginPathForRole, returnPath } from "../../authPaths.js";
 
 export const CompleteProfile = () => {
     const { store, dispatch } = useGlobalReducer();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // El destino que traía quien venía de "Contratar", puesto por quien
+    // lo desvió hasta aquí. Sin ninguno, returnPath ya devuelve el panel,
+    // así que no hace falta comprobarlo.
+    const from = returnPath(location.state?.from);
 
     const [phone, setPhone] = useState("");
     const [error, setError] = useState("");
@@ -48,8 +63,12 @@ export const CompleteProfile = () => {
 
     // Con la cuenta ya completa no hay nada que completar. Aquí llega
     // quien pulsa "Atrás" después de guardar, y quien escribe la URL.
+    //
+    // Va al mismo sitio que el botón de guardar, y no al panel: al
+    // dispatch de abajo le sigue un repintado, y si los dos destinos no
+    // coincidieran, el que llegase antes decidiría.
     if (!store.user?.needs_phone) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to={from} replace />;
     }
 
     const handleSubmit = async (event) => {
@@ -73,7 +92,7 @@ export const CompleteProfile = () => {
         // y la guarda de ProtectedRoutes deja de mandarlo aquí.
         dispatch({ type: "SET_USER", payload: data.user });
 
-        navigate("/dashboard", { replace: true });
+        navigate(from, { replace: true });
     };
 
     return (

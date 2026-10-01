@@ -944,9 +944,13 @@ def auth_google():
     Cuatro caminos, y el orden importa:
 
       1. El google_id ya existe          -> entra
-      2. El correo existe sin Google     -> se vincula y entra
+      2. El correo existe sin Google     -> se vincula y entra (solo cliente)
       3. No existe                       -> se crea, siempre como cliente
       4. Está desactivada                -> 403, igual que en /login
+
+    Google es cosa del cliente: el trabajador y el encargado entran por
+    el área de empleados, que no ofrece el botón. Lo que no se toca es el
+    camino 1, para no dejar fuera a quien ya lo tuviera vinculado.
     """
     if too_many_attempts("google"):
         return slow_down()
@@ -985,6 +989,19 @@ def auth_google():
         ).scalar_one_or_none()
 
         if user is not None:
+            # Los empleados no vinculan Google por aquí: entran por su
+            # área con correo y contraseña. Sin esto, la barrera de
+            # /account/google se saltaría sola, porque este camino añade
+            # el google_id sin que nadie lo pida.
+            #
+            # El mensaje calla lo mismo que el de abajo: no dice que la
+            # cuenta exista ni de quién es. Quien prueba correos ajenos
+            # no aprende nada.
+            if user.role != "client":
+                return jsonify({
+                    "message": "Con este correo hay que entrar con contraseña."
+                }), 409
+
             # Con un buzón que no es de Google, "verificado" puede ser de
             # hace años y no prueba nada hoy. Entrar aquí sería abrirle la
             # cuenta de otro a quien heredó esa dirección, así que se le
@@ -1373,16 +1390,24 @@ def create_account_password():
 
 
 @api.route("/account/google", methods=["POST"])
-@jwt_required()
+@role_required("client")
 def connect_account_google():
-    """Conecta una cuenta de Google a la sesión abierta.
+    """Conecta una cuenta de Google a la sesión abierta. Solo el cliente.
 
-    Es la salida de quien entró con contraseña: aquí no hay que adivinar
-    de quién es el correo, porque ya entró con su contraseña y eso es la
-    prueba. Por eso se vincula el Google que elija, sea del buzón que sea.
+    Es la salida de quien entró con contraseña, y también la de quien
+    /auth/google rechazó por tener el correo en otro proveedor.
 
-    También es lo que se le ofrece a quien /auth/google rechazó por tener
-    el correo en otro proveedor.
+    Tiene que ser el Google del MISMO correo de la cuenta. Aceptar
+    cualquiera parece inofensivo —quien entró con su contraseña ya probó
+    que la cuenta es suya—, pero parte la identidad en dos: al vincular
+    solo se guarda el identificador de Google, nunca su correo, así que
+    la cuenta conserva el suyo y nada impide que luego alguien registre
+    otra con el correo del Google. Y una vez hecho no hay forma de
+    detectarlo, porque ese correo no quedó guardado en ningún sitio.
+
+    El trabajador y el encargado no pasan: su puerta de entrada no ofrece
+    Google y tampoco pueden añadirlo por detrás. Esconderles el botón en
+    Ajustes no bastaría, porque este endpoint se puede llamar a mano.
     """
     user = current_user()
 
@@ -1404,6 +1429,24 @@ def connect_account_google():
     if user.google_id:
         return jsonify({
             "message": "Tu cuenta ya tiene un Google conectado."
+        }), 409
+
+    # Verificado, porque de aquí en adelante se decide con él. Mismo
+    # criterio que /auth/google: sin verificar, el correo no prueba nada.
+    if not claims.get("email_verified"):
+        return jsonify({
+            "message": "Tu correo de Google no está verificado. "
+                       "Verifícalo e inténtalo de nuevo."
+        }), 403
+
+    # Los dos en minúsculas. /register guarda el correo tal y como lo
+    # escribe el usuario y Google lo manda siempre en minúsculas:
+    # comparándolos a pelo, quien se registró con mayúsculas no podría
+    # conectar ni su propio Google.
+    if (claims.get("email") or "").strip().lower() != user.email.strip().lower():
+        return jsonify({
+            "message": "Ese Google usa otro correo. Solo puedes conectar "
+                       f"el de {user.email}, que es el de tu cuenta."
         }), 409
 
     # Un mismo Google no puede abrir dos cuentas de CleanFlow: si no, al
