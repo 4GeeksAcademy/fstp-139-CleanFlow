@@ -8,6 +8,11 @@
  * Al resolver una, se avisa al contador del menú (refreshAffected) y se
  * recarga la lista: la reserva resuelta desaparece.
  *
+ * YA NO ESTÁ EN EL MENÚ. Lo mismo se hace ahora desde la marca
+ * "Afectada" de la tarjeta en Reservas, con el mismo componente
+ * (ResolveAffected). Esta pantalla sigue respondiendo por su URL como
+ * red de seguridad; limpiarla va en otra issue.
+ *
  * API: services/absenceService.js · Estilos: dashboard.css (cf-affected__*).
  */
 

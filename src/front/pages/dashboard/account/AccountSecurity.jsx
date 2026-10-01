@@ -9,6 +9,16 @@
  * ven las dos formas de entrar y cuáles tiene puestas, y al que le falte
  * Google se le ofrece conectarlo.
  *
+ * Todo lo de Google es SOLO del cliente. El trabajador y el encargado
+ * entran por el área de empleados, que no ofrece ese botón, así que a
+ * ellos esta pantalla solo les habla de la contraseña. Quien lo impide
+ * de verdad es el backend (@role_required en /account/google): esconderlo
+ * aquí es para no ofrecer algo que iba a acabar en un 403.
+ *
+ * Y tiene que ser el Google del MISMO correo de la cuenta. El correo se
+ * dice antes de pulsar, no solo al fallar: con varias sesiones de Google
+ * abiertas, elegir a ciegas acaba en error casi siempre.
+ *
  * Hasta saber cuáles tiene no se pinta nada de eso: enseñar el
  * formulario equivocado hace que escriba tres campos para nada.
  *
@@ -50,6 +60,10 @@ const validate = (form, hasPassword) => {
 
 export const AccountSecurity = () => {
     const { store, dispatch } = useGlobalReducer()
+
+    // Google es solo del cliente: el empleado entra por el área de
+    // empleados, que no ofrece ese botón. Mismo criterio que AccountLayout.
+    const isClient = store.user?.role === "client"
 
     const [form, setForm] = useState(EMPTY_FORM)
     const [errors, setErrors] = useState({})
@@ -174,9 +188,11 @@ export const AccountSecurity = () => {
         if (!hasPassword) setKeys((current) => ({ ...current, hasPassword: true }))
     }
 
-    // Conectar un Google a esta cuenta. Quien está aquí ya entró con su
-    // contraseña, así que la propiedad de la cuenta está probada y no
-    // hace falta comprobar de quién es el correo.
+    // Conectar un Google a esta cuenta. Tiene que ser el del mismo
+    // correo: quien está aquí ya probó que la cuenta es suya al entrar
+    // con su contraseña, pero con un Google de otro correo acabaría con
+    // la identidad partida en dos cuentas. Lo comprueba el backend; aquí
+    // solo se enseña lo que responda.
     const handleGoogle = async (credential) => {
         setLinkError("")
         setLinking(true)
@@ -252,13 +268,15 @@ export const AccountSecurity = () => {
     }
 
     // El encabezado es el mismo en los tres estados: así al cargar no
-    // salta la pantalla entera, solo aparece lo de dentro.
+    // salta la pantalla entera, solo aparece lo de dentro. Lo que cambia
+    // es el texto, porque al empleado no le sirve que le hablen de Google.
     const header = (
         <>
             <h2 className="cf-account__subtitle">Cómo entras en tu cuenta</h2>
             <p className="cf-account__lede">
-                Puedes tener las dos formas a la vez. Con una contraseña propia
-                podrás entrar aunque algún día no tengas acceso a tu Google.
+                {isClient
+                    ? "Puedes tener las dos formas a la vez. Con una contraseña propia podrás entrar aunque algún día no tengas acceso a tu Google."
+                    : "Entras con tu correo y tu contraseña. Aquí puedes cambiarla siempre que quieras."}
             </p>
         </>
     )
@@ -308,13 +326,17 @@ export const AccountSecurity = () => {
             {header}
 
             <div className="cf-account__keys">
-                <div className="cf-account__key">
-                    <i className="fa-brands fa-google" aria-hidden="true" />
-                    <span>Google</span>
-                    <span className={keys.hasGoogle ? "cf-account__key-on" : "cf-account__key-off"}>
-                        {keys.hasGoogle ? "Conectado" : "Sin conectar"}
-                    </span>
-                </div>
+                {/* Al empleado no se le nombra Google: no es una forma de
+                    entrar que tenga, ni que pueda llegar a tener. */}
+                {isClient && (
+                    <div className="cf-account__key">
+                        <i className="fa-brands fa-google" aria-hidden="true" />
+                        <span>Google</span>
+                        <span className={keys.hasGoogle ? "cf-account__key-on" : "cf-account__key-off"}>
+                            {keys.hasGoogle ? "Conectado" : "Sin conectar"}
+                        </span>
+                    </div>
+                )}
 
                 <div className="cf-account__key">
                     <i className="fa-solid fa-lock" aria-hidden="true" />
@@ -325,14 +347,20 @@ export const AccountSecurity = () => {
                 </div>
             </div>
 
-            {/* Sin Google conectado, la forma de añadirlo. Hasta ahora no
-                había ninguna: quien se registró con contraseña no podía
-                usar nunca el botón de Google. */}
-            {!keys.hasGoogle && (
+            {/* Sin Google conectado, la forma de añadirlo: quien se
+                registró con contraseña no podía usar nunca el botón. Solo
+                al cliente, que es el único que entra por esa puerta. */}
+            {isClient && !keys.hasGoogle && (
                 <div className="cf-account__connect">
+                    {/* El correo se dice ANTES de abrir el selector de Google.
+                        Quien tiene varias sesiones abiertas elegiría a ciegas y
+                        se comería el error de "ese Google usa otro correo".
+
+                        store.user existe seguro: isClient lee su rol. */}
                     <p className="cf-account__lede">
                         Conecta tu Google y podrás entrar con un botón, sin escribir
-                        la contraseña.
+                        la contraseña. Tiene que ser el de <strong>{store.user.email}</strong>,
+                        el correo de tu cuenta.
                     </p>
 
                     {linkError && (

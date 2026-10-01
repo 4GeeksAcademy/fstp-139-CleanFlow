@@ -1,9 +1,15 @@
 /**
- * CONTADOR DE INCIDENCIAS ABIERTAS DEL MENÚ (#19).
+ * CONTADOR DE INCIDENCIAS ABIERTAS (#19).
  *
- * La pastilla junto a "Incidencias". Mismo patrón que el de Reservas
- * afectadas: pide solo el número (count_only) y lo mantiene al día sin
- * recargar la página:
+ * El componente YA NO SE PINTA: "Incidencias" salió del menú y ahora el
+ * aviso lo da BookingsCount sobre "Reservas", sumado con las afectadas.
+ *
+ * Lo que sí se sigue usando de este archivo es INCIDENTS_CHANGED, el
+ * nombre del evento con el que la pantalla avisa al resolver una. Lo
+ * escuchan BookingsCount y la propia pantalla, así que el archivo no se
+ * puede borrar aunque el componente esté parado.
+ *
+ * Pide solo el número (count_only) y lo mantiene al día sin recargar:
  *
  *   · cada 30 segundos
  *   · al volver a la pestaña (focus)

@@ -26,7 +26,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 from functools import wraps
 
 
@@ -663,6 +663,540 @@ def update_worker_status(worker_id):
 
 
 # ----------------------------------------------------------------------
+# CLIENTES (ENCARGADO)
+# ----------------------------------------------------------------------
+#   GET    /api/manage/clients              listar, con buscador y tope
+#   PATCH  /api/manage/clients/<id>/status  dar de alta o de baja
+#
+# La otra mitad de la gente que gestiona el encargado: la que contrata.
+# Solo se mira y se cambia el estado. No se crean —se registran ellos—,
+# no se editan y no se borran.
+#
+# Borrar no es que no se quiera: no se puede. A un cliente lo sujetan sus
+# direcciones, sus reservas, sus reseñas y sus incidencias, y la base de
+# datos no deja quitar una fila a la que otras apuntan. Dar de baja es el
+# borrado real, igual que con los trabajadores.
+# ----------------------------------------------------------------------
+
+# Cuántos van por tanda. La pantalla pide más al pulsar "Ver más": aquí
+# se ven los clientes de toda la empresa, no los de uno, y mandarlos de
+# golpe es una lista que crece sin tope.
+CLIENTS_PAGE_SIZE = 25
+
+# Lo que se cancela al dar de baja. Lo realizado y lo ya cancelado no se
+# tocan: son historial. in_progress tampoco, que hay alguien trabajando
+# en ello ahora mismo.
+CANCEL_AL_DAR_DE_BAJA = (BookingStatus.PENDING, BookingStatus.CONFIRMED)
+
+# El motivo que queda guardado. Lo leería el cliente en Mis reservas si
+# algún día se le vuelve a dar de alta.
+MOTIVO_BAJA = "Este servicio se canceló al desactivar tu cuenta."
+
+
+def client_stats(client_ids):
+    """Servicios realizados y pendientes de cada cliente.
+
+    Dos consultas agrupadas y no una por cliente: con un bucle, pintar
+    una tanda de 25 serían cincuenta viajes a la base de datos.
+
+    count DISTINCT porque se cruza con booking_days: una reserva de tres
+    días saldría tres veces.
+
+    Devuelve {client_id: {...}}. Quien no aparece es que no tiene nada.
+    """
+    if not client_ids:
+        return {}
+
+    stats = {}
+
+    # Realizados: cuántos y cuándo fue el último. La fecha se saca del
+    # último día del servicio y no de completed_at, que puede faltar en
+    # reservas antiguas.
+    hechos = db.session.execute(
+        db.select(
+            Booking.client_id,
+            func.count(func.distinct(Booking.booking_id)),
+            func.max(BookingDay.ends_at),
+        )
+        .join(BookingDay, BookingDay.booking_id == Booking.booking_id)
+        .where(
+            Booking.client_id.in_(client_ids),
+            Booking.status == BookingStatus.COMPLETED,
+        )
+        .group_by(Booking.client_id)
+    ).all()
+
+    for client_id, cuantos, ultimo in hechos:
+        stats.setdefault(client_id, {})["completed_count"] = cuantos
+        stats[client_id]["last_completed_at"] = ultimo.isoformat() if ultimo else None
+
+    # Pendientes: exactamente las que se cancelarían al darle de baja. El
+    # número tiene que cuadrar con lo que avisa la pantalla antes de
+    # hacerlo, así que se cuentan las mismas que luego se cancelan.
+    pendientes = db.session.execute(
+        db.select(
+            Booking.client_id,
+            func.count(func.distinct(Booking.booking_id)),
+            func.min(BookingDay.starts_at),
+        )
+        .join(BookingDay, BookingDay.booking_id == Booking.booking_id)
+        .where(
+            Booking.client_id.in_(client_ids),
+            Booking.status.in_(CANCEL_AL_DAR_DE_BAJA),
+        )
+        .group_by(Booking.client_id)
+    ).all()
+
+    for client_id, cuantos, primero in pendientes:
+        stats.setdefault(client_id, {})["pending_count"] = cuantos
+        stats[client_id]["next_pending_at"] = primero.isoformat() if primero else None
+
+    return stats
+
+
+def client_addresses(client_ids):
+    """Las direcciones activas de cada cliente, la principal primero.
+
+    Las inactivas son bajas lógicas: el cliente ya las borró y no son
+    suyas a efectos de contactarle.
+    """
+    if not client_ids:
+        return {}
+
+    filas = db.session.execute(
+        db.select(Address)
+        .where(Address.client_id.in_(client_ids), Address.is_active.is_(True))
+        .order_by(Address.is_default.desc(), Address.created_at)
+    ).scalars().all()
+
+    por_cliente = {}
+
+    for direccion in filas:
+        por_cliente.setdefault(direccion.client_id, []).append(direccion.serialize())
+
+    return por_cliente
+
+
+@api.route("/manage/clients", methods=["GET"])
+@role_required("manager")
+def list_clients():
+    """Los clientes, con lo que hace falta para la pantalla de una vez.
+
+        GET /api/manage/clients?q=lucia&state=active&limit=25&offset=0
+
+    Responde {"count", "counts", "clients"}.
+
+    count es el total que cumple el filtro, no los devueltos: es lo que
+    permite decir "5 de 38" y saber si queda algo por traer.
+
+    counts son los tres números de las pestañas. Van calculados aquí y no
+    en el navegador —como sí hace la pantalla de trabajadores— porque
+    allí la API devuelve el equipo entero y aquí solo una tanda: contando
+    lo recibido saldría "Activos 25" tuviera los que tuviera.
+    """
+    texto = (request.args.get("q") or "").strip()
+    estado = request.args.get("state", "all")
+
+    if estado not in ("all", "active", "inactive"):
+        return jsonify({"message": "state tiene que ser all, active o inactive"}), 400
+
+    try:
+        limit = int(request.args.get("limit", CLIENTS_PAGE_SIZE))
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        return jsonify({"message": "limit y offset tienen que ser números"}), 400
+
+    # Topes por si llegan a mano: sin ellos, limit=100000 devuelve la
+    # base entera y offset negativo rompe la consulta.
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
+    filtros = [User.role == "client"]
+
+    if texto:
+        patron = f"%{texto}%"
+        filtros.append(db.or_(
+            User.name.ilike(patron),
+            User.last_name.ilike(patron),
+            User.email.ilike(patron),
+            User.phone.ilike(patron),
+        ))
+
+    # Los tres contadores, de una consulta: cuántos activos y cuántos no
+    # entre los que cumplen la búsqueda, sin mirar la pestaña elegida.
+    por_estado = dict(db.session.execute(
+        db.select(User.is_active, func.count(User.user_id))
+        .where(*filtros)
+        .group_by(User.is_active)
+    ).all())
+
+    counts = {
+        "active": por_estado.get(True, 0),
+        "inactive": por_estado.get(False, 0),
+    }
+    counts["all"] = counts["active"] + counts["inactive"]
+
+    if estado == "active":
+        filtros.append(User.is_active.is_(True))
+    elif estado == "inactive":
+        filtros.append(User.is_active.is_(False))
+
+    total = counts[estado]
+
+    # Los de baja primero dentro de cada orden no: se ordena por nombre,
+    # que es como los busca una persona.
+    clientes = db.session.execute(
+        db.select(User)
+        .where(*filtros)
+        .order_by(User.name, User.last_name, User.user_id)
+        .limit(limit)
+        .offset(offset)
+    ).scalars().all()
+
+    ids = [c.user_id for c in clientes]
+    stats = client_stats(ids)
+    direcciones = client_addresses(ids)
+
+    return jsonify({
+        "count": total,
+        "counts": counts,
+        "clients": [{
+            **cliente.serialize(),
+            "completed_count": stats.get(cliente.user_id, {}).get("completed_count", 0),
+            "last_completed_at": stats.get(cliente.user_id, {}).get("last_completed_at"),
+            "pending_count": stats.get(cliente.user_id, {}).get("pending_count", 0),
+            "next_pending_at": stats.get(cliente.user_id, {}).get("next_pending_at"),
+            "addresses": direcciones.get(cliente.user_id, []),
+        } for cliente in clientes],
+    }), 200
+
+
+@api.route("/manage/clients/<int:user_id>/status", methods=["PATCH"])
+@role_required("manager")
+def update_client_status(user_id):
+    """Da de alta o de baja a un cliente.
+
+    De baja no es solo cerrarle la puerta. Sin cancelar lo que tiene
+    contratado, el trabajador se presentaría en casa de alguien a quien
+    acabamos de dar de baja: hasta ahora is_active solo lo miraba /login.
+
+    Se cancelan como CleanFlow, que es lo que el cliente ve en Mis
+    reservas y lo que distingue "lo canceló la empresa" de "lo cancelé
+    yo". Volver a darle de alta NO las recupera, y por eso la pantalla
+    avisa antes.
+
+    Dar de alta no cancela ni recupera nada: solo le devuelve la entrada.
+    """
+    data = get_json_body()
+
+    if data is None or not isinstance(data.get("is_active"), bool):
+        return jsonify({
+            "message": "Indica el estado: is_active tiene que ser true o false"
+        }), 400
+
+    cliente = db.session.get(User, user_id)
+
+    if cliente is None:
+        return jsonify({"message": "Cliente no encontrado"}), 404
+
+    # Un trabajador tiene su propio endpoint, que además sincroniza la
+    # fila de workers. Por aquí se le dejaría a medias.
+    if cliente.role != "client":
+        return jsonify({"message": "Esta cuenta no es de un cliente."}), 409
+
+    activo = data["is_active"]
+    canceladas = 0
+
+    if not activo:
+        reservas = db.session.execute(
+            db.select(Booking).where(
+                Booking.client_id == cliente.user_id,
+                Booking.status.in_(CANCEL_AL_DAR_DE_BAJA),
+            )
+        ).scalars().all()
+
+        ahora = madrid_now()
+
+        for reserva in reservas:
+            reserva.status = BookingStatus.CANCELLED
+            reserva.cancelled_by_company = True
+            reserva.cancellation_reason = MOTIVO_BAJA
+            reserva.updated_at = ahora
+
+        canceladas = len(reservas)
+
+    cliente.is_active = activo
+
+    # Un solo commit: si algo fallara a mitad, no puede quedar el cliente
+    # de baja con sus reservas todavía en pie.
+    db.session.commit()
+
+    return jsonify({
+        "client": cliente.serialize(),
+        "cancelled": canceladas,
+    }), 200
+
+
+# ----------------------------------------------------------------------
+# RESERVAS DE LA EMPRESA (ENCARGADO)
+# ----------------------------------------------------------------------
+#   GET  /api/manage/bookings/search   todas, con pestaña, filtros y tope
+#
+# Hasta aquí cada uno veía las suyas: GET /bookings es del cliente y del
+# trabajador. Nadie veía el conjunto.
+#
+# Las dos colas que antes eran secciones aparte —reservas afectadas e
+# incidencias— caben aquí como pestañas, porque las dos son "qué le pasa
+# a esta reserva" y es en la reserva donde uno va a buscarlo.
+#
+# OJO con "afectada": no es una columna, se calcula cruzando la reserva
+# con las ausencias de su trabajador. Eso manda en cómo está escrito todo
+# lo de abajo, porque no se puede ni filtrar ni paginar en SQL.
+# ----------------------------------------------------------------------
+
+BOOKINGS_PAGE_SIZE = 25
+
+# A qué grupo va cada estado. "En curso" es un pendiente: el servicio se
+# está haciendo ahora mismo, así que no está ni realizado ni cancelado.
+# Es el mismo reparto que hace la pantalla del cliente.
+GRUPOS_DE_ESTADO = {
+    "pending": (BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS),
+    "done": (BookingStatus.COMPLETED, BookingStatus.NOT_DONE),
+    "cancelled": (BookingStatus.CANCELLED,),
+}
+
+# Solo estas pueden estar afectadas: una realizada o cancelada ya no
+# necesita trabajador.
+AFECTABLES = (BookingStatus.PENDING, BookingStatus.CONFIRMED)
+
+
+def con_incidencia_abierta():
+    """Subconsulta: los id de reserva que tienen alguna incidencia sin cerrar."""
+    return db.select(Incident.booking_id).where(Incident.resolved.is_(False))
+
+
+def bookings_filtradas(args, saltar=None):
+    """La consulta con los filtros puestos, menos el que se diga.
+
+    `saltar` sirve para los contadores de cada opción del desplegable:
+    el de "Estado" se cuenta sin aplicar el estado, porque si no, al
+    marcar "Pendientes" el resto de opciones se pondría a cero y
+    parecería que no hay nada más.
+    """
+    cliente = aliased(User)
+    del_trabajador = aliased(User)
+
+    query = (
+        db.select(Booking)
+        .join(cliente, cliente.user_id == Booking.client_id)
+        .join(Service, Service.service_id == Booking.service_id)
+        .outerjoin(Worker, Worker.worker_id == Booking.worker_id)
+        .outerjoin(del_trabajador, del_trabajador.user_id == Worker.user_id)
+    )
+
+    texto = (args.get("q") or "").strip()
+
+    if texto and saltar != "q":
+        patron = f"%{texto}%"
+        query = query.where(db.or_(
+            cliente.name.ilike(patron),
+            cliente.last_name.ilike(patron),
+            del_trabajador.name.ilike(patron),
+            del_trabajador.last_name.ilike(patron),
+            Service.name.ilike(patron),
+        ))
+
+    estados = [g for g in args.getlist("status") if g in GRUPOS_DE_ESTADO]
+
+    if estados and saltar != "status":
+        permitidos = [e for g in estados for e in GRUPOS_DE_ESTADO[g]]
+        query = query.where(Booking.status.in_(permitidos))
+
+    servicios = [int(s) for s in args.getlist("service") if s.isdigit()]
+
+    if servicios and saltar != "service":
+        query = query.where(Booking.service_id.in_(servicios))
+
+    # Por el comienzo de la reserva, que es la fecha que enseña la
+    # tarjeta. Las dos llegan como texto ISO; el "hasta" incluye el día
+    # entero, o una reserva de ese mismo día se quedaría fuera.
+    desde = (args.get("from") or "").strip()
+    hasta = (args.get("to") or "").strip()
+
+    if desde and saltar != "dates":
+        query = query.where(Booking.scheduled_start >= f"{desde} 00:00:00")
+
+    if hasta and saltar != "dates":
+        query = query.where(Booking.scheduled_start <= f"{hasta} 23:59:59")
+
+    if args.get("tab") == "incident":
+        query = query.where(Booking.booking_id.in_(con_incidencia_abierta()))
+
+    return query
+
+
+def cuantas(query):
+    """Cuántas filas devolvería, sin traerlas."""
+    return db.session.execute(
+        db.select(func.count()).select_from(query.subquery())
+    ).scalar_one()
+
+
+def afectadas_ahora(now):
+    """Las reservas afectadas, calculadas una a una.
+
+    No hay forma de hacerlo en SQL: depende de las ausencias del
+    trabajador cruzadas con los días que le quedan a la reserva. Se
+    acota a lo que puede estarlo —pendientes y confirmadas sin terminar—,
+    que son pocas y acotadas por el horizonte de reservas.
+    """
+    candidatas = db.session.execute(
+        booking_query().where(
+            Booking.status.in_(AFECTABLES),
+            Booking.scheduled_end > now,
+        ).order_by(Booking.scheduled_start, Booking.booking_id)
+    ).scalars().all()
+
+    return [(b, motivos) for b in candidatas
+            if (motivos := affected_reasons(b, now))]
+
+
+def incidencias_por_reserva(ids):
+    """Cuántas incidencias abiertas tiene cada una, en una sola consulta.
+
+    Con una consulta por tarjeta, pintar una página serían veinticinco
+    viajes a la base de datos solo para una pastilla.
+    """
+    if not ids:
+        return {}
+
+    return dict(db.session.execute(
+        db.select(Incident.booking_id, func.count())
+        .where(Incident.booking_id.in_(ids), Incident.resolved.is_(False))
+        .group_by(Incident.booking_id)
+    ).all())
+
+
+def serializar_reserva(booking, motivos, abiertas):
+    """Lo que la tarjeta necesita, y nada más."""
+    data = booking.serialize()
+    data["client_name"] = (
+        f"{booking.client.name} {booking.client.last_name}"
+        if booking.client else "Cliente"
+    )
+    data["service_name"] = booking.service.name if booking.service else "Servicio"
+    data["affected_reasons"] = motivos
+    data["open_incidents"] = abiertas
+
+    return data
+
+
+# /search y no /manage/bookings a secas: esa URL ya es la agenda del día
+# del inicio del encargado (bookings_of_day, más abajo). Registrar las dos
+# iguales no da ningún error, simplemente gana la primera del archivo, y
+# el inicio del encargado se queda en blanco.
+@api.route("/manage/bookings/search", methods=["GET"])
+@role_required("manager")
+def list_managed_bookings():
+    """Las reservas de la empresa, con todo lo que la pantalla necesita.
+
+        GET /api/manage/bookings/search?tab=all&q=pablo&status=pending&status=cancelled
+                                &service=1&from=2026-10-01&to=2026-10-31
+                                &limit=25&offset=0
+
+    status y service se pueden repetir: son de selección múltiple.
+
+    Responde {count, counts, facets, bookings}:
+
+      count    las que cumplen la pestaña y los filtros
+      counts   los números de las tres pestañas, SIN filtrar: son un dato
+               de la empresa ("tienes 2 afectadas"), no del filtro puesto
+      facets   cuántas hay de cada opción de los desplegables
+    """
+    args = request.args
+    tab = args.get("tab", "all")
+
+    if tab not in ("all", "affected", "incident"):
+        return jsonify({"message": "tab tiene que ser all, affected o incident"}), 400
+
+    try:
+        limit = max(1, min(int(args.get("limit", BOOKINGS_PAGE_SIZE)), 100))
+        offset = max(0, int(args.get("offset", 0)))
+    except ValueError:
+        return jsonify({"message": "limit y offset tienen que ser números"}), 400
+
+    now = madrid_now()
+    afectadas = afectadas_ahora(now)
+    motivos_por_id = {b.booking_id: motivos for b, motivos in afectadas}
+
+    counts = {
+        "all": cuantas(db.select(Booking)),
+        "affected": len(afectadas),
+        "incident": db.session.execute(
+            db.select(func.count(func.distinct(Incident.booking_id)))
+            .where(Incident.resolved.is_(False))
+        ).scalar_one(),
+    }
+
+    if tab == "affected":
+        # Aquí no se puede paginar en SQL: la lista ya está calculada en
+        # memoria, así que se filtra por los id y se trocea después.
+        permitidos = list(motivos_por_id)
+        query = bookings_filtradas(args).where(Booking.booking_id.in_(permitidos or [0]))
+    else:
+        query = bookings_filtradas(args)
+
+    total = cuantas(query)
+
+    reservas = db.session.execute(
+        query.options(
+            selectinload(Booking.days),
+            selectinload(Booking.client),
+            selectinload(Booking.service),
+            selectinload(Booking.worker).selectinload(Worker.user),
+            selectinload(Booking.worker).selectinload(Worker.absences),
+        )
+        # Lo más próximo primero, que es por donde se empieza a trabajar.
+        # El id desempata: sin él, dos reservas a la misma hora podrían
+        # repetirse o saltarse al pedir la siguiente tanda.
+        .order_by(Booking.scheduled_start.desc(), Booking.booking_id.desc())
+        .limit(limit).offset(offset)
+    ).scalars().all()
+
+    ids = [b.booking_id for b in reservas]
+    abiertas = incidencias_por_reserva(ids)
+
+    # Cada opción del desplegable se cuenta sin su propio filtro, pero
+    # respetando los demás: es lo que hace que los números sirvan para
+    # decidir qué marcar.
+    facets = {
+        "status": {
+            grupo: cuantas(bookings_filtradas(args, saltar="status")
+                           .where(Booking.status.in_(estados)))
+            for grupo, estados in GRUPOS_DE_ESTADO.items()
+        },
+        "service": {
+            str(service_id): cuantas(bookings_filtradas(args, saltar="service")
+                                     .where(Booking.service_id == service_id))
+            for service_id in db.session.execute(
+                db.select(Service.service_id).order_by(Service.service_id)
+            ).scalars().all()
+        },
+    }
+
+    return jsonify({
+        "count": total,
+        "counts": counts,
+        "facets": facets,
+        "bookings": [
+            serializar_reserva(b, motivos_por_id.get(b.booking_id, []),
+                               abiertas.get(b.booking_id, 0))
+            for b in reservas
+        ],
+    }), 200
+
+
+# ----------------------------------------------------------------------
 # RUTAS PÚBLICAS
 # ----------------------------------------------------------------------
 #   POST   /api/register   alta de cliente
@@ -944,9 +1478,13 @@ def auth_google():
     Cuatro caminos, y el orden importa:
 
       1. El google_id ya existe          -> entra
-      2. El correo existe sin Google     -> se vincula y entra
+      2. El correo existe sin Google     -> se vincula y entra (solo cliente)
       3. No existe                       -> se crea, siempre como cliente
       4. Está desactivada                -> 403, igual que en /login
+
+    Google es cosa del cliente: el trabajador y el encargado entran por
+    el área de empleados, que no ofrece el botón. Lo que no se toca es el
+    camino 1, para no dejar fuera a quien ya lo tuviera vinculado.
     """
     if too_many_attempts("google"):
         return slow_down()
@@ -985,6 +1523,19 @@ def auth_google():
         ).scalar_one_or_none()
 
         if user is not None:
+            # Los empleados no vinculan Google por aquí: entran por su
+            # área con correo y contraseña. Sin esto, la barrera de
+            # /account/google se saltaría sola, porque este camino añade
+            # el google_id sin que nadie lo pida.
+            #
+            # El mensaje calla lo mismo que el de abajo: no dice que la
+            # cuenta exista ni de quién es. Quien prueba correos ajenos
+            # no aprende nada.
+            if user.role != "client":
+                return jsonify({
+                    "message": "Con este correo hay que entrar con contraseña."
+                }), 409
+
             # Con un buzón que no es de Google, "verificado" puede ser de
             # hace años y no prueba nada hoy. Entrar aquí sería abrirle la
             # cuenta de otro a quien heredó esa dirección, así que se le
@@ -1373,16 +1924,24 @@ def create_account_password():
 
 
 @api.route("/account/google", methods=["POST"])
-@jwt_required()
+@role_required("client")
 def connect_account_google():
-    """Conecta una cuenta de Google a la sesión abierta.
+    """Conecta una cuenta de Google a la sesión abierta. Solo el cliente.
 
-    Es la salida de quien entró con contraseña: aquí no hay que adivinar
-    de quién es el correo, porque ya entró con su contraseña y eso es la
-    prueba. Por eso se vincula el Google que elija, sea del buzón que sea.
+    Es la salida de quien entró con contraseña, y también la de quien
+    /auth/google rechazó por tener el correo en otro proveedor.
 
-    También es lo que se le ofrece a quien /auth/google rechazó por tener
-    el correo en otro proveedor.
+    Tiene que ser el Google del MISMO correo de la cuenta. Aceptar
+    cualquiera parece inofensivo —quien entró con su contraseña ya probó
+    que la cuenta es suya—, pero parte la identidad en dos: al vincular
+    solo se guarda el identificador de Google, nunca su correo, así que
+    la cuenta conserva el suyo y nada impide que luego alguien registre
+    otra con el correo del Google. Y una vez hecho no hay forma de
+    detectarlo, porque ese correo no quedó guardado en ningún sitio.
+
+    El trabajador y el encargado no pasan: su puerta de entrada no ofrece
+    Google y tampoco pueden añadirlo por detrás. Esconderles el botón en
+    Ajustes no bastaría, porque este endpoint se puede llamar a mano.
     """
     user = current_user()
 
@@ -1404,6 +1963,24 @@ def connect_account_google():
     if user.google_id:
         return jsonify({
             "message": "Tu cuenta ya tiene un Google conectado."
+        }), 409
+
+    # Verificado, porque de aquí en adelante se decide con él. Mismo
+    # criterio que /auth/google: sin verificar, el correo no prueba nada.
+    if not claims.get("email_verified"):
+        return jsonify({
+            "message": "Tu correo de Google no está verificado. "
+                       "Verifícalo e inténtalo de nuevo."
+        }), 403
+
+    # Los dos en minúsculas. /register guarda el correo tal y como lo
+    # escribe el usuario y Google lo manda siempre en minúsculas:
+    # comparándolos a pelo, quien se registró con mayúsculas no podría
+    # conectar ni su propio Google.
+    if (claims.get("email") or "").strip().lower() != user.email.strip().lower():
+        return jsonify({
+            "message": "Ese Google usa otro correo. Solo puedes conectar "
+                       f"el de {user.email}, que es el de tu cuenta."
         }), 409
 
     # Un mismo Google no puede abrir dos cuentas de CleanFlow: si no, al
@@ -2889,6 +3466,11 @@ def cancel_booking(booking_id):
             "message": "Debes indicar el motivo de cancelación."
         }), 400
 
+    # madrid_now() y no datetime.now(MADRID): son dos cosas distintas.
+    # Arriba, para COMPARAR con el plazo, hace falta la zona horaria; aquí,
+    # para GUARDAR, va sin ella, como el resto de fechas de la tabla.
+    now = madrid_now()
+
     booking.status = BookingStatus.CANCELLED
     booking.cancelled_by_company = user.role == "manager"
     booking.cancellation_reason = reason or None
@@ -3047,6 +3629,11 @@ def reschedule_booking(booking_id):
     intervals = booking_intervals(worker, start, hours)
 
     # ---- SE MUEVE ----
+
+    # madrid_now() y no datetime.now(MADRID): son dos cosas distintas.
+    # Arriba, para COMPARAR con el plazo, hace falta la zona horaria; aquí,
+    # para GUARDAR, va sin ella, como el resto de fechas de la tabla.
+    now = madrid_now()
 
     # Los tramos viejos se borran uno a uno: la relación no lleva
     # delete-orphan, así que vaciar la lista dejaría filas con booking_id
@@ -3891,7 +4478,7 @@ def claim_booking(booking_id):
 @api.route("/incidents", methods=["GET"])
 @role_required("manager")
 def list_incidents():
-    """Las incidencias, filtradas por estado, tipo y origen.
+    """Las incidencias, filtradas por estado, tipo, origen y reserva.
 
     count_only=1 devuelve solo el número: lo usa la pastilla del menú, y
     así no se traen todas las filas treinta veces por minuto.
@@ -3913,6 +4500,14 @@ def list_incidents():
 
     if source in ("worker", "client"):
         query = query.where(Incident.source == IncidentSource(source))
+
+    # Por reserva: es como se entra desde la marca de su tarjeta en
+    # Reservas. Trae las suyas, abiertas y resueltas, porque al llegar
+    # desde una reserva lo que se quiere ver es todo lo que le ha pasado.
+    booking_id = request.args.get("booking")
+
+    if booking_id and booking_id.isdigit():
+        query = query.where(Incident.booking_id == int(booking_id))
 
     if request.args.get("count_only"):
         total = db.session.execute(
@@ -4714,6 +5309,9 @@ def day_state(booking, day):
 @role_required("manager")
 def bookings_of_day():
     """Los servicios de un día, para el seguimiento del encargado.
+
+    No confundir con /manage/bookings/search, que es el listado completo
+    de la sección Reservas. Esta devuelve una jornada; aquella, todo.
 
     Sin `date`, hoy. Una reserva de varias jornadas sale en todas, cada
     una con su horario y su propio estado: por eso se filtra por los

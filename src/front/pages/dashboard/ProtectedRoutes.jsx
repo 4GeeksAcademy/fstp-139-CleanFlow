@@ -6,6 +6,9 @@
  * falta el teléfono—, al paso que lo pide. Si todo está, deja pasar y
  * además comprueba con el backend que el token siga siendo válido.
  *
+ * Los dos desvíos se llevan la ruta que el usuario intentaba abrir, para
+ * poder devolverlo ahí en cuanto resuelva lo que le falte.
+ *
  * Se monta en routes.jsx como ruta "pathless" (sin path propio)
  * envolviendo a /dashboard: añade la comprobación sin añadir ningún
  * tramo a la URL.
@@ -22,8 +25,8 @@ import { loginPathForRole } from "../../authPaths";
 export const ProtectedRoutes = () => {
     const { store, dispatch } = useGlobalReducer()
 
-    // Ruta que el usuario está intentando abrir. Se le pasa al login para
-    // poder devolverlo aquí después de autenticarse.
+    // Ruta que el usuario está intentando abrir. Viaja en los dos desvíos
+    // —login y teléfono— para poder devolverlo aquí al terminar.
     const location = useLocation()
 
     // ------------------------------------------------------------------
@@ -103,8 +106,11 @@ export const ProtectedRoutes = () => {
     // da el teléfono, y sin él no se puede avisar al cliente el día del
     // servicio. La guarda va aquí y no en un useEffect de la pantalla,
     // que si no se cuela escribiendo la URL a mano.
+    //
+    // Se lleva el destino, igual que el desvío al login: quien venía a
+    // contratar tiene que acabar contratando, y no en el panel.
     if (store.user?.needs_phone) {
-        return <Navigate to="/completar-perfil" replace />
+        return <Navigate to="/completar-perfil" replace state={{ from: location }} />
     }
 
     // Hay sesión: se pinta la ruta hija que corresponda (DashboardLayout
