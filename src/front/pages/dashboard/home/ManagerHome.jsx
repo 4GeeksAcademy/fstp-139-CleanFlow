@@ -24,7 +24,7 @@ import { BookingPhotos } from "../../../components/dashboard/bookings/BookingPho
 import { BookingIncidents } from "../../../components/dashboard/bookings/BookingIncidents";
 import { BookingZoom } from "../../../components/dashboard/bookings/BookingZoom";
 import { Stars } from "../../../components/dashboard/bookings/Stars";
-import { cancelCompany } from "../../../services/absenceService";
+import { cancelBooking } from "../../../services/bookingService";
 
 /**
  * Hoy en Madrid, como "2026-09-30".
@@ -176,27 +176,19 @@ export const ManagerHome = () => {
     const [reason, setReason] = useState("");
     const [busy, setBusy] = useState(false);
 
-    // Las métricas, una sola vez: no cambian de un minuto para otro, y
-    // son la consulta más cara de la pantalla.
-    useEffect(() => {
-        let alive = true;
+    // Las métricas no se piden cada minuto: no cambian tan deprisa y son
+    // la consulta más cara de la pantalla. Solo al entrar y cuando algo
+    // de aquí las mueve, como cancelar una reserva.
+    const loadStats = useCallback(async () => {
+        const result = await getStats(store.token);
 
-        const load = async () => {
-            const result = await getStats(store.token);
+        if (result.ok) setStats(result.data);
+        else setError(result.data.message);
 
-            if (!alive) return;
-
-            if (result.ok) setStats(result.data);
-            else setError(result.data.message);
-
-            setLoading(false);
-        };
-
-        load();
-
-        // Al salir de la pantalla ya no se escribe en el estado.
-        return () => { alive = false; };
+        setLoading(false);
     }, [store.token]);
+
+    useEffect(() => { loadStats(); }, [loadStats]);
 
     // El día, cada vez que se cambia de fecha y cada minuto. En
     // useCallback para que el temporizador no se recree en cada pintado.
@@ -241,11 +233,19 @@ export const ManagerHome = () => {
         setOpened(result.ok ? { booking: result.data.booking } : { error: result.data.message });
     };
 
-    /** Cancela como empresa. El cliente lo verá en Mis servicios. */
+    /**
+     * Cancela la reserva. Al hacerlo un encargado, el backend la marca
+     * como cancelada por CleanFlow y el cliente lo verá en Mis servicios
+     * con el motivo que se escriba aquí.
+     *
+     * cancelBooking y no cancelCompany: aquella es solo para las reservas
+     * que se quedaron sin trabajador por una ausencia, y exige que lo
+     * estén. Desde aquí se cancela cualquiera.
+     */
     const confirmDrop = async () => {
         setBusy(true);
 
-        const result = await cancelCompany(dropping.booking_id, reason.trim(), store.token);
+        const result = await cancelBooking(dropping.booking_id, store.token, reason.trim());
 
         setBusy(false);
 
@@ -257,9 +257,11 @@ export const ManagerHome = () => {
         setDropping(null);
         setReason("");
 
-        // El día se vuelve a pedir: la reserva cancelada desaparece de
-        // la lista y el resumen baja solo.
+        // Las dos cosas: el día pierde la reserva y las cifras de arriba
+        // bajan con ella. Sin lo segundo, el hero seguiría diciendo que
+        // hay una reserva viva que ya no existe.
         loadDay();
+        loadStats();
     };
 
     // ---------- LO QUE SE PINTA ----------
@@ -458,7 +460,7 @@ export const ManagerHome = () => {
                                     {hourOf(service.starts_at)} – {hourOf(service.ends_at)}
                                 </span>
 
-                                <span>
+                                <span className="cf-home__svc-name">
                                     {/* El nombre abre el detalle. Botón y no
                                         la fila entera: dentro ya hay otro
                                         botón, y anidarlos no vale. */}

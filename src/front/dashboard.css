@@ -9460,6 +9460,10 @@ textarea.cf-dash-input {
     grid-template-columns: 8px minmax(0, 1fr);
   }
 
+  /* Todo lo que va debajo de la hora, en la segunda columna. El nombre
+     del servicio también: sin decírselo se colocaba solo en la columna
+     de 8px, se salía por la derecha y se pisaba con el trabajador. */
+  .cf-home__svc-name,
   .cf-home__who,
   .cf-home__end {
     grid-column: 2;
