@@ -4290,9 +4290,11 @@ textarea.cf-dash-input {
        y .../absences)
    ======================================================================
 
-   Las pantallas del equipo, con la misma cabecera que Turnos y
-   Servicios. container-type: el diseño estrecho lo decide el hueco que
-   deja el sidebar, no el ancho de la ventana (ver @container al final). */
+   Las pantallas de gestión de personas, con la misma cabecera que Turnos
+   y Servicios. Las reglas comunes de aquí abajo las comparte también
+   Clientes, que tiene su sección propia al final del archivo.
+   container-type: el diseño estrecho lo decide el hueco que deja el
+   sidebar, no el ancho de la ventana (ver @container al final). */
 
 /* ---------- COMÚN: CONTENEDOR Y CABECERA ---------- */
 
