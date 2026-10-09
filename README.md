@@ -1,105 +1,89 @@
-# WebApp boilerplate with React JS and Flask API
+# CleanFlow
 
-Build web applications using React.js for the front end and python/flask for your backend API.
+CleanFlow es una aplicación web Full Stack diseñada para centralizar la gestión de una empresa de servicios de limpieza.
 
-- Documentation can be found here: https://4geeks.com/docs/start/react-flask-template
-- Here is a video on [how to use this template](https://www.loom.com/share/f37c6838b3f1496c95111e515e83dd9b)
-- Integrated with Pipenv for package managing.
-- Fast deployment to Render [in just a few steps here](https://4geeks.com/docs/start/deploy-to-render-com).
-- Use of .env file.
-- SQLAlchemy integration for database abstraction.
+La plataforma conecta a clientes, trabajadores y encargados, facilitando la gestión de reservas, horarios, servicios, tareas y disponibilidad desde un mismo lugar.
 
-### 1) Installation:
+## Aplicación publicada
 
-> If you use Github Codespaces (recommended) or Gitpod this template will already come with Python, Node and the Posgres Database installed. If you are working locally make sure to install Python 3.10, Node 
+[Ver CleanFlow en funcionamiento](https://sample-service-name-vf40.onrender.com/)
 
-It is recomended to install the backend first, make sure you have Python 3.10, Pipenv and a database engine (Posgress recomended)
+## Funcionalidades principales
 
-1. Install the python packages: `$ pipenv install`
-2. Create a .env file based on the .env.example: `$ cp .env.example .env`
-3. Install your database engine and create your database, depending on your database you have to create a DATABASE_URL variable with one of the possible values, make sure you replace the valudes with your database information:
+### Clientes
 
-| Engine    | DATABASE_URL                                        |
-| --------- | --------------------------------------------------- |
-| SQLite    | sqlite:////test.db                                  |
-| MySQL     | mysql://username:password@localhost:port/example    |
-| Postgress | postgres://username:password@localhost:5432/example |
+- Registro e inicio de sesión.
+- Consulta del catálogo de servicios.
+- Visualización de los detalles de cada servicio.
+- Creación y gestión de reservas.
+- Consulta del estado y del historial de servicios.
+- Cancelación y reprogramación de reservas.
+- Publicación de reseñas.
 
-4. Migrate the migrations: `$ pipenv run migrate` (skip if you have not made changes to the models on the `./src/api/models.py`)
-5. Run the migrations: `$ pipenv run upgrade`
-6. Run the application: `$ pipenv run start`
+### Trabajadores
 
-> Note: Codespaces users can connect to psql by typing: `psql -h localhost -U gitpod example`
+- Consulta de los servicios asignados.
+- Acceso a horarios y turnos.
+- Visualización de los datos necesarios del cliente.
+- Consulta de las tareas correspondientes a cada servicio.
 
-### Undo a migration
+### Encargados y administradores
 
-You are also able to undo a migration by running
+- Gestión de clientes y trabajadores.
+- Asignación de trabajadores a los servicios.
+- Administración de reservas y horarios.
+- Gestión de candidaturas laborales.
+- Consulta de mensajes recibidos mediante los formularios públicos.
+- Supervisión general de los servicios.
 
-```sh
-$ pipenv run downgrade
-```
+## Tecnologías utilizadas
 
-### Backend Populate Table Users
+### Front-End
 
-To insert test users in the database execute the following command:
+- React
+- JavaScript
+- HTML5
+- CSS3
+- Bootstrap
+- React Router
+- Context API
+- Vite
 
-```sh
-$ flask insert-test-users 5
-```
+### Back-End
 
-And you will see the following message:
+- Python
+- Flask
+- API REST
+- JWT
+- SQLAlchemy
 
-```
-  Creating test users
-  test_user1@test.com created.
-  test_user2@test.com created.
-  test_user3@test.com created.
-  test_user4@test.com created.
-  test_user5@test.com created.
-  Users created successfully!
-```
+### Base de datos y despliegue
 
-### **Important note for the database and the data inside it**
+- PostgreSQL
+- Neon
+- Render
 
-Every Github codespace environment will have **its own database**, so if you're working with more people eveyone will have a different database and different records inside it. This data **will be lost**, so don't spend too much time manually creating records for testing, instead, you can automate adding records to your database by editing ```commands.py``` file inside ```/src/api``` folder. Edit line 32 function ```insert_test_data``` to insert the data according to your model (use the function ```insert_test_users``` above as an example). Then, all you need to do is run ```pipenv run insert-test-data```.
+### Herramientas de trabajo
 
-### Front-End Manual Installation:
+- Git
+- GitHub
+- GitHub Projects
+- Visual Studio Code
+- Figma
 
--   Make sure you are using node version 20 and that you have already successfully installed and runned the backend.
+## Arquitectura del proyecto
 
-1. Install the packages: `$ npm install`
-2. Start coding! start the webpack dev server `$ npm run start`
+El proyecto está organizado con una arquitectura Full Stack:
 
-## Publish your website!
+- React para la interfaz de usuario.
+- Flask para el desarrollo de la API REST.
+- PostgreSQL para el almacenamiento de datos.
+- JWT para la autenticación y autorización de usuarios.
+- Diferentes paneles y permisos según el tipo de usuario.
 
-This boilerplate it's 100% read to deploy with Render.com and Heroku in a matter of minutes. Please read the [official documentation about it](https://4geeks.com/docs/start/deploy-to-render-com).
+## Instalación local
 
-## CleanFlow API - Formularios públicos
+1. Clona el repositorio:
 
-### Candidaturas de trabajo
-
-| Método | Endpoint | Acceso | Descripción |
-| --- | --- | --- | --- |
-| POST | `/api/job-applications` | Público | Envía y guarda una candidatura de trabajo. |
-| GET | `/api/job-applications` | Manager | Obtiene las candidaturas ordenadas de más reciente a más antigua. |
-| PATCH | `/api/job-applications/<application_id>/status` | Manager | Actualiza el estado de una candidatura. |
-
-### Mensajes de contacto
-
-| Método | Endpoint | Acceso | Descripción |
-| --- | --- | --- | --- |
-| POST | `/api/contact-messages` | Público | Envía y guarda un mensaje del formulario de contacto. |
-| GET | `/api/contact-messages` | Manager | Obtiene los mensajes ordenados de más reciente a más antiguo. |
-| PATCH | `/api/contact-messages/<contact_message_id>/status` | Manager | Actualiza el estado de un mensaje. |
-
-Los estados permitidos son `new`, `contacted` y `discarded`.
-
-Los endpoints públicos validan los campos obligatorios y el formato del correo electrónico. También utilizan el campo oculto `website` como honeypot básico contra spam.
-
-Los endpoints GET y PATCH requieren un token JWT de un usuario con rol `manager`.
-
-### Contributors
-
-This template was built as part of the 4Geeks Academy [Coding Bootcamp](https://4geeksacademy.com/us/coding-bootcamp) by [Alejandro Sanchez](https://twitter.com/alesanchezr) and many other contributors. Find out more about our [Full Stack Developer Course](https://4geeksacademy.com/us/coding-bootcamps/part-time-full-stack-developer), and [Data Science Bootcamp](https://4geeksacademy.com/us/coding-bootcamps/datascience-machine-learning).
-
-You can find other templates and resources like this at the [school github page](https://github.com/4geeksacademy/).
+```bash
+git clone https://github.com/4GeeksAcademy/fstp-139-CleanFlow.git
